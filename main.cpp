@@ -19,6 +19,7 @@
 #include <iostream>
 
 bool  plasma_render_tiles = false;
+float cur_rel;
 
 // ---------------------------------------------------------------------------
 // FFmpeg recording — pipe raw RGBA frames to ffmpeg, produce mp4
@@ -127,6 +128,7 @@ struct TextEntry {
     std::string   label;   // the original text string
     SDL_Texture*  tex;
     int           w, h;
+    bool           bNoColor = false;
 };
 
 // ---------------------------------------------------------------------------
@@ -146,7 +148,7 @@ static float rand_range(float lo, float hi) {
 }
 
 // Spawn a new bouncer with random position & velocity
-static Bouncer make_bouncer(int win_w, int win_h, SDL_Texture* tex, int tw, int th) {
+static Bouncer make_bouncer(int win_w, int win_h, SDL_Texture* tex, int tw, int th, bool bNoColor=false) {
     Bouncer b;
     float max_x = static_cast<float>(win_w - tw);
     float max_y = static_cast<float>(win_h - th);
@@ -158,9 +160,15 @@ static Bouncer make_bouncer(int win_w, int win_h, SDL_Texture* tex, int tw, int 
     b.vx = rand_range(100.0f, 350.0f) * (std::rand() % 2 ? 1.0f : -1.0f);
     b.vy = rand_range(100.0f, 350.0f) * (std::rand() % 2 ? 1.0f : -1.0f);
     // Random vivid colour (at least one channel bright, avoid dark/muddy)
-    b.r = static_cast<Uint8>(100 + std::rand() % 156);
-    b.g = static_cast<Uint8>(100 + std::rand() % 156);
-    b.b = static_cast<Uint8>(100 + std::rand() % 156);
+    if(bNoColor == true){
+        b.r = static_cast<Uint8>(255);
+        b.g = static_cast<Uint8>(255);
+        b.b = static_cast<Uint8>(255);
+    } else {
+        b.r = static_cast<Uint8>(100 + std::rand() % 156);
+        b.g = static_cast<Uint8>(100 + std::rand() % 156);
+        b.b = static_cast<Uint8>(100 + std::rand() % 156);
+    }   
     b.tex = tex;
     b.tw  = tw;
     b.th  = th;
@@ -302,8 +310,9 @@ static void update_plasma_texture(SDL_Texture* tex, int w, int h, float t,
             if(plasma_render_tiles){
             
                 if (p.tile_count > 0.0f) {
-                    fx = std::floor(fx * p.tile_count) / p.tile_count;
-                    fy = std::floor(fy * p.tile_count) / p.tile_count;
+                    fy = std::floor(fy * p.tile_count) / (p.tile_count);
+                    fx = std::floor(fx * (p.tile_count * cur_rel)) / (p.tile_count * cur_rel);
+                        
                 }
 
             }
@@ -493,6 +502,8 @@ int main(int argc, char** argv)
     int win_w = static_cast<int>(1024 * scale);
     int win_h = static_cast<int>(768 * scale);
 
+    cur_rel = (float)win_w / (float)win_h;
+
     SDL_WindowFlags win_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
     if (!cli_no_maximize)
         win_flags |= SDL_WINDOW_MAXIMIZED;
@@ -547,6 +558,7 @@ int main(int argc, char** argv)
             e.label = t;
             e.tex = create_png_texture(renderer, imgfile.c_str(), &e.w, &e.h);
             if (e.tex)
+                e.bNoColor = true;
                  cli_entries.push_back(std::move(e));
             
         } else {
@@ -563,7 +575,7 @@ int main(int argc, char** argv)
     std::srand(static_cast<unsigned>(SDL_GetPerformanceCounter()));
     std::vector<Bouncer> bouncers;
     for (const auto& e : cli_entries)
-        bouncers.push_back(make_bouncer(win_w, win_h, e.tex, e.w, e.h));
+        bouncers.push_back(make_bouncer(win_w, win_h, e.tex, e.w, e.h, e.bNoColor));
 
     // Custom bouncer text — checkbox + input field state
     bool  use_custom_text = false;
@@ -665,6 +677,7 @@ int main(int argc, char** argv)
         // Handle resize — recreate plasma texture when window size changes
         int cur_w, cur_h;
         SDL_GetWindowSize(window, &cur_w, &cur_h);
+        cur_rel = (float)cur_w / (float)cur_h;
         if (cur_w != prev_win_w || cur_h != prev_win_h) {
             // Recreate plasma at new reduced size
             if (plasma_tex) SDL_DestroyTexture(plasma_tex);
@@ -760,6 +773,7 @@ int main(int argc, char** argv)
                 if (ImGui::MenuItem("Add Bouncer")) {
                     SDL_Texture* spawn_tex = nullptr;
                     int spawn_w = 0, spawn_h = 0;
+                    bool cNoColor = false;
                     if (use_custom_text && custom_text_buf[0] != '\0') {
                         int cw = 0, ch = 0;
 
@@ -780,7 +794,8 @@ int main(int argc, char** argv)
                             ne.tex = create_png_texture(renderer, imgfile.c_str(), &ne.w, &ne.h);
                             if (ne.tex)
                             ne.label = custom_text_buf;
-                            
+                            cNoColor = true;
+
                             cli_entries.push_back(std::move(ne));
                             spawn_tex = ne.tex;
                             spawn_w = ne.w;
@@ -803,7 +818,7 @@ int main(int argc, char** argv)
                             spawn_h = e.h;
                         }
                         if (spawn_tex)
-                            bouncers.push_back(make_bouncer(cur_w, cur_h, spawn_tex, spawn_w, spawn_h));
+                            bouncers.push_back(make_bouncer(cur_w, cur_h, spawn_tex, spawn_w, spawn_h, cNoColor));
                     }
                 }
                 ImGui::Text("Count: %d", static_cast<int>(bouncers.size()));
