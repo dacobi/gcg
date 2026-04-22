@@ -314,7 +314,6 @@ static void update_plasma_texture(SDL_Texture* tex, int w, int h, float t,
                     fx = std::floor(fx * (p.tile_count * cur_rel)) / (p.tile_count * cur_rel);
                         
                 }
-
             }
             // ----------------------
 
