@@ -31,4 +31,4 @@ target_link_libraries(imgui PUBLIC PkgConfig::SDL3)
 
 # --- Our executable ---
 add_executable(gcg main.cpp)
-target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF)
+target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image)

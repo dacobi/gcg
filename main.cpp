@@ -18,6 +18,8 @@
 #include <vector>
 #include <iostream>
 
+bool  plasma_render_tiles = false;
+
 // ---------------------------------------------------------------------------
 // FFmpeg recording — pipe raw RGBA frames to ffmpeg, produce mp4
 // ---------------------------------------------------------------------------
@@ -195,7 +197,12 @@ struct PlasmaParams {
     float darken_r;
     float darken_g;
     float darken_b;
+
+    float tile_count;
 };
+
+
+PlasmaParams plasma_params;
 
 static PlasmaParams randomise_plasma() {
     PlasmaParams p;
@@ -225,6 +232,8 @@ static PlasmaParams randomise_plasma() {
     p.darken_g          = rand_range(0.25f, 0.60f);
     p.darken_b          = rand_range(0.25f, 0.60f);
 
+    p.tile_count        = rand_range(10.0f, 100.0f);
+
     return p;
 }
 
@@ -253,6 +262,8 @@ static void randomise_plasma_xy(PlasmaParams& p) {
     p.warp_amp           = rand_range(0.05f, 0.20f);
     p.warp_speed         = rand_range(0.20f, 0.60f);
     p.swirl_dist_mul     = rand_range(3.0f, 10.0f);
+
+    p.tile_count        = rand_range(10.0f, 100.0f);
 }
 
 // ---------------------------------------------------------------------------
@@ -282,6 +293,25 @@ static void update_plasma_texture(SDL_Texture* tex, int w, int h, float t,
         float fy = static_cast<float>(y) / static_cast<float>(h);
         for (int x = 0; x < w; ++x) {
             float fx = static_cast<float>(x) / static_cast<float>(w);
+
+
+
+             // --- NEW TILE LOGIC ---
+            // Snap fx and fy to a fixed grid based on tile_count
+            
+            if(plasma_render_tiles){
+            
+                if (p.tile_count > 0.0f) {
+                    fx = std::floor(fx * p.tile_count) / p.tile_count;
+                    fy = std::floor(fy * p.tile_count) / p.tile_count;
+                }
+
+            }
+            // ----------------------
+
+            // Now all calculations for rx, ry, wx, wy, and v 
+            // will stay constant for every pixel inside the same tile.
+            
 
             // Apply drift + rotation to coordinates
             float cx = fx - 0.5f;
@@ -326,6 +356,38 @@ static void update_plasma_texture(SDL_Texture* tex, int w, int h, float t,
 
     SDL_UnlockTexture(tex);
 }
+
+// ---------------------------------------------------------------------------
+// Single text texture — just the rendered text, no tiling
+// Returns the texture; writes dimensions into *out_w / *out_h.
+// ---------------------------------------------------------------------------
+static SDL_Texture* create_png_texture(SDL_Renderer* renderer,
+                                        const char* text,
+                                        int* out_w, int* out_h)
+{
+ 
+    // White text, semi-transparent — colour modulation will tint per-bouncer
+    SDL_Color fg = {255, 255, 255, 200};
+    SDL_Surface* text_surf = IMG_Load(text);
+    if (!text_surf) {
+        std::printf("IMG_Load error: %s\n", SDL_GetError());
+        return nullptr;
+    }
+
+    *out_w = text_surf->w;
+    *out_h = text_surf->h;
+
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, text_surf);
+    if (texture) {
+        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    }
+
+    SDL_DestroySurface(text_surf);
+    
+    return texture;
+}
+
+
 
 // ---------------------------------------------------------------------------
 // Single text texture — just the rendered text, no tiling
@@ -389,6 +451,8 @@ int main(int argc, char** argv)
     int cli_record_max = -1;  // -1 = not specified on CLI
     bool  cli_no_nerds = false;
     bool cli_no_maximize = false;
+    bool cli_plasma_tile = false;
+    
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--record") == 0 && i + 1 < argc) {
             cli_record_path = argv[++i];
@@ -399,6 +463,8 @@ int main(int argc, char** argv)
             cli_no_maximize = true;
         } else if (std::strcmp(argv[i], "--no-nerds") == 0) {
             cli_no_nerds = true;
+        } else if (std::strcmp(argv[i], "--plasma-tiles") == 0) {
+            cli_plasma_tile = true;       
         } else {
             cli_texts.push_back(argv[i]);
         }
@@ -476,14 +542,21 @@ int main(int argc, char** argv)
 
             imgfile = timgstr.substr(posb+1,(pose-posb)-1);
             std::cout << "Image:" << imgfile << std::endl;
-            
-    }
 
-        TextEntry e;
-        e.label = t;
-        e.tex = create_text_texture(renderer, t.c_str(), &e.w, &e.h);
-        if (e.tex)
-            cli_entries.push_back(std::move(e));
+            TextEntry e;
+            e.label = t;
+            e.tex = create_png_texture(renderer, imgfile.c_str(), &e.w, &e.h);
+            if (e.tex)
+                 cli_entries.push_back(std::move(e));
+            
+        } else {
+
+            TextEntry e;
+            e.label = t;
+            e.tex = create_text_texture(renderer, t.c_str(), &e.w, &e.h);
+            if (e.tex)
+                 cli_entries.push_back(std::move(e));
+    }
     }
 
     // Seed RNG and create one bouncer per CLI text
@@ -500,10 +573,10 @@ int main(int argc, char** argv)
     std::vector<SDL_Texture*> extra_textures;
 
     // Randomise plasma palette & X/Y properties for this run
-    PlasmaParams plasma_params = randomise_plasma();
-
-    int prev_win_w = win_w;
+    plasma_params = randomise_plasma();
+    
     int prev_win_h = win_h;
+    int prev_win_w = win_w;
 
     // --- ImGui init ---
     IMGUI_CHECKVERSION();
@@ -537,6 +610,12 @@ int main(int argc, char** argv)
     bool  record_max_enabled = true;   // whether max-length auto-stop is active
     int   record_max_seconds = 59;     // max recording length in seconds
     bool  record_gui = true;
+    
+    // Apply CLI overrides for recording max
+    if (cli_plasma_tile == true) {
+        plasma_render_tiles = true;
+    }
+
 
     // Apply CLI overrides for recording max
     if (cli_no_nerds == true) {
@@ -683,26 +762,49 @@ int main(int argc, char** argv)
                     int spawn_w = 0, spawn_h = 0;
                     if (use_custom_text && custom_text_buf[0] != '\0') {
                         int cw = 0, ch = 0;
+
                         SDL_Texture* ct = create_text_texture(renderer, custom_text_buf, &cw, &ch);
-                        if (ct) {
+                        std::string timgstr = custom_text_buf;
+                        std::string imgfile;
+
+                        if(std::string::npos != timgstr.find("[image:")){ 
+
+                            std::size_t posb = timgstr.find(":"); 
+                            std::size_t pose = timgstr.find("]"); 
+
+                            imgfile = timgstr.substr(posb+1,(pose-posb)-1);
+                            std::cout << "Image:" << imgfile << std::endl;
+
                             TextEntry ne;
+                            ne.label = imgfile;
+                            ne.tex = create_png_texture(renderer, imgfile.c_str(), &ne.w, &ne.h);
+                            if (ne.tex)
                             ne.label = custom_text_buf;
-                            ne.tex = ct;
-                            ne.w = cw;
-                            ne.h = ch;
+                            
                             cli_entries.push_back(std::move(ne));
-                            spawn_tex = ct;
-                            spawn_w = cw;
-                            spawn_h = ch;
+                            spawn_tex = ne.tex;
+                            spawn_w = ne.w;
+                            spawn_h = ne.h;
+                        }   else if (ct) {
+                                TextEntry ne;
+                                ne.label = custom_text_buf;
+                                ne.tex = ct;
+                                ne.w = cw;
+                                ne.h = ch;
+                                cli_entries.push_back(std::move(ne));
+                                spawn_tex = ct;
+                                spawn_w = cw;
+                                spawn_h = ch;
+                        
+                        } else if (!cli_entries.empty()) {
+                            const auto& e = cli_entries[static_cast<size_t>(std::rand()) % cli_entries.size()];
+                            spawn_tex = e.tex;
+                            spawn_w = e.w;
+                            spawn_h = e.h;
                         }
-                    } else if (!cli_entries.empty()) {
-                        const auto& e = cli_entries[static_cast<size_t>(std::rand()) % cli_entries.size()];
-                        spawn_tex = e.tex;
-                        spawn_w = e.w;
-                        spawn_h = e.h;
+                        if (spawn_tex)
+                            bouncers.push_back(make_bouncer(cur_w, cur_h, spawn_tex, spawn_w, spawn_h));
                     }
-                    if (spawn_tex)
-                        bouncers.push_back(make_bouncer(cur_w, cur_h, spawn_tex, spawn_w, spawn_h));
                 }
                 ImGui::Text("Count: %d", static_cast<int>(bouncers.size()));
                 ImGui::EndMenu();
@@ -712,6 +814,11 @@ int main(int argc, char** argv)
                     randomise_plasma_palette(plasma_params);
                 if (ImGui::MenuItem("Randomise X/Y"))
                     randomise_plasma_xy(plasma_params);
+                ImGui::Separator();
+                ImGui::Checkbox("Tile Effect", &plasma_render_tiles);
+                if(plasma_render_tiles){
+                    ImGui::SliderFloat("Tile Size", &plasma_params.tile_count, 10, 100);
+                }
                 ImGui::Separator();
                 ImGui::Checkbox("Roll Palette", &roll_palette);
                 if (roll_palette)
