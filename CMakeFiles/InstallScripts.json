@@ -1,7 +1,7 @@
 {
 	"InstallScripts" : 
 	[
-		"/home/klejs/src/imtest/cmake_install.cmake"
+		"/home/klejs/src/gcg/cmake_install.cmake"
 	],
 	"Parallel" : false
 }

@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/imtest.dir/link.d CMakeFiles/imtest.dir/main.cpp.o -o imtest  libimgui.a /usr/lib/libSDL3_ttf.so /usr/lib/libSDL3.so

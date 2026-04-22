@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(imtest LANGUAGES CXX)
+project(gcg LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,9 +25,10 @@ target_include_directories(imgui PUBLIC
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
 pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET sdl3-ttf)
+pkg_check_modules(SDL3_image REQUIRED IMPORTED_TARGET sdl3-image)
 
 target_link_libraries(imgui PUBLIC PkgConfig::SDL3)
 
 # --- Our executable ---
-add_executable(imtest main.cpp)
-target_link_libraries(imtest PRIVATE imgui PkgConfig::SDL3_TTF)
+add_executable(gcg main.cpp)
+target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF)

@@ -54,22 +54,22 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/klejs/src/imtest
+CMAKE_SOURCE_DIR = /home/klejs/src/gcg
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/klejs/src/imtest
+CMAKE_BINARY_DIR = /home/klejs/src/gcg
 
 #=============================================================================
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
 all: CMakeFiles/imgui.dir/all
-all: CMakeFiles/imtest.dir/all
+all: CMakeFiles/gcg.dir/all
 .PHONY : all
 
 # The main recursive "codegen" target.
 codegen: CMakeFiles/imgui.dir/codegen
-codegen: CMakeFiles/imtest.dir/codegen
+codegen: CMakeFiles/gcg.dir/codegen
 .PHONY : codegen
 
 # The main recursive "preinstall" target.
@@ -78,7 +78,7 @@ preinstall:
 
 # The main recursive "clean" target.
 clean: CMakeFiles/imgui.dir/clean
-clean: CMakeFiles/imtest.dir/clean
+clean: CMakeFiles/gcg.dir/clean
 .PHONY : clean
 
 #=============================================================================
@@ -88,14 +88,14 @@ clean: CMakeFiles/imtest.dir/clean
 CMakeFiles/imgui.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/imgui.dir/build.make CMakeFiles/imgui.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/imgui.dir/build.make CMakeFiles/imgui.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/klejs/src/imtest/CMakeFiles --progress-num=1,2,3,4,5,6,7,8 "Built target imgui"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/klejs/src/gcg/CMakeFiles --progress-num=3,4,5,6,7,8,9,10 "Built target imgui"
 .PHONY : CMakeFiles/imgui.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/imgui.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/klejs/src/imtest/CMakeFiles 8
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/klejs/src/gcg/CMakeFiles 8
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/imgui.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/klejs/src/imtest/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/klejs/src/gcg/CMakeFiles 0
 .PHONY : CMakeFiles/imgui.dir/rule
 
 # Convenience name for target.
@@ -105,7 +105,7 @@ imgui: CMakeFiles/imgui.dir/rule
 # codegen rule for target.
 CMakeFiles/imgui.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/imgui.dir/build.make CMakeFiles/imgui.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/klejs/src/imtest/CMakeFiles --progress-num=1,2,3,4,5,6,7,8 "Finished codegen for target imgui"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/klejs/src/gcg/CMakeFiles --progress-num=3,4,5,6,7,8,9,10 "Finished codegen for target imgui"
 .PHONY : CMakeFiles/imgui.dir/codegen
 
 # clean rule for target.
@@ -114,36 +114,36 @@ CMakeFiles/imgui.dir/clean:
 .PHONY : CMakeFiles/imgui.dir/clean
 
 #=============================================================================
-# Target rules for target CMakeFiles/imtest.dir
+# Target rules for target CMakeFiles/gcg.dir
 
 # All Build rule for target.
-CMakeFiles/imtest.dir/all: CMakeFiles/imgui.dir/all
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/imtest.dir/build.make CMakeFiles/imtest.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/imtest.dir/build.make CMakeFiles/imtest.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/klejs/src/imtest/CMakeFiles --progress-num=9,10 "Built target imtest"
-.PHONY : CMakeFiles/imtest.dir/all
+CMakeFiles/gcg.dir/all: CMakeFiles/imgui.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/klejs/src/gcg/CMakeFiles --progress-num=1,2 "Built target gcg"
+.PHONY : CMakeFiles/gcg.dir/all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/imtest.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/klejs/src/imtest/CMakeFiles 10
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/imtest.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/klejs/src/imtest/CMakeFiles 0
-.PHONY : CMakeFiles/imtest.dir/rule
+CMakeFiles/gcg.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/klejs/src/gcg/CMakeFiles 10
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/gcg.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/klejs/src/gcg/CMakeFiles 0
+.PHONY : CMakeFiles/gcg.dir/rule
 
 # Convenience name for target.
-imtest: CMakeFiles/imtest.dir/rule
-.PHONY : imtest
+gcg: CMakeFiles/gcg.dir/rule
+.PHONY : gcg
 
 # codegen rule for target.
-CMakeFiles/imtest.dir/codegen:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/imtest.dir/build.make CMakeFiles/imtest.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/klejs/src/imtest/CMakeFiles --progress-num=9,10 "Finished codegen for target imtest"
-.PHONY : CMakeFiles/imtest.dir/codegen
+CMakeFiles/gcg.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/klejs/src/gcg/CMakeFiles --progress-num=1,2 "Finished codegen for target gcg"
+.PHONY : CMakeFiles/gcg.dir/codegen
 
 # clean rule for target.
-CMakeFiles/imtest.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/imtest.dir/build.make CMakeFiles/imtest.dir/clean
-.PHONY : CMakeFiles/imtest.dir/clean
+CMakeFiles/gcg.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clean
+.PHONY : CMakeFiles/gcg.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

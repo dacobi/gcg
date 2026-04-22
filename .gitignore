@@ -38,4 +38,6 @@
 *.app
 
 # debug information files
-*.dwo
+*.dwo4
+
+*.mp4

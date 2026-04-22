@@ -8,6 +8,7 @@
 #include "imgui_impl_sdlrenderer3.h"
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <SDL3_image/SDL_image.h>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -15,6 +16,7 @@
 #include <string>
 #include <algorithm>
 #include <vector>
+#include <iostream>
 
 // ---------------------------------------------------------------------------
 // FFmpeg recording — pipe raw RGBA frames to ffmpeg, produce mp4
@@ -385,6 +387,7 @@ int main(int argc, char** argv)
     std::vector<std::string> cli_texts;
     std::string cli_record_path;
     int cli_record_max = -1;  // -1 = not specified on CLI
+    bool  cli_no_nerds = false;
     bool cli_no_maximize = false;
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--record") == 0 && i + 1 < argc) {
@@ -394,6 +397,8 @@ int main(int argc, char** argv)
             if (cli_record_max < 1) cli_record_max = 1;
         } else if (std::strcmp(argv[i], "--no-maximize") == 0) {
             cli_no_maximize = true;
+        } else if (std::strcmp(argv[i], "--no-nerds") == 0) {
+            cli_no_nerds = true;
         } else {
             cli_texts.push_back(argv[i]);
         }
@@ -455,6 +460,25 @@ int main(int argc, char** argv)
     // --- Pre-render a texture for each CLI text argument ---
     std::vector<TextEntry> cli_entries;
     for (const auto& t : cli_texts) {
+
+        std::string timgstr = t;
+        std::string imgfile;
+
+        if(std::string::npos != timgstr.find("[image:")){ 
+
+//        auto spos = timgstr.find(timgstr.begin(),timgstr.end(), "[image:"); 
+        
+            
+
+
+            std::size_t posb = timgstr.find(":"); 
+            std::size_t pose = timgstr.find("]"); 
+
+            imgfile = timgstr.substr(posb+1,(pose-posb)-1);
+            std::cout << "Image:" << imgfile << std::endl;
+            
+    }
+
         TextEntry e;
         e.label = t;
         e.tex = create_text_texture(renderer, t.c_str(), &e.w, &e.h);
@@ -500,6 +524,7 @@ int main(int argc, char** argv)
 
     // --- State ---
     bool  running = true;
+    
     float time_acc = 0.0f;
     bool  roll_palette = false;
     float roll_palette_speed = 0.5f;  // how fast the palette phases rotate
@@ -511,6 +536,12 @@ int main(int argc, char** argv)
     float record_frame_accum = 0.0f;  // accumulator for fixed-rate frame capture
     bool  record_max_enabled = true;   // whether max-length auto-stop is active
     int   record_max_seconds = 59;     // max recording length in seconds
+    bool  record_gui = true;
+
+    // Apply CLI overrides for recording max
+    if (cli_no_nerds == true) {
+        record_gui = false;
+    }
 
     // Apply CLI overrides for recording max
     if (cli_record_max > 0) {
@@ -713,6 +744,8 @@ int main(int argc, char** argv)
                     if (ImGui::MenuItem("Stop Recording"))
                         recorder_stop(recorder);
                 }
+                ImGui::Checkbox("Record GUI", &record_gui);
+
                 ImGui::Separator();
                 ImGui::Checkbox("Max Length", &record_max_enabled);
                 if (record_max_enabled) {
@@ -758,11 +791,22 @@ int main(int argc, char** argv)
             SDL_SetTextureColorMod(b.tex, 255, 255, 255);
         }
 
-        // 3) ImGui on top of everything
-        ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
+        if (!record_gui){
+            recorder_feed_frame(recorder, renderer);
+        
+            ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
 
-        // 4) Capture frame for recording (must happen before Present)
-        recorder_feed_frame(recorder, renderer);
+
+        } else {
+
+
+            // 3) ImGui on top of everything
+            ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
+
+            // 4) Capture frame for recording (must happen before Present)
+            recorder_feed_frame(recorder, renderer);
+
+       }
 
         SDL_RenderPresent(renderer);
     }
