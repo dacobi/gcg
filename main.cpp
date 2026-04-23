@@ -17,10 +17,127 @@
 #include <algorithm>
 #include <vector>
 #include <iostream>
+#include <tuple>
+#include <regex>
+
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/opt.h>
+#include <libswscale/swscale.h>
+#include <SDL2/SDL_render.h>
+}
+
+class NvencEncoder {
+private:
+    AVFormatContext* fmt_ctx = nullptr;
+    AVCodecContext* codec_ctx = nullptr;
+    AVStream* stream = nullptr;
+    AVFrame* frame = nullptr;
+    SwsContext* sws_ctx = nullptr;
+    int width, height;
+    int64_t frame_pts = 0;
+
+public:
+    NvencEncoder(int w, int h, int fps, const std::string& path) : width(w), height(h) {
+        // 1. Initialize Output Context (-y and path)
+        avformat_alloc_output_context2(&fmt_ctx, nullptr, nullptr, path.c_str());
+
+        // 2. Find and Configure NVENC (-c:v h264_nvenc)
+        const AVCodec* codec = avcodec_find_encoder_by_name("h264_nvenc");
+        if (!codec) throw std::runtime_error("NVENC not found");
+
+        stream = avformat_new_stream(fmt_ctx, codec);
+        codec_ctx = avcodec_alloc_context3(codec);
+
+        // Core Parameters (-video_size, -framerate, -pix_fmt)
+        codec_ctx->width = w;
+        codec_ctx->height = h;
+        codec_ctx->time_base = {1, fps};
+        codec_ctx->framerate = {fps, 1};
+        //codec_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
+        codec_ctx->pix_fmt = AV_PIX_FMT_RGBA;
+
+        // Rate Control & Quality (-preset fast, -rc vbr, -cq 18, -b:v 0)
+        codec_ctx->bit_rate = 0; 
+        av_opt_set(codec_ctx->priv_data, "preset", "fast", 0);
+        av_opt_set(codec_ctx->priv_data, "rc", "vbr", 0);
+        av_opt_set_int(codec_ctx->priv_data, "cq", 18, 0);
+
+        if (fmt_ctx->oformat->flags & AVFMT_GLOBALHEADER)
+            codec_ctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+
+        avcodec_open2(codec_ctx, codec, nullptr);
+        avcodec_parameters_from_context(stream->codecpar, codec_ctx);
+
+        // 3. Setup Scaler (RGBA input -> YUV420P output)
+        sws_ctx = sws_getContext(w, h, AV_PIX_FMT_RGBA, 
+                                 w, h, AV_PIX_FMT_YUV420P, 
+                                 SWS_BILINEAR, nullptr, nullptr, nullptr);
+
+        // 4. Open File and Write Header (+faststart)
+        avio_open(&fmt_ctx->pb, path.c_str(), AVIO_FLAG_WRITE);
+        
+        AVDictionary* muxer_opts = nullptr;
+        av_dict_set(&muxer_opts, "movflags", "faststart", 0); // -movflags +faststart
+        avformat_write_header(fmt_ctx, &muxer_opts);
+        av_dict_free(&muxer_opts);
+
+        // Prepare working frame
+        frame = av_frame_alloc();
+        frame->format = codec_ctx->pix_fmt;
+        frame->width = w;
+        frame->height = h;
+        av_frame_get_buffer(frame, 32);
+    }
+
+void encodeFrame(const uint8_t* rgba_data) {
+    // 1. Ensure the frame is writable
+    av_frame_make_writable(frame);
+
+    // 2. Copy raw RGBA data into the frame's data plane
+    // RGBA is a packed format, so all data is in data[0]
+    int line_size = width * 4; 
+    for (int y = 0; y < height; y++) {
+        memcpy(frame->data[0] + y * frame->linesize[0], 
+               rgba_data + y * line_size, 
+               line_size);
+    }
+
+    // 3. Set Timestamps
+    frame->pts = frame_pts++;
+    
+    // 4. Send to encoder
+    int ret = avcodec_send_frame(codec_ctx, frame);
+    if (ret < 0) return;
+
+    AVPacket* pkt = av_packet_alloc();
+    while (avcodec_receive_packet(codec_ctx, pkt) == 0) {
+        av_packet_rescale_ts(pkt, codec_ctx->time_base, stream->time_base);
+        pkt->stream_index = stream->index;
+        av_interleaved_write_frame(fmt_ctx, pkt);
+        av_packet_unref(pkt);
+    }
+    av_packet_free(&pkt);
+}
+
+    ~NvencEncoder() {
+        // Flush and Close
+        avcodec_send_frame(codec_ctx, nullptr); 
+        av_write_trailer(fmt_ctx);
+        
+        sws_freeContext(sws_ctx);
+        av_frame_free(&frame);
+        avcodec_free_context(&codec_ctx);
+        avio_closep(&fmt_ctx->pb);
+        avformat_free_context(fmt_ctx);
+    }
+};
 
 bool  plasma_render_tiles = false;
 float cur_rel;
 SDL_Window* window;
+SDL_Renderer* renderer;
 
 // ---------------------------------------------------------------------------
 // FFmpeg recording — pipe raw RGBA frames to ffmpeg, produce mp4
@@ -33,9 +150,11 @@ struct Recorder {
     int    frame_count = 0;
     std::string output_path;
 };
+NvencEncoder* myNvec = NULL;
+
 
 static bool recorder_start(Recorder& rec, int w, int h, const char* path, int fps = 60) {
-    if (rec.pipe) return false; // already recording
+    if (myNvec != NULL) return false; // already recording
     // h264 with yuv420p requires even dimensions
     w &= ~1;
     h &= ~1;
@@ -47,27 +166,40 @@ static bool recorder_start(Recorder& rec, int w, int h, const char* path, int fp
     rec.frame_count = 0;
     rec.output_path = path;
 
+    myNvec = new NvencEncoder(w, h, fps, std::string(path));
+
     SDL_SetWindowResizable(window, false);
 
+
     // Build ffmpeg command: read raw RGBA from stdin, encode to h264 mp4
-    char cmd[1024];
+   /* char cmd[1024];
     std::snprintf(cmd, sizeof(cmd),
         "ffmpeg -y -f rawvideo -pixel_format rgba -video_size %dx%d -framerate %d "
-        "-i - -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p "
+        "-i - -c:v  h264_nvenc -preset fast -rc vbr -cq 18 -b:v 0 -pix_fmt yuv420p "
         "-movflags +faststart \"%s\"",
         w, h, fps, path);
+*/
+/*
 
-    rec.pipe = popen(cmd, "w");
+ std::snprintf(cmd, sizeof(cmd),
+ "ffmpeg -y -f rawvideo -pixel_format rgba -video_size %dx%d -framerate %d"
+"-i - -c:v hevc_nvenc -preset fast -rc vbr -cq 18 -b:v 0 -pix_fmt yuv420p"
+"-movflags +faststart \"%s\"");
+*/
+/*
+    rec.pipe = popen(cmd, "w"); 
     if (!rec.pipe) {
         std::printf("Failed to start ffmpeg for recording\n");
         return false;
     }
+*/
+
     std::printf("Recording started: %s (%dx%d @ %d fps)\n", path, w, h, fps);
     return true;
 }
 
 static void recorder_feed_frame(Recorder& rec, SDL_Renderer* renderer) {
-    if (!rec.pipe) return;
+    if (myNvec == NULL) return;
 
     // Read back the rendered frame
     SDL_Surface* surf = SDL_RenderReadPixels(renderer, nullptr);
@@ -106,9 +238,10 @@ static void recorder_feed_frame(Recorder& rec, SDL_Renderer* renderer) {
     SDL_LockSurface(final_surf);
     size_t row_bytes = static_cast<size_t>(rec.width) * 4;
     auto* pixels = static_cast<const Uint8*>(final_surf->pixels);
-    for (int y = 0; y < rec.height; ++y) {
-        fwrite(pixels + y * final_surf->pitch, 1, row_bytes, rec.pipe);
-    }
+    //for (int y = 0; y < rec.height; ++y) {
+    //    fwrite(pixels + y * final_surf->pitch, 1, row_bytes, rec.pipe);
+    //}
+    myNvec->encodeFrame(pixels);
     SDL_UnlockSurface(final_surf);
 
     //if (need_free_final)
@@ -120,10 +253,14 @@ static void recorder_feed_frame(Recorder& rec, SDL_Renderer* renderer) {
 }
 
 static void recorder_stop(Recorder& rec) {
-    if (!rec.pipe) return;
-    pclose(rec.pipe);
-    rec.pipe = nullptr;
+    if (myNvec == NULL) return;
+    
+
     std::printf("Recording stopped: %s (%d frames)\n", rec.output_path.c_str(), rec.frame_count);
+        
+    
+    delete myNvec;
+    myNvec = NULL;
     SDL_SetWindowResizable(window, true);
 }
 
@@ -140,12 +277,248 @@ struct TextEntry {
 // ---------------------------------------------------------------------------
 // A single bouncing text instance
 // ---------------------------------------------------------------------------
+
+
+
+class ContentParser {
+public:
+    /**
+     * Parses a string and splits it into a vector of tuples.
+     * Each tuple contains:
+     * - std::string: The content (either plain text or the filename).
+     * - bool: True if the content is an image filename, False if it is plain text.
+     */
+    static std::vector<std::tuple<std::string, bool>> parse(const std::string& input) {
+        std::vector<std::tuple<std::string, bool>> results;
+        
+        // Regex to match [image:filename.ext]
+        // Group 1 captures the filename inside the tags
+        std::regex imageRegex(R"(\[image:([^\]]+)\])");
+        
+        auto words_begin = std::sregex_iterator(input.begin(), input.end(), imageRegex);
+        auto words_end = std::sregex_iterator();
+
+        size_t lastPos = 0;
+
+        for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
+            std::smatch match = *i;
+            size_t matchPos = match.position();
+
+            // 1. Extract text before the match (if any)
+            if (matchPos > lastPos) {
+                results.emplace_back(input.substr(lastPos, matchPos - lastPos), false);
+            }
+
+            // 2. Extract the filename from the capture group
+            results.emplace_back(match[1].str(), true);
+
+            // Update position to after the full match
+            lastPos = matchPos + match.length();
+        }
+
+        // 3. Extract remaining text after the last match
+        if (lastPos < input.length()) {
+            results.emplace_back(input.substr(lastPos), false);
+        }
+
+        for(auto& rs : results){
+            bool isFile = std::get<1>(rs);
+            if(isFile){ std:: cout << "File: ";}
+            std::cout << std::get<0>(rs) << std::endl;
+
+        }
+
+        return results;
+    }
+};
+
+
 struct Bouncer {
     float x, y;
     float vx, vy;
     Uint8 r, g, b;   // random tint colour
     SDL_Texture* tex; // which text texture to use (not owned — shared)
-    int tw, th;       // dimensions of that texture
+    int tw, th;       // dimensions of that texture()
+};
+
+// ------------------------------------------------
+// Single text texture — just the rendered text, no tiling
+// Returns the texture; writes dimensions into *out_w / *out_h.
+// ---------------------------------------------------------------------------
+static SDL_Texture* create_png_texture(SDL_Renderer* renderer,
+                                        const char* text,
+                                        int* out_w, int* out_h)
+{
+ 
+    // White text, semi-transparent — colour modulation will tint per-bouncer
+    SDL_Color fg = {255, 255, 255, 200};
+    SDL_Surface* text_surf = IMG_Load(text);
+    if (!text_surf) {
+        std::printf("IMG_Load error: %s\n", SDL_GetError());
+        return nullptr;
+    }
+
+    *out_w = text_surf->w;
+    *out_h = text_surf->h;
+
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, text_surf);
+    if (texture) {
+        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    }
+
+    SDL_DestroySurface(text_surf);
+    
+    return texture;
+}
+
+
+
+// ---------------------------------------------------------------------------
+// Single text texture — just the rendered text, no tiling
+// Returns the texture; writes dimensions into *out_w / *out_h.
+// ---------------------------------------------------------------------------
+static SDL_Texture* create_text_texture(SDL_Renderer* renderer,
+                                        const char* text,
+                                        int* out_w, int* out_h)
+{
+    if (!TTF_Init()) {
+        std::printf("TTF_Init error: %s\n", SDL_GetError());
+        return nullptr;
+    }
+
+    const char* font_paths[] = {
+        "/usr/share/fonts/noto/NotoSans-Bold.ttf",
+        "/usr/share/fonts/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/TTF/Hack-Bold.ttf",
+        "/usr/share/fonts/Adwaita/AdwaitaSans-Regular.ttf",
+    };
+
+    TTF_Font* font = nullptr;
+    for (auto path : font_paths) {
+        font = TTF_OpenFont(path, 120.0f);
+        if (font) break;
+    }
+    if (!font) {
+        std::printf("Could not open any font: %s\n", SDL_GetError());
+        return nullptr;
+    }
+
+    // White text, semi-transparent — colour modulation will tint per-bouncer
+    SDL_Color fg = {255, 255, 255, 200};
+    SDL_Surface* text_surf = TTF_RenderText_Blended(font, text, 0, fg);
+    if (!text_surf) {
+        std::printf("TTF_RenderText_Blended error: %s\n", SDL_GetError());
+        TTF_CloseFont(font);
+        return nullptr;
+    }
+
+    *out_w = text_surf->w;
+    *out_h = text_surf->h;
+
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, text_surf);
+    if (texture) {
+        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    }
+
+    SDL_DestroySurface(text_surf);
+    TTF_CloseFont(font);
+    return texture;
+}
+
+
+class BDdisplay {
+private:
+    std::vector<Bouncer> bouncers;
+    SDL_FRect boundingBox = {0.0f, 0.0f, 0.0f, 0.0f};
+
+    void updateBoundingBox(const Bouncer& b) {
+        if (bouncers.size() == 1) {
+            boundingBox.x = b.x;
+            boundingBox.y = b.y;
+            boundingBox.w = b.tw;
+            boundingBox.h = b.th;
+        } else {
+            // New elements are added to the left (smaller X)
+            float currentRight = boundingBox.x + boundingBox.w;
+            float currentBottom = boundingBox.y + boundingBox.h;
+
+            float newX = b.x;
+            float newY = std::min(boundingBox.y, b.y);
+            
+            float newRight = currentRight; 
+            float newBottom = std::max(currentBottom, b.y + b.th);
+
+            boundingBox.x = newX;
+            boundingBox.y = newY;
+            boundingBox.w = newRight - newX;
+            boundingBox.h = newBottom - newY;
+        }
+    }
+
+public:
+    bool add(float vx, float vy, Uint8 r, Uint8 g, Uint8 b, std::string cText, bool bIsFile = false) {
+        
+        SDL_Texture* tex = NULL;
+        Bouncer newB;
+
+        if(bIsFile){
+            tex = create_png_texture(renderer, cText.c_str(), &newB.tw, &newB.th);
+        } else { 
+            tex = create_text_texture(renderer, cText.c_str(), &newB.tw, &newB.th);
+        }
+
+        if(tex == NULL) return false;
+
+
+        newB.vx = vx;
+        newB.vy = vy;
+        newB.r = r;
+        newB.g = g;
+        newB.b = b;
+        newB.tex = tex;
+        
+        if (bouncers.empty()) {
+            // Initial spawn point
+            newB.x = 400.0f; 
+            newB.y = 300.0f;
+        } else {
+            // First entry in vector is the anchor
+            const Bouncer& first = bouncers[0];
+            
+            // Draw 2nd to the left of the first, etc.
+            // We use the current boundingBox.x to keep stacking left
+            newB.x = boundingBox.x - newB.tw;
+            
+            // Center around the middle horizontal line of the first entry
+            float firstMidline = first.y + (first.th / 2.0f);
+            newB.y = firstMidline - (newB.th / 2.0f);
+        }
+
+        bouncers.push_back(newB);
+        updateBoundingBox(newB);
+        return true;
+    }
+
+    void draw(SDL_Renderer* renderer) {
+        for (auto& b : bouncers) {
+            SDL_FRect dst = { b.x, b.y, b.tw, b.th };
+            
+            // Set tint (SDL3 uses Uint8 0-255)
+            SDL_SetTextureColorMod(b.tex, b.r, b.g, b.b);
+            
+            // SDL3 API change: RenderCopyF -> RenderTexture
+            SDL_RenderTexture(renderer, b.tex, NULL, &dst);
+        }
+
+        // Reset tint for the shared texture
+        if (!bouncers.empty()) {
+            SDL_SetTextureColorMod(bouncers[0].tex, 255, 255, 255);
+        }
+    }
+
+    const SDL_FRect& getBounds() const {
+        return boundingBox;
+    }
 };
 
 // Helper: random float in [lo, hi]
@@ -446,6 +819,15 @@ static void update_plasma_texture(SDL_Texture* tex, int w, int h, float t,
         for (int x = 0; x < w; ++x) {
             float fx = static_cast<float>(x) / static_cast<float>(w);
 
+    int    fps        = 60;
+    int    frame_count = 0;
+    std::string output_path;
+};
+
+static bool recorder_start(Recorder& rec, int w, int h, const char* path, int fps = 60) {
+    if (rec.pipe) return false; // already recording
+    // h264 with yuv420p requires even dimensions
+    w &= ~1;
             // 1. THE JAGGED JITTER (The "Electric" serration)
             // Using very high frequency sines to "shake" the pixel lookup.
             // We use 't * 10' for that fast, electrical buzzing movement.
@@ -891,89 +1273,8 @@ static void update_plasma_texture(SDL_Texture* tex, int w, int h, float t,
 
 
 //------------
-// ------------------------------------------------
-// Single text texture — just the rendered text, no tiling
-// Returns the texture; writes dimensions into *out_w / *out_h.
-// ---------------------------------------------------------------------------
-static SDL_Texture* create_png_texture(SDL_Renderer* renderer,
-                                        const char* text,
-                                        int* out_w, int* out_h)
-{
- 
-    // White text, semi-transparent — colour modulation will tint per-bouncer
-    SDL_Color fg = {255, 255, 255, 200};
-    SDL_Surface* text_surf = IMG_Load(text);
-    if (!text_surf) {
-        std::printf("IMG_Load error: %s\n", SDL_GetError());
-        return nullptr;
-    }
 
-    *out_w = text_surf->w;
-    *out_h = text_surf->h;
-
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, text_surf);
-    if (texture) {
-        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-    }
-
-    SDL_DestroySurface(text_surf);
-    
-    return texture;
-}
-
-
-
-// ---------------------------------------------------------------------------
-// Single text texture — just the rendered text, no tiling
-// Returns the texture; writes dimensions into *out_w / *out_h.
-// ---------------------------------------------------------------------------
-static SDL_Texture* create_text_texture(SDL_Renderer* renderer,
-                                        const char* text,
-                                        int* out_w, int* out_h)
-{
-    if (!TTF_Init()) {
-        std::printf("TTF_Init error: %s\n", SDL_GetError());
-        return nullptr;
-    }
-
-    const char* font_paths[] = {
-        "/usr/share/fonts/noto/NotoSans-Bold.ttf",
-        "/usr/share/fonts/liberation/LiberationSans-Bold.ttf",
-        "/usr/share/fonts/TTF/Hack-Bold.ttf",
-        "/usr/share/fonts/Adwaita/AdwaitaSans-Regular.ttf",
-    };
-
-    TTF_Font* font = nullptr;
-    for (auto path : font_paths) {
-        font = TTF_OpenFont(path, 120.0f);
-        if (font) break;
-    }
-    if (!font) {
-        std::printf("Could not open any font: %s\n", SDL_GetError());
-        return nullptr;
-    }
-
-    // White text, semi-transparent — colour modulation will tint per-bouncer
-    SDL_Color fg = {255, 255, 255, 200};
-    SDL_Surface* text_surf = TTF_RenderText_Blended(font, text, 0, fg);
-    if (!text_surf) {
-        std::printf("TTF_RenderText_Blended error: %s\n", SDL_GetError());
-        TTF_CloseFont(font);
-        return nullptr;
-    }
-
-    *out_w = text_surf->w;
-    *out_h = text_surf->h;
-
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, text_surf);
-    if (texture) {
-        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-    }
-
-    SDL_DestroySurface(text_surf);
-    TTF_CloseFont(font);
-    return texture;
-}
+ContentParser mParser;
 
 // ---------------------------------------------------------------------------
 int main(int argc, char** argv)
@@ -986,6 +1287,7 @@ int main(int argc, char** argv)
     bool  cli_no_nerds = false;
     bool cli_no_maximize = false;
     bool cli_plasma_tile = false;
+    std::vector<BDdisplay>  mBdisplay;
     
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--record") == 0 && i + 1 < argc) {
@@ -1003,14 +1305,7 @@ int main(int argc, char** argv)
             cli_texts.push_back(argv[i]);
         }
     }
-    if (cli_texts.empty()) {
-        cli_texts.push_back("Cyberpunk");
-        cli_texts.push_back("Neon");
-        cli_texts.push_back("Vaporwave");
-        cli_texts.push_back("Synthwave");
-        cli_texts.push_back("Retro");
-        cli_texts.push_back("Glitch");
-    }
+    
     for (const auto& t : cli_texts)
         std::printf("Overlay text: \"%s\"\n", t.c_str());
     if (!cli_record_path.empty())
@@ -1043,7 +1338,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
+    renderer = SDL_CreateRenderer(window, nullptr);
     SDL_SetRenderVSync(renderer, 1);
     if (!renderer) {
         std::printf("SDL_CreateRenderer error: %s\n", SDL_GetError());
@@ -1063,12 +1358,21 @@ int main(int argc, char** argv)
     std::vector<TextEntry> cli_entries;
     for (const auto& t : cli_texts) {
 
+        auto pcsout = mParser.parse(t);
+
+        BDdisplay *newBD = new BDdisplay();
+        
+        for(auto& pd : pcsout){
+            newBD->add(10,10,255,255,255,std::get<0>(pd),std::get<1>(pd));    
+        }
+        
+        /*
         std::string timgstr = t;
         std::string imgfile;
 
         if(std::string::npos != timgstr.find("[image:")){ 
 
-//        auto spos = timgstr.find(timgstr.begin(),timgstr.end(), "[image:"); 
+        auto spos = timgstr.find(timgstr.begin(),timgstr.end(), "[image:"); 
         
             
 
@@ -1093,7 +1397,7 @@ int main(int argc, char** argv)
             e.tex = create_text_texture(renderer, t.c_str(), &e.w, &e.h);
             if (e.tex)
                  cli_entries.push_back(std::move(e));
-    }
+    }*/
     }
 
     // Seed RNG and create one bouncer per CLI text
@@ -1216,6 +1520,7 @@ int main(int argc, char** argv)
             );
 
             // Clamp all bouncers so they stay inside the new window
+       
             for (auto& b : bouncers) {
                 float max_x = static_cast<float>(cur_w - b.tw);
                 float max_y = static_cast<float>(cur_h - b.th);
@@ -1366,7 +1671,7 @@ int main(int argc, char** argv)
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Record")) {
-                bool is_recording = (recorder.pipe != nullptr);
+                bool is_recording = (myNvec != NULL);
                 if (!is_recording) {
                     ImGui::SetNextItemWidth(200.0f);
                     ImGui::InputText("File", record_path_buf, sizeof(record_path_buf));
@@ -1402,13 +1707,13 @@ int main(int argc, char** argv)
                 ImGui::EndMenu();
             }
             ImGui::Separator();
-            if (recorder.pipe) {
+            if (myNvec != NULL) {
                 record_time += dt;
                 // Auto-stop recording when max length reached
                 if (record_max_enabled && record_time >= static_cast<float>(record_max_seconds))
                     recorder_stop(recorder);
             }
-            if (recorder.pipe) {
+            if (myNvec != NULL) {
                 ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "REC");
                 ImGui::SameLine();
             }
@@ -1430,13 +1735,11 @@ int main(int argc, char** argv)
         }
 
         // 2) Draw all bouncing text instances (each with its own texture & colour)
-        for (const auto& b : bouncers) {
-            if (!b.tex) continue;
-            SDL_SetTextureColorMod(b.tex, b.r, b.g, b.b);
-            SDL_FRect dst_rect = { b.x, b.y, static_cast<float>(b.tw), static_cast<float>(b.th) };
-            SDL_RenderTexture(renderer, b.tex, nullptr, &dst_rect);
-            SDL_SetTextureColorMod(b.tex, 255, 255, 255);
+        
+        for(auto& mbd : mBdisplay){
+            mbd.draw(renderer);
         }
+        
 
         if (!record_gui){
             recorder_feed_frame(recorder, renderer);

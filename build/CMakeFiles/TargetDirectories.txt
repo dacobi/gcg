@@ -1,4 +1,4 @@
-/home/klejs/src/imtest/build/CMakeFiles/imgui.dir
-/home/klejs/src/imtest/build/CMakeFiles/imtest.dir
-/home/klejs/src/imtest/build/CMakeFiles/edit_cache.dir
-/home/klejs/src/imtest/build/CMakeFiles/rebuild_cache.dir
+/home/klejs/src/gcg/build/CMakeFiles/imgui.dir
+/home/klejs/src/gcg/build/CMakeFiles/gcg.dir
+/home/klejs/src/gcg/build/CMakeFiles/edit_cache.dir
+/home/klejs/src/gcg/build/CMakeFiles/rebuild_cache.dir

@@ -26,9 +26,16 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
 pkg_check_modules(SDL3_TTF REQUIRED IMPORTED_TARGET sdl3-ttf)
 pkg_check_modules(SDL3_image REQUIRED IMPORTED_TARGET sdl3-image)
+pkg_check_modules(libavcodec REQUIRED IMPORTED_TARGET libavcodec)
+pkg_check_modules(libavutil REQUIRED IMPORTED_TARGET libavutil)
+pkg_check_modules(libavformat REQUIRED IMPORTED_TARGET libavformat)
+pkg_check_modules(libavdevice REQUIRED IMPORTED_TARGET libavdevice)
+pkg_check_modules(libswscale REQUIRED IMPORTED_TARGET libswscale)
+
 
 target_link_libraries(imgui PUBLIC PkgConfig::SDL3)
-
+#target_compile_options(gcg PRIVATE -g -O2)
 # --- Our executable ---
 add_executable(gcg main.cpp)
-target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image)
+target_compile_options(gcg PRIVATE "-g")
+target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale)
