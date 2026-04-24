@@ -136,6 +136,7 @@ void encodeFrame(const uint8_t* rgba_data) {
 
 bool  plasma_render_tiles = false;
 float cur_rel;
+int cur_w, cur_h;
 SDL_Window* window;
 SDL_Renderer* renderer;
 
@@ -279,15 +280,10 @@ struct TextEntry {
 // ---------------------------------------------------------------------------
 
 
-
+/*
 class ContentParser {
 public:
-    /**
-     * Parses a string and splits it into a vector of tuples.
-     * Each tuple contains:
-     * - std::string: The content (either plain text or the filename).
-     * - bool: True if the content is an image filename, False if it is plain text.
-     */
+    
     static std::vector<std::tuple<std::string, bool>> parse(const std::string& input) {
         std::vector<std::tuple<std::string, bool>> results;
         
@@ -331,6 +327,112 @@ public:
         return results;
     }
 };
+
+*/
+struct ParsedSegment {
+    int posx, posy, velox, veloy;
+    bool bIsStatic;
+    int r, g, b; 
+    std::string content;
+    bool bIsFile;
+    std::string fullInput;
+};
+
+class ContentParser {
+public:
+    static std::vector<ParsedSegment> parse(const std::string& input) {
+        std::vector<ParsedSegment> results;
+
+        // Initial State
+        int px = 0, py = 0, vx = 0, vy = 0;
+        int cr = 255, cg = 255, cb = 255;
+        bool bIsStatic = false;
+        size_t cursor = 0;
+
+        // 1. Parse the [pos: ...] prefix
+        std::regex posRegex(R"(^\[pos:\s*([^\]]+)\])");
+        std::smatch posMatch;
+        if (std::regex_search(input, posMatch, posRegex)) {
+            std::vector<std::string> tokens = tokenize(posMatch.str(1));
+            if (tokens.size() >= 5) {
+                px = std::stoi(tokens[0]); py = std::stoi(tokens[1]);
+                vx = std::stoi(tokens[2]); vy = std::stoi(tokens[3]);
+                bIsStatic = (std::stoi(tokens[4]) == 1);
+            } else if (tokens.size() >= 3) {
+                px = std::stoi(tokens[0]); py = std::stoi(tokens[1]);
+                vx = 0; vy = 0;
+                bIsStatic = (std::stoi(tokens[2]) == 1);
+            }
+            cursor = posMatch.length();
+        }
+
+        // 2. Scan remaining string for [image:...] and [rgb:...]
+        std::string body = input.substr(cursor);
+        std::regex tagRegex(R"(\[(image|rgb):\s*([^\]]+)\])");
+        auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
+        auto tags_end = std::sregex_iterator();
+
+        size_t lastPos = 0;
+        for (std::sregex_iterator i = tags_begin; i != tags_end; ++i) {
+            std::smatch match = *i;
+            size_t matchPos = match.position();
+
+            // Text segment before a tag
+            if (matchPos > lastPos) {
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), false, input});
+            }
+
+            std::string tagType = match.str(1);
+            std::string tagContent = match.str(2);
+
+            if (tagType == "rgb") {
+                std::vector<std::string> rgbTokens = tokenize(tagContent);
+                if (rgbTokens.size() >= 3) {
+                    cr = std::stoi(rgbTokens[0]);
+                    cg = std::stoi(rgbTokens[1]);
+                    cb = std::stoi(rgbTokens[2]);
+                }
+            } else if (tagType == "image") {
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, true, input});
+            }
+
+            lastPos = matchPos + match.length();
+        }
+
+        // 3. Final trailing text
+        if (lastPos < body.length()) {
+            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), false,input});
+        }
+
+        return results;
+    }
+
+private:
+    static std::vector<std::string> tokenize(const std::string& s) {
+        std::vector<std::string> res;
+        std::stringstream ss(s);
+        std::string item;
+        while (std::getline(ss, item, ',')) {
+            item.erase(0, item.find_first_not_of(" "));
+            item.erase(item.find_last_not_of(" ") + 1);
+            res.push_back(item);
+        }
+        return res;
+    }
+};
+
+void processAndPrint(const std::string& input) {
+    auto segments = ContentParser::parse(input);
+    std::cout << "\nInput: " << input << "\n";
+    for (const auto& s : segments) {
+        std::printf("  Pos:(%d,%d) Velo:(%d,%d) Static:%s RGB:(%d,%d,%d) | File:%s | Content: \"%s\"\n",
+                    s.posx, s.posy, s.velox, s.veloy,
+                    s.bIsStatic ? "Y" : "N",
+                    s.r, s.g, s.b,
+                    s.bIsFile ? "Y" : "N", s.content.c_str());
+    }
+}
+
 
 
 struct Bouncer {
@@ -429,7 +531,13 @@ static SDL_Texture* create_text_texture(SDL_Renderer* renderer,
 class BDdisplay {
 private:
     std::vector<Bouncer> bouncers;
-    SDL_FRect boundingBox = {0.0f, 0.0f, 0.0f, 0.0f};
+    SDL_FRect boundingBox = {0.0f, 0.0f, 0.0f, 0.0f};   
+    float groupVx = 20.0f; // Default horizontal speed
+    float groupVy = 20.0f; // Default vertical speed
+
+    std::string cli_input;
+
+    bool bAmNotMoving = false;
 
     void updateBoundingBox(const Bouncer& b) {
         if (bouncers.size() == 1) {
@@ -439,8 +547,8 @@ private:
             boundingBox.h = b.th;
         } else {
             // New elements are added to the left (smaller X)
-            float currentRight = boundingBox.x + boundingBox.w;
-            float currentBottom = boundingBox.y + boundingBox.h;
+            float currentRight = boundingBox.x + cur_w; 
+            float currentBottom = boundingBox.y + cur_h;
 
             float newX = b.x;
             float newY = std::min(boundingBox.y, b.y);
@@ -456,38 +564,105 @@ private:
     }
 
 public:
-    bool add(float vx, float vy, Uint8 r, Uint8 g, Uint8 b, std::string cText, bool bIsFile = false) {
+    void recalculateBoundingBox() {
+        if (bouncers.empty()) return;
+
+        float minX = bouncers[0].x;
+        float minY = bouncers[0].y;
+        float maxX = bouncers[0].x + bouncers[0].tw;
+        float maxY = bouncers[0].y + bouncers[0].th;
+
+        for (const auto& b : bouncers) {
+            minX = std::min(minX, b.x);
+            minY = std::min(minY, b.y);
+            maxX = std::max(maxX, b.x + b.tw);
+            maxY = std::max(maxY, b.y + b.th);
+        }
+
+        boundingBox.x = minX;
+        boundingBox.y = minY;
+        boundingBox.w = maxX - minX;
+        boundingBox.h = maxY - minY;
+    }
+
+
+    void update(float deltaTime, int windowW, int windowH) {
+        if (bouncers.empty()) return;
+        if(bAmNotMoving) return;
+
+        // 1. Move all elements by the group velocity
+        for (auto& b : bouncers) {
+            b.x += groupVx * deltaTime;
+            b.y += groupVy * deltaTime;
+        }
+
+        // 2. Update the bounding box position
+        recalculateBoundingBox();
+
+        // 3. Check for window collisions using the bounding box
+        // Check Left/Right
+        if (boundingBox.x < 0) {
+            groupVx = std::abs(groupVx); // Force positive
+            float offset = -boundingBox.x;
+            for (auto& b : bouncers) b.x += offset;
+        } else if (boundingBox.x + boundingBox.w > windowW) {
+            groupVx = -std::abs(groupVx); // Force negative
+            float offset = (boundingBox.x + boundingBox.w) - windowW;
+            for (auto& b : bouncers) b.x -= offset;
+        }
+
+        // Check Top/Bottom
+        if (boundingBox.y < 0) {
+            groupVy = std::abs(groupVy); // Force positive
+            float offset = -boundingBox.y;
+            for (auto& b : bouncers) b.y += offset;
+        } else if (boundingBox.y + boundingBox.h > windowH) {
+            groupVy = -std::abs(groupVy); // Force negative
+            float offset = (boundingBox.y + boundingBox.h) - windowH;
+            for (auto& b : bouncers) b.y -= offset;
+        }
         
+        // Final sync of bounding box after correction
+        recalculateBoundingBox();
+    }
+
+
+    bool add(ParsedSegment pd) {
+        
+//float px, float py,float vx, float vy, Uint8 r, Uint8 g, Uint8 b, std::string cText, bool bIsFile = false, bool bIsStatic = false, std::string cinput
+
         SDL_Texture* tex = NULL;
         Bouncer newB;
 
-        if(bIsFile){
-            tex = create_png_texture(renderer, cText.c_str(), &newB.tw, &newB.th);
+        if(pd.bIsFile){
+            tex = create_png_texture(renderer, pd.content.c_str(), &newB.tw, &newB.th);
         } else { 
-            tex = create_text_texture(renderer, cText.c_str(), &newB.tw, &newB.th);
+            tex = create_text_texture(renderer, pd.content.c_str(), &newB.tw, &newB.th);
         }
 
         if(tex == NULL) return false;
 
+        bAmNotMoving = pd.bIsStatic;
 
-        newB.vx = vx;
-        newB.vy = vy;
-        newB.r = r;
-        newB.g = g;
-        newB.b = b;
+        newB.vx = pd.velox;
+        newB.vy = pd.veloy;
+        newB.r = pd.r;
+        newB.g = pd.g;
+        newB.b = pd.b;
         newB.tex = tex;
         
         if (bouncers.empty()) {
             // Initial spawn point
-            newB.x = 400.0f; 
-            newB.y = 300.0f;
+            newB.x = pd.posx;
+            newB.y = pd.posy;
+            cli_input = pd.fullInput;
         } else {
             // First entry in vector is the anchor
             const Bouncer& first = bouncers[0];
             
             // Draw 2nd to the left of the first, etc.
             // We use the current boundingBox.x to keep stacking left
-            newB.x = boundingBox.x - newB.tw;
+            newB.x = boundingBox.x + boundingBox.w;
             
             // Center around the middle horizontal line of the first entry
             float firstMidline = first.y + (first.th / 2.0f);
@@ -498,6 +673,11 @@ public:
         updateBoundingBox(newB);
         return true;
     }
+
+    std::string getInput(){
+        return cli_input;
+    }
+
 
     void draw(SDL_Renderer* renderer) {
         for (auto& b : bouncers) {
@@ -1360,12 +1540,17 @@ int main(int argc, char** argv)
 
         auto pcsout = mParser.parse(t);
 
-        BDdisplay *newBD = new BDdisplay();
+        BDdisplay newBD;
+        mBdisplay.push_back(newBD);
         
+        BDdisplay& cbdBD = mBdisplay[mBdisplay.size()-1];
+
         for(auto& pd : pcsout){
-            newBD->add(10,10,255,255,255,std::get<0>(pd),std::get<1>(pd));    
+            
+            cbdBD.add(pd);
         }
         
+
         /*
         std::string timgstr = t;
         std::string imgfile;
@@ -1504,7 +1689,7 @@ int main(int argc, char** argv)
         time_acc += dt * 1.5f;  // speed multiplier for the plasma
 
         // Handle resize — recreate plasma texture when window size changes
-        int cur_w, cur_h;
+        
         SDL_GetWindowSize(window, &cur_w, &cur_h);
         cur_rel = (float)cur_w / (float)cur_h;
         if (cur_w != prev_win_w || cur_h != prev_win_h) {
@@ -1572,18 +1757,19 @@ int main(int argc, char** argv)
         // --- Main Menu Bar ---
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("Bouncers")) {
-                ImGui::Text("Bouncer Texts (%d):", static_cast<int>(cli_entries.size()));
+                ImGui::Text("Bouncer Texts (%d):", static_cast<int>(mBdisplay.size()));
                 {
                     int del_text_idx = -1;
-                    for (int ti = 0; ti < static_cast<int>(cli_entries.size()); ++ti) {
+                    for (int ti = 0; ti < static_cast<int>(mBdisplay.size()); ++ti) {
                         ImGui::PushID(ti);
                         if (ImGui::SmallButton("X")) del_text_idx = ti;
                         ImGui::SameLine();
-                        ImGui::BulletText("\"%s\"", cli_entries[static_cast<size_t>(ti)].label.c_str());
+                        ImGui::BulletText("\"%s\"", mBdisplay[ti].getInput().c_str());
                         ImGui::PopID();
                     }
                     if (del_text_idx >= 0) {
                         // Remove all bouncers that use this texture
+                        /*
                         SDL_Texture* dead_tex = cli_entries[static_cast<size_t>(del_text_idx)].tex;
                         bouncers.erase(
                             std::remove_if(bouncers.begin(), bouncers.end(),
@@ -1592,6 +1778,8 @@ int main(int argc, char** argv)
                         // Destroy the texture and remove the entry
                         if (dead_tex) SDL_DestroyTexture(dead_tex);
                         cli_entries.erase(cli_entries.begin() + del_text_idx);
+                    */
+                        mBdisplay.erase(mBdisplay.begin() + del_text_idx);
                     }
                 }
                 ImGui::Separator();
@@ -1737,6 +1925,7 @@ int main(int argc, char** argv)
         // 2) Draw all bouncing text instances (each with its own texture & colour)
         
         for(auto& mbd : mBdisplay){
+            mbd.update(0.1,cur_w, cur_h);
             mbd.draw(renderer);
         }
         
