@@ -407,6 +407,19 @@ public:
         return results;
     }
 
+void processAndPrint(const std::string& input) {
+    auto segments = ContentParser::parse(input);
+    std::cout << "\nInput: " << input << "\n";
+    for (const auto& s : segments) {
+        std::printf("  Pos:(%d,%d) Velo:(%d,%d) Static:%s RGB:(%d,%d,%d) | File:%s | Content: \"%s\"\n",
+                    s.posx, s.posy, s.velox, s.veloy,
+                    s.bIsStatic ? "Y" : "N",
+                    s.r, s.g, s.b,
+                    s.bIsFile ? "Y" : "N", s.content.c_str());
+    }
+}
+
+
 private:
     static std::vector<std::string> tokenize(const std::string& s) {
         std::vector<std::string> res;
@@ -421,17 +434,6 @@ private:
     }
 };
 
-void processAndPrint(const std::string& input) {
-    auto segments = ContentParser::parse(input);
-    std::cout << "\nInput: " << input << "\n";
-    for (const auto& s : segments) {
-        std::printf("  Pos:(%d,%d) Velo:(%d,%d) Static:%s RGB:(%d,%d,%d) | File:%s | Content: \"%s\"\n",
-                    s.posx, s.posy, s.velox, s.veloy,
-                    s.bIsStatic ? "Y" : "N",
-                    s.r, s.g, s.b,
-                    s.bIsFile ? "Y" : "N", s.content.c_str());
-    }
-}
 
 
 
@@ -539,6 +541,7 @@ private:
 
     bool bAmNotMoving = false;
 
+    /*
     void updateBoundingBox(const Bouncer& b) {
         if (bouncers.size() == 1) {
             boundingBox.x = b.x;
@@ -562,7 +565,7 @@ private:
             boundingBox.h = newBottom - newY;
         }
     }
-
+    */
 public:
     void recalculateBoundingBox() {
         if (bouncers.empty()) return;
@@ -670,7 +673,8 @@ public:
         }
 
         bouncers.push_back(newB);
-        updateBoundingBox(newB);
+        
+        recalculateBoundingBox();
         return true;
     }
 
@@ -1538,6 +1542,7 @@ int main(int argc, char** argv)
     std::vector<TextEntry> cli_entries;
     for (const auto& t : cli_texts) {
 
+        mParser.processAndPrint(t);
         auto pcsout = mParser.parse(t);
 
         BDdisplay newBD;
