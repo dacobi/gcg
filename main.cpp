@@ -658,6 +658,8 @@ public:
             // Initial spawn point
             newB.x = pd.posx;
             newB.y = pd.posy;
+            groupVx = pd.velox;
+            groupVy = pd.veloy;
             cli_input = pd.fullInput;
         } else {
             // First entry in vector is the anchor
