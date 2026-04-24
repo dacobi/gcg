@@ -1798,7 +1798,20 @@ int main(int argc, char** argv)
                     int spawn_w = 0, spawn_h = 0;
                     bool cNoColor = false;
                     if (use_custom_text && custom_text_buf[0] != '\0') {
-                        int cw = 0, ch = 0;
+
+                        auto pcsout = mParser.parse(custom_text_buf);
+
+                        BDdisplay newBD;
+                        mBdisplay.push_back(newBD);
+        
+                        BDdisplay& cbdBD = mBdisplay[mBdisplay.size()-1];
+
+                        for(auto& pd : pcsout){
+            
+                            cbdBD.add(pd);
+                        }
+
+                        /* int cw = 0, ch = 0;
 
                         SDL_Texture* ct = create_text_texture(renderer, custom_text_buf, &cw, &ch);
                         std::string timgstr = custom_text_buf;
@@ -1842,6 +1855,7 @@ int main(int argc, char** argv)
                         }
                         if (spawn_tex)
                             bouncers.push_back(make_bouncer(cur_w, cur_h, spawn_tex, spawn_w, spawn_h, cNoColor));
+                            */
                     }
                 }
                 ImGui::Text("Count: %d", static_cast<int>(bouncers.size()));
