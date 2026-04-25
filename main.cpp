@@ -230,7 +230,16 @@ public:
     }
 
     bool getNextFrame(SDL_Texture* texture) {
-        while (av_read_frame(fmt_ctx, packet) >= 0) {
+        int ret = av_read_frame(fmt_ctx, packet);
+        
+        if (ret < 0) {
+            // EOF or error, try to seek to beginning for looping
+            av_seek_frame(fmt_ctx, video_stream_idx, 0, AVSEEK_FLAG_BACKWARD);
+            avcodec_flush_buffers(codec_ctx);
+            ret = av_read_frame(fmt_ctx, packet);
+        }
+
+        while (ret >= 0) {
             if (packet->stream_index == video_stream_idx) {
                 if (avcodec_send_packet(codec_ctx, packet) == 0) {
                     while (avcodec_receive_frame(codec_ctx, frame) == 0) {
@@ -255,6 +264,14 @@ public:
                 }
             }
             av_packet_unref(packet);
+            ret = av_read_frame(fmt_ctx, packet);
+            if (ret < 0) {
+                // Should we try to loop again here? To avoid sticking if a packet fails
+                av_seek_frame(fmt_ctx, video_stream_idx, 0, AVSEEK_FLAG_BACKWARD);
+                avcodec_flush_buffers(codec_ctx);
+                ret = av_read_frame(fmt_ctx, packet);
+                if (ret < 0) break; // Real failure
+            }
         }
         return false; // EOF or error
     }
