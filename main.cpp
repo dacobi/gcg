@@ -973,31 +973,6 @@ private:
 
     bool bAmNotMoving = false;
 
-    /*
-    void updateBoundingBox(const Bouncer& b) {
-        if (bouncers.size() == 1) {
-            boundingBox.x = b.x;
-            boundingBox.y = b.y;
-            boundingBox.w = b.tw;
-            boundingBox.h = b.th;
-        } else {
-            // New elements are added to the left (smaller X)
-            float currentRight = boundingBox.x + cur_w; 
-            float currentBottom = boundingBox.y + cur_h;
-
-            float newX = b.x;
-            float newY = std::min(boundingBox.y, b.y);
-            
-            float newRight = currentRight; 
-            float newBottom = std::max(currentBottom, b.y + b.th);
-
-            boundingBox.x = newX;
-            boundingBox.y = newY;
-            boundingBox.w = newRight - newX;
-            boundingBox.h = newBottom - newY;
-        }
-    }
-    */
 public:
     ~BDdisplay() {
         for (auto& b : bouncers) {
@@ -2052,39 +2027,6 @@ int main(int argc, char** argv)
         }
         mBdisplay.push_back(std::move(newBD));
         
-
-        /*
-        std::string timgstr = t;
-        std::string imgfile;
-
-        if(std::string::npos != timgstr.find("[image:")){ 
-
-        auto spos = timgstr.find(timgstr.begin(),timgstr.end(), "[image:"); 
-        
-            
-
-
-            std::size_t posb = timgstr.find(":"); 
-            std::size_t pose = timgstr.find("]"); 
-
-            imgfile = timgstr.substr(posb+1,(pose-posb)-1);
-            std::cout << "Image:" << imgfile << std::endl;
-
-            TextEntry e;
-            e.label = t;
-            e.tex = create_png_texture(renderer, imgfile.c_str(), &e.w, &e.h);
-            if (e.tex)
-                e.bNoColor = true;
-                 cli_entries.push_back(std::move(e));
-            
-        } else {
-
-            TextEntry e;
-            e.label = t;
-            e.tex = create_text_texture(renderer, t.c_str(), &e.w, &e.h);
-            if (e.tex)
-                 cli_entries.push_back(std::move(e));
-    }*/
     }
 
     // Seed RNG and create one bouncer per CLI text
@@ -2236,24 +2178,6 @@ int main(int argc, char** argv)
             prev_win_h = cur_h;
         }
 
-        // --- Bounce all text instances (DVD screensaver style) ---
-        {/*
-            for (auto& b : bouncers) {
-                b.x += b.vx * dt;
-                b.y += b.vy * dt;
-
-                float right_edge  = static_cast<float>(cur_w - b.tw);
-                float bottom_edge = static_cast<float>(cur_h - b.th);
-                if (right_edge  < 0) right_edge  = 0;
-                if (bottom_edge < 0) bottom_edge = 0;
-
-                if (b.x <= 0.0f)         { b.x = 0.0f;         b.vx = -b.vx; }
-                if (b.x >= right_edge)    { b.x = right_edge;   b.vx = -b.vx; }
-                if (b.y <= 0.0f)          { b.y = 0.0f;         b.vy = -b.vy; }
-                if (b.y >= bottom_edge)   { b.y = bottom_edge;  b.vy = -b.vy; }
-            } */
-        }
-
         // Roll palette: smoothly rotate the colour phase offsets each frame
         if (roll_palette) {
             float step = roll_palette_speed * dt;
@@ -2321,51 +2245,6 @@ int main(int argc, char** argv)
                         }
                         mBdisplay.push_back(std::move(newBD));
 
-                        /* int cw = 0, ch = 0;
-
-                        SDL_Texture* ct = create_text_texture(renderer, custom_text_buf, &cw, &ch);
-                        std::string timgstr = custom_text_buf;
-                        std::string imgfile;
-
-                        if(std::string::npos != timgstr.find("[image:")){ 
-
-                            std::size_t posb = timgstr.find(":"); 
-                            std::size_t pose = timgstr.find("]"); 
-
-                            imgfile = timgstr.substr(posb+1,(pose-posb)-1);
-                            std::cout << "Image:" << imgfile << std::endl;
-
-                            TextEntry ne;
-                            ne.label = imgfile;
-                            ne.tex = create_png_texture(renderer, imgfile.c_str(), &ne.w, &ne.h);
-                            if (ne.tex)
-                            ne.label = custom_text_buf;
-                            cNoColor = true;
-
-                            cli_entries.push_back(std::move(ne));
-                            spawn_tex = ne.tex;
-                            spawn_w = ne.w;
-                            spawn_h = ne.h;
-                        }   else if (ct) {
-                                TextEntry ne;
-                                ne.label = custom_text_buf;
-                                ne.tex = ct;
-                                ne.w = cw;
-                                ne.h = ch;
-                                cli_entries.push_back(std::move(ne));
-                                spawn_tex = ct;
-                                spawn_w = cw;
-                                spawn_h = ch;
-                        
-                        } else if (!cli_entries.empty()) {
-                            const auto& e = cli_entries[static_cast<size_t>(std::rand()) % cli_entries.size()];
-                            spawn_tex = e.tex;
-                            spawn_w = e.w;
-                            spawn_h = e.h;
-                        }
-                        if (spawn_tex)
-                            bouncers.push_back(make_bouncer(cur_w, cur_h, spawn_tex, spawn_w, spawn_h, cNoColor));
-                            */
                     }
                 }
                 //ImGui::Text("Count: %d", static_cast<int>(bouncers.size()));
