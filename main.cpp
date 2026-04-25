@@ -465,6 +465,7 @@ struct ParsedSegment {
     std::string content;
     int bIsFile; // 0: None, 1: PNG, 2: Video
     std::string fullInput;
+    int over_w = 0, over_h = 0;
 };
 
 class ContentParser {
@@ -475,6 +476,7 @@ public:
         // Initial State
         int px = 0, py = 0, vx = 0, vy = 0;
         int cr = 255, cg = 255, cb = 255;
+        int ow = 0, oh = 0;
         bool bIsStatic = false;
         size_t cursor = 0;
 
@@ -495,9 +497,9 @@ public:
             cursor = posMatch.length();
         }
 
-        // 2. Scan remaining string for [image:...], [video:...], and [rgb:...]
+        // 2. Scan remaining string for [image:...], [video:...], [rect:...], and [rgb:...]
         std::string body = input.substr(cursor);
-        std::regex tagRegex(R"(\[(image|video|rgb):\s*([^\]]+)\])");
+        std::regex tagRegex(R"(\[(image|video|rgb|rect):\s*([^\]]+)\])");
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -508,7 +510,7 @@ public:
 
             // Text segment before a tag
             if (matchPos > lastPos) {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0});
             }
 
             std::string tagType = match.str(1);
@@ -521,10 +523,18 @@ public:
                     cg = std::stoi(rgbTokens[1]);
                     cb = std::stoi(rgbTokens[2]);
                 }
+            } else if (tagType == "rect") {
+                std::vector<std::string> rectTokens = tokenize(tagContent);
+                if (rectTokens.size() >= 2) {
+                    ow = std::stoi(rectTokens[0]);
+                    oh = std::stoi(rectTokens[1]);
+                }
             } else if (tagType == "image") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh});
+                ow = 0; oh = 0; // Reset after use
             } else if (tagType == "video") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh});
+                ow = 0; oh = 0; // Reset after use
             }
 
             lastPos = matchPos + match.length();
@@ -532,7 +542,7 @@ public:
 
         // 3. Final trailing text
         if (lastPos < body.length()) {
-            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input});
+            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0});
         }
 
         return results;
@@ -542,10 +552,11 @@ void processAndPrint(const std::string& input) {
     auto segments = ContentParser::parse(input);
     std::cout << "\nInput: " << input << "\n";
     for (const auto& s : segments) {
-        std::printf("  Pos:(%d,%d) Velo:(%d,%d) Static:%s RGB:(%d,%d,%d) | Type:%d | Content: \"%s\"\n",
+        std::printf("  Pos:(%d,%d) Velo:(%d,%d) Static:%s RGB:(%d,%d,%d) Rect:(%d,%d) | Type:%d | Content: \"%s\"\n",
                     s.posx, s.posy, s.velox, s.veloy,
                     s.bIsStatic ? "Y" : "N",
                     s.r, s.g, s.b,
+                    s.over_w, s.over_h,
                     s.bIsFile, s.content.c_str());
     }
 }
@@ -803,6 +814,10 @@ public:
         }
 
         if(tex == NULL) return false;
+
+        // Apply overrides if provided
+        if (pd.over_w > 0) newB.tw = pd.over_w;
+        if (pd.over_h > 0) newB.th = pd.over_h;
 
         bAmNotMoving = pd.bIsStatic;
 
