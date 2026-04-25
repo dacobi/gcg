@@ -19,15 +19,24 @@
 #include <iostream>
 #include <tuple>
 #include <regex>
+#include <thread>
+#include <mutex>
+#include <queue>
+#include <atomic>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
+#include <libavutil/time.h> // Location of av_usleep
 #include <libavutil/imgutils.h>
 #include <libswscale/swscale.h>
-#include <SDL2/SDL_render.h>
+#include <libswresample/swresample.h>
+#include <alsa/asoundlib.h>
+
 }
+
+
 
 class NvencEncoder {
 private:
@@ -138,17 +147,76 @@ void encodeFrame(const uint8_t* rgba_data) {
     }
 };
 
+/*
 class NvdecDecode {
 private:
     AVFormatContext* fmt_ctx = nullptr;
     AVCodecContext* codec_ctx = nullptr;
+    AVCodecContext* audio_codec_ctx = nullptr;
     int video_stream_idx = -1;
+    int audio_stream_idx = -1;
     AVFrame* frame = nullptr;
     AVFrame* frame_rgba = nullptr;
+    AVFrame* audio_frame = nullptr;
     AVPacket* packet = nullptr;
     SwsContext* sws_ctx = nullptr;
+    SwrContext* swr_ctx = nullptr;
     uint8_t* rgba_buffer = nullptr;
     int width = 0, height = 0;
+
+    snd_pcm_t* alsa_handle = nullptr;
+    uint8_t* audio_out_buf = nullptr;
+    int audio_out_buf_size = 0;
+
+    std::thread audio_thread;
+    std::mutex audio_mtx;
+    std::queue<AVPacket*> audio_pkt_queue;
+    std::atomic<bool> quit_audio{false};
+    std::atomic<bool> seek_req{false};
+
+    void setupALSA(int channels, int rate) {
+        if (snd_pcm_open(&alsa_handle, "default", SND_PCM_STREAM_PLAYBACK, 0) < 0) {
+            std::printf("ALSA: Could not open default device\n");
+            return;
+        }
+        snd_pcm_set_params(alsa_handle, SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED,
+                           channels, rate, 1, 500000); // 0.5s latency
+    }
+
+    void audioWorker() {
+        while (!quit_audio) {
+            AVPacket* pkt = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(audio_mtx);
+                if (!audio_pkt_queue.empty()) {
+                    pkt = audio_pkt_queue.front();
+                    audio_pkt_queue.pop();
+                }
+            }
+
+            if (!pkt) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                continue;
+            }
+
+            if (avcodec_send_packet(audio_codec_ctx, pkt) == 0) {
+                while (avcodec_receive_frame(audio_codec_ctx, audio_frame) == 0) {
+                    int out_samples = swr_convert(swr_ctx, &audio_out_buf, 4096,
+                                                  (const uint8_t**)audio_frame->data, audio_frame->nb_samples);
+                    if (out_samples > 0) {
+                        snd_pcm_sframes_t ret_write = snd_pcm_writei(alsa_handle, audio_out_buf, out_samples);
+                        if (ret_write == -EPIPE) {
+                            snd_pcm_prepare(alsa_handle);
+                            snd_pcm_writei(alsa_handle, audio_out_buf, out_samples);
+                        } else if (ret_write < 0) {
+                            snd_pcm_prepare(alsa_handle);
+                        }
+                    }
+                }
+            }
+            av_packet_free(&pkt);
+        }
+    }
 
 public:
     NvdecDecode(const std::string& path) {
@@ -158,122 +226,326 @@ public:
         if (avformat_find_stream_info(fmt_ctx, nullptr) < 0)
             throw std::runtime_error("Could not find stream information");
 
-        const AVCodec* codec = nullptr;
-        for (unsigned int i = 0; i < fmt_ctx->nb_streams; i++) {
-            if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-                video_stream_idx = i;
-                AVCodecID codec_id = fmt_ctx->streams[i]->codecpar->codec_id;
+        const AVCodec* vcodec = nullptr;
+        const AVCodec* acodec = nullptr;
 
-                // Attempt to find an NVIDIA CUVID hardware decoder
+        for (unsigned int i = 0; i < fmt_ctx->nb_streams; i++) {
+            AVCodecParameters* par = fmt_ctx->streams[i]->codecpar;
+            if (par->codec_type == AVMEDIA_TYPE_VIDEO && video_stream_idx == -1) {
+                video_stream_idx = i;
+                AVCodecID codec_id = par->codec_id;
                 std::string cuvid_name;
                 switch (codec_id) {
                     case AV_CODEC_ID_H264:  cuvid_name = "h264_cuvid"; break;
                     case AV_CODEC_ID_HEVC:  cuvid_name = "hevc_cuvid"; break;
-                    case AV_CODEC_ID_VP8:   cuvid_name = "vp8_cuvid"; break;
-                    case AV_CODEC_ID_VP9:   cuvid_name = "vp9_cuvid"; break;
-                    case AV_CODEC_ID_AV1:   cuvid_name = "av1_cuvid"; break;
-                    case AV_CODEC_ID_VC1:   cuvid_name = "vc1_cuvid"; break;
-                    case AV_CODEC_ID_MPEG4: cuvid_name = "mpeg4_cuvid"; break;
-                    case AV_CODEC_ID_MPEG2VIDEO: cuvid_name = "mpeg2_cuvid"; break;
-                    case AV_CODEC_ID_MPEG1VIDEO: cuvid_name = "mpeg1_cuvid"; break;
-                    case AV_CODEC_ID_MJPEG: cuvid_name = "mjpeg_cuvid"; break;
                     default: break;
                 }
-
-                if (!cuvid_name.empty()) {
-                    codec = avcodec_find_decoder_by_name(cuvid_name.c_str());
-                    if (codec) std::printf("NvdecDecode: Using hardware decoder %s\n", cuvid_name.c_str());
-                }
-
-                if (!codec) {
-                    codec = avcodec_find_decoder(codec_id);
-                    if (codec) std::printf("NvdecDecode: Falling back to software decoder %s\n", codec->name);
-                }
-                break;
+                if (!cuvid_name.empty()) vcodec = avcodec_find_decoder_by_name(cuvid_name.c_str());
+                if (!vcodec) vcodec = avcodec_find_decoder(codec_id);
+            } else if (par->codec_type == AVMEDIA_TYPE_AUDIO && audio_stream_idx == -1) {
+                audio_stream_idx = i;
+                acodec = avcodec_find_decoder(par->codec_id);
             }
         }
 
-        if (video_stream_idx == -1 || !codec)
-            throw std::runtime_error("Could not find suitable video stream or decoder");
+        if (video_stream_idx != -1 && vcodec) {
+            codec_ctx = avcodec_alloc_context3(vcodec);
+            avcodec_parameters_to_context(codec_ctx, fmt_ctx->streams[video_stream_idx]->codecpar);
+            avcodec_open2(codec_ctx, vcodec, nullptr);
+            width = codec_ctx->width;
+            height = codec_ctx->height;
+        }
 
-        codec_ctx = avcodec_alloc_context3(codec);
-        avcodec_parameters_to_context(codec_ctx, fmt_ctx->streams[video_stream_idx]->codecpar);
-        
-        // Some HW decoders need threading disabled or specific options
-        // codec_ctx->thread_count = 1;
-
-        if (avcodec_open2(codec_ctx, codec, nullptr) < 0)
-            throw std::runtime_error("Could not open codec");
-
-        width = codec_ctx->width;
-        height = codec_ctx->height;
+        if (audio_stream_idx != -1 && acodec) {
+            audio_codec_ctx = avcodec_alloc_context3(acodec);
+            avcodec_parameters_to_context(audio_codec_ctx, fmt_ctx->streams[audio_stream_idx]->codecpar);
+            if (avcodec_open2(audio_codec_ctx, acodec, nullptr) >= 0) {
+                AVChannelLayout out_ch_layout;
+                av_channel_layout_default(&out_ch_layout, 2);
+                swr_alloc_set_opts2(&swr_ctx, &out_ch_layout, AV_SAMPLE_FMT_S16, audio_codec_ctx->sample_rate,
+                                     &audio_codec_ctx->ch_layout, audio_codec_ctx->sample_fmt, audio_codec_ctx->sample_rate,
+                                     0, nullptr);
+                swr_init(swr_ctx);
+                setupALSA(2, audio_codec_ctx->sample_rate);
+                audio_out_buf_size = av_samples_get_buffer_size(nullptr, 2, 4096, AV_SAMPLE_FMT_S16, 0);
+                audio_out_buf = (uint8_t*)av_malloc(audio_out_buf_size);
+                audio_thread = std::thread(&NvdecDecode::audioWorker, this);
+            }
+        }
 
         frame = av_frame_alloc();
         frame_rgba = av_frame_alloc();
+        audio_frame = av_frame_alloc();
         packet = av_packet_alloc();
-
         int num_bytes = av_image_get_buffer_size(AV_PIX_FMT_RGBA, width, height, 32);
-        rgba_buffer = (uint8_t*)av_malloc(num_bytes * sizeof(uint8_t));
+        rgba_buffer = (uint8_t*)av_malloc(num_bytes);
         av_image_fill_arrays(frame_rgba->data, frame_rgba->linesize, rgba_buffer, AV_PIX_FMT_RGBA, width, height, 32);
-
-        // We'll defer SwsContext creation until we have the first frame's format
     }
 
     ~NvdecDecode() {
+        quit_audio = true;
+        if (audio_thread.joinable()) audio_thread.join();
+        {
+            std::lock_guard<std::mutex> lock(audio_mtx);
+            while(!audio_pkt_queue.empty()){
+                AVPacket* p = audio_pkt_queue.front();
+                av_packet_free(&p);
+                audio_pkt_queue.pop();
+            }
+        }
         if (sws_ctx) sws_freeContext(sws_ctx);
+        if (swr_ctx) swr_free(&swr_ctx);
         if (rgba_buffer) av_free(rgba_buffer);
+        if (audio_out_buf) av_free(audio_out_buf);
         av_frame_free(&frame_rgba);
         av_frame_free(&frame);
+        av_frame_free(&audio_frame);
         av_packet_free(&packet);
-        avcodec_free_context(&codec_ctx);
+        if (codec_ctx) avcodec_free_context(&codec_ctx);
+        if (audio_codec_ctx) avcodec_free_context(&audio_codec_ctx);
         avformat_close_input(&fmt_ctx);
+        if (alsa_handle) snd_pcm_close(alsa_handle);
     }
 
     bool getNextFrame(SDL_Texture* texture) {
-        int ret = av_read_frame(fmt_ctx, packet);
-        
-        if (ret < 0) {
-            // EOF or error, try to seek to beginning for looping
-            av_seek_frame(fmt_ctx, video_stream_idx, 0, AVSEEK_FLAG_BACKWARD);
-            avcodec_flush_buffers(codec_ctx);
-            ret = av_read_frame(fmt_ctx, packet);
-        }
+        while (true) {
+            if (av_read_frame(fmt_ctx, packet) < 0) {
+                av_seek_frame(fmt_ctx, video_stream_idx, 0, AVSEEK_FLAG_BACKWARD);
+                if (codec_ctx) avcodec_flush_buffers(codec_ctx);
+                if (audio_codec_ctx) {
+                    avcodec_flush_buffers(audio_codec_ctx);
+                    std::lock_guard<std::mutex> lock(audio_mtx);
+                    while(!audio_pkt_queue.empty()){
+                        AVPacket* p = audio_pkt_queue.front();
+                        av_packet_free(&p);
+                        audio_pkt_queue.pop();
+                    }
+                }
+                continue;
+            }
 
-        while (ret >= 0) {
-            if (packet->stream_index == video_stream_idx) {
+            if (packet->stream_index == video_stream_idx && codec_ctx) {
                 if (avcodec_send_packet(codec_ctx, packet) == 0) {
-                    while (avcodec_receive_frame(codec_ctx, frame) == 0) {
-                        // Initialize sws_ctx if not already done (or if format changed)
+                    if (avcodec_receive_frame(codec_ctx, frame) == 0) {
                         if (!sws_ctx) {
                             sws_ctx = sws_getContext(width, height, (AVPixelFormat)frame->format,
                                                      width, height, AV_PIX_FMT_RGBA,
-                                                     SWS_BILINEAR, nullptr, nullptr, nullptr);
+                                                     SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
                         }
+                        sws_scale(sws_ctx, frame->data, frame->linesize, 0, height,
+                                  frame_rgba->data, frame_rgba->linesize);
+                        SDL_UpdateTexture(texture, nullptr, rgba_buffer, width * 4);
+                        av_packet_unref(packet);
+                        return true;
+                    }
+                }
+            } else if (packet->stream_index == audio_stream_idx && audio_codec_ctx) {
+                AVPacket* audio_pkt = av_packet_clone(packet);
+                std::lock_guard<std::mutex> lock(audio_mtx);
+                if (audio_pkt_queue.size() < 100) {
+                    audio_pkt_queue.push(audio_pkt);
+                } else {
+                    av_packet_free(&audio_pkt);
+                }
+            }
+            av_packet_unref(packet);
+        }
+    }
 
-                        if (sws_ctx) {
-                            sws_scale(sws_ctx, frame->data, frame->linesize, 0, height,
-                                      frame_rgba->data, frame_rgba->linesize);
+    int getWidth() const { return width; }
+    int getHeight() const { return height; }
+};
+*/
 
-                            // Update SDL Texture
-                            SDL_UpdateTexture(texture, nullptr, rgba_buffer, width * 4);
-                            
-                            av_packet_unref(packet);
-                            return true;
+class NvdecDecode {
+private:
+    AVFormatContext* fmt_ctx = nullptr;
+    AVCodecContext* v_ctx = nullptr;
+    AVCodecContext* a_ctx = nullptr;
+    SwsContext* sws_ctx = nullptr;
+    SwrContext* swr_ctx = nullptr;
+
+    AVFrame* frame = nullptr;
+    AVFrame* frame_rgba = nullptr;
+    AVFrame* audio_frame = nullptr;
+    uint8_t* rgba_buffer = nullptr;
+    uint8_t* audio_out_buf = nullptr;
+
+    int video_stream_idx = -1;
+    int audio_stream_idx = -1;
+    int width = 0, height = 0;
+
+    snd_pcm_t* alsa_handle = nullptr;
+    
+    std::thread video_thread;
+    std::thread audio_thread;
+    std::mutex audio_mtx;
+    std::mutex texture_mtx;
+    std::queue<AVPacket*> audio_pkt_queue;
+    
+    std::atomic<bool> quit{false};
+    std::atomic<double> audio_clock{0.0}; 
+
+    void setupALSA(int channels, int rate) {
+        if (snd_pcm_open(&alsa_handle, "default", SND_PCM_STREAM_PLAYBACK, 0) < 0) return;
+        snd_pcm_set_params(alsa_handle, SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED,
+                           channels, rate, 1, 100000); 
+    }
+
+    double get_pts_seconds(AVFrame* f, int stream_idx) {
+        if (f->pts == AV_NOPTS_VALUE) return 0;
+        return f->pts * av_q2d(fmt_ctx->streams[stream_idx]->time_base);
+    }
+
+    void audioWorker() {
+        while (!quit) {
+            AVPacket* pkt = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(audio_mtx);
+                if (!audio_pkt_queue.empty()) {
+                    pkt = audio_pkt_queue.front();
+                    audio_pkt_queue.pop();
+                }
+            }
+
+            if (!pkt) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                continue;
+            }
+
+            if (avcodec_send_packet(a_ctx, pkt) == 0) {
+                while (avcodec_receive_frame(a_ctx, audio_frame) == 0) {
+                    audio_clock.store(get_pts_seconds(audio_frame, audio_stream_idx));
+
+                    int out_samples = swr_convert(swr_ctx, &audio_out_buf, 4096,
+                                                  (const uint8_t**)audio_frame->data, audio_frame->nb_samples);
+                    if (out_samples > 0) {
+                        if (snd_pcm_writei(alsa_handle, audio_out_buf, out_samples) == -EPIPE) {
+                            snd_pcm_prepare(alsa_handle);
                         }
                     }
                 }
             }
-            av_packet_unref(packet);
-            ret = av_read_frame(fmt_ctx, packet);
-            if (ret < 0) {
-                // Should we try to loop again here? To avoid sticking if a packet fails
+            av_packet_free(&pkt);
+        }
+    }
+
+    void videoWorker() {
+        AVPacket* pkt = av_packet_alloc();
+        while (!quit) {
+            if (av_read_frame(fmt_ctx, pkt) < 0) {
                 av_seek_frame(fmt_ctx, video_stream_idx, 0, AVSEEK_FLAG_BACKWARD);
-                avcodec_flush_buffers(codec_ctx);
-                ret = av_read_frame(fmt_ctx, packet);
-                if (ret < 0) break; // Real failure
+                continue;
+            }
+
+            if (pkt->stream_index == video_stream_idx) {
+                if (avcodec_send_packet(v_ctx, pkt) == 0) {
+                    while (avcodec_receive_frame(v_ctx, frame) == 0) {
+                        
+                        double pts = get_pts_seconds(frame, video_stream_idx);
+                        double diff = pts - audio_clock.load();
+                        
+                        // Wait if video is ahead of audio
+                        if (diff > 0.01) {
+                            av_usleep((int64_t)(diff * 1000000.0));
+                        }
+
+                        {
+                            std::lock_guard<std::mutex> lock(texture_mtx);
+                            if (!sws_ctx) {
+                                sws_ctx = sws_getContext(width, height, (AVPixelFormat)frame->format,
+                                                         width, height, AV_PIX_FMT_RGBA,
+                                                         SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
+                            }
+                            sws_scale(sws_ctx, frame->data, frame->linesize, 0, height,
+                                      frame_rgba->data, frame_rgba->linesize);
+                        }
+                    }
+                }
+            } else if (pkt->stream_index == audio_stream_idx) {
+                AVPacket* a_pkt = av_packet_clone(pkt);
+                std::lock_guard<std::mutex> lock(audio_mtx);
+                audio_pkt_queue.push(a_pkt);
+            }
+            av_packet_unref(pkt);
+        }
+        av_packet_free(&pkt);
+    }
+
+public:
+    NvdecDecode(const std::string& path) {
+        avformat_open_input(&fmt_ctx, path.c_str(), nullptr, nullptr);
+        avformat_find_stream_info(fmt_ctx, nullptr);
+
+        const AVCodec *vcodec = nullptr, *acodec = nullptr;
+        for (unsigned int i = 0; i < fmt_ctx->nb_streams; i++) {
+            AVCodecParameters* p = fmt_ctx->streams[i]->codecpar;
+            if (p->codec_type == AVMEDIA_TYPE_VIDEO && video_stream_idx == -1) {
+                video_stream_idx = i;
+                vcodec = avcodec_find_decoder_by_name(p->codec_id == AV_CODEC_ID_H264 ? "h264_cuvid" : "hevc_cuvid");
+                if (!vcodec) vcodec = avcodec_find_decoder(p->codec_id);
+            } else if (p->codec_type == AVMEDIA_TYPE_AUDIO && audio_stream_idx == -1) {
+                audio_stream_idx = i;
+                acodec = avcodec_find_decoder(p->codec_id);
             }
         }
-        return false; // EOF or error
+
+        v_ctx = avcodec_alloc_context3(vcodec);
+        avcodec_parameters_to_context(v_ctx, fmt_ctx->streams[video_stream_idx]->codecpar);
+        avcodec_open2(v_ctx, vcodec, nullptr);
+        width = v_ctx->width; height = v_ctx->height;
+
+        a_ctx = avcodec_alloc_context3(acodec);
+        avcodec_parameters_to_context(a_ctx, fmt_ctx->streams[audio_stream_idx]->codecpar);
+        avcodec_open2(a_ctx, acodec, nullptr);
+
+        AVChannelLayout out_ch; av_channel_layout_default(&out_ch, 2);
+        swr_alloc_set_opts2(&swr_ctx, &out_ch, AV_SAMPLE_FMT_S16, a_ctx->sample_rate,
+                            &a_ctx->ch_layout, a_ctx->sample_fmt, a_ctx->sample_rate, 0, nullptr);
+        swr_init(swr_ctx);
+        setupALSA(2, a_ctx->sample_rate);
+        audio_out_buf = (uint8_t*)av_malloc(av_samples_get_buffer_size(nullptr, 2, 4096, AV_SAMPLE_FMT_S16, 0));
+
+        frame = av_frame_alloc();
+        frame_rgba = av_frame_alloc();
+        audio_frame = av_frame_alloc();
+        int bytes = av_image_get_buffer_size(AV_PIX_FMT_RGBA, width, height, 32);
+        rgba_buffer = (uint8_t*)av_malloc(bytes);
+        av_image_fill_arrays(frame_rgba->data, frame_rgba->linesize, rgba_buffer, AV_PIX_FMT_RGBA, width, height, 32);
+
+        video_thread = std::thread(&NvdecDecode::videoWorker, this);
+        audio_thread = std::thread(&NvdecDecode::audioWorker, this);
+    }
+
+    ~NvdecDecode() {
+        quit = true;
+        if (video_thread.joinable()) video_thread.join();
+        if (audio_thread.joinable()) audio_thread.join();
+
+        while (!audio_pkt_queue.empty()) {
+            AVPacket* p = audio_pkt_queue.front();
+            av_packet_free(&p);
+            audio_pkt_queue.pop();
+        }
+
+        if (sws_ctx) sws_freeContext(sws_ctx);
+        if (swr_ctx) swr_free(&swr_ctx);
+        av_free(rgba_buffer);
+        av_free(audio_out_buf);
+        av_frame_free(&frame);
+        av_frame_free(&frame_rgba);
+        av_frame_free(&audio_frame);
+        avcodec_free_context(&v_ctx);
+        avcodec_free_context(&a_ctx);
+        avformat_close_input(&fmt_ctx);
+        if (alsa_handle) snd_pcm_close(alsa_handle);
+    }
+
+    // SDL3 Specific Update
+    void updateTexture(SDL_Texture* tex) {
+        std::lock_guard<std::mutex> lock(texture_mtx);
+        // In SDL3, SDL_UpdateTexture returns a boolean (true on success)
+        SDL_UpdateTexture(tex, nullptr, frame_rgba->data[0], frame_rgba->linesize[0]);
     }
 
     int getWidth() const { return width; }
@@ -762,7 +1034,7 @@ public:
         // Update video frames
         for (auto& b : bouncers) {
             if (b.decoder && b.tex) {
-                b.decoder->getNextFrame(b.tex);
+                b.decoder->updateTexture(b.tex);
             }
         }
 
@@ -820,7 +1092,7 @@ public:
                 tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, newB.tw, newB.th);
                 if (tex) {
                     SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-                    newB.decoder->getNextFrame(tex); // load first frame
+                    newB.decoder->updateTexture(tex); // load first frame
                 }
             } catch (const std::exception& e) {
                 std::printf("Video load error: %s\n", e.what());
@@ -1751,7 +2023,7 @@ int main(int argc, char** argv)
                 bg_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, 
                                            bg_video->getWidth(), bg_video->getHeight());
                 if (bg_tex) {
-                    bg_video->getNextFrame(bg_tex);
+                    bg_video->updateTexture(bg_tex);
                     std::printf("BG: Loaded video %s (%dx%d)\n", cli_bg_path.c_str(), bg_video->getWidth(), bg_video->getHeight());
                 }
             } catch (const std::exception& e) {
@@ -2172,7 +2444,7 @@ int main(int argc, char** argv)
                                      io.DisplayFramebufferScale.y);
 
         if (bg_video && bg_tex) {
-            bg_video->getNextFrame(bg_tex);
+            bg_video->updateTexture(bg_tex);
         }
 
         // 1) Draw background (custom or plasma)
