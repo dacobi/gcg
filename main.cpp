@@ -1660,6 +1660,7 @@ int main(int argc, char** argv)
     // Usage: ./imtest [--record output.mp4] [text...]
     std::vector<std::string> cli_texts;
     std::string cli_record_path;
+    std::string cli_bg_path;
     int cli_record_max = -1;  // -1 = not specified on CLI
     bool  cli_no_nerds = false;
     bool cli_no_maximize = false;
@@ -1669,6 +1670,8 @@ int main(int argc, char** argv)
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--record") == 0 && i + 1 < argc) {
             cli_record_path = argv[++i];
+        } else if (std::strcmp(argv[i], "--bg") == 0 && i + 1 < argc) {
+            cli_bg_path = argv[++i];
         } else if (std::strcmp(argv[i], "--record-max") == 0 && i + 1 < argc) {
             cli_record_max = std::atoi(argv[++i]);
             if (cli_record_max < 1) cli_record_max = 1;
@@ -1730,6 +1733,38 @@ int main(int argc, char** argv)
         renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
         plasma_w, plasma_h
     );
+
+    // --- Custom Background layer ---
+    std::unique_ptr<NvdecDecode> bg_video;
+    SDL_Texture* bg_tex = nullptr;
+    if (!cli_bg_path.empty()) {
+        std::string ext = cli_bg_path;
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+        bool is_video = (ext.find(".mp4") != std::string::npos || 
+                         ext.find(".mkv") != std::string::npos || 
+                         ext.find(".mov") != std::string::npos ||
+                         ext.find(".avi") != std::string::npos);
+        
+        if (is_video) {
+            try {
+                bg_video = std::make_unique<NvdecDecode>(cli_bg_path);
+                bg_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, 
+                                           bg_video->getWidth(), bg_video->getHeight());
+                if (bg_tex) {
+                    bg_video->getNextFrame(bg_tex);
+                    std::printf("BG: Loaded video %s (%dx%d)\n", cli_bg_path.c_str(), bg_video->getWidth(), bg_video->getHeight());
+                }
+            } catch (const std::exception& e) {
+                std::printf("BG Video error: %s\n", e.what());
+            }
+        } else {
+            int bw, bh;
+            bg_tex = create_png_texture(renderer, cli_bg_path.c_str(), &bw, &bh);
+            if (bg_tex) {
+                std::printf("BG: Loaded image %s (%dx%d)\n", cli_bg_path.c_str(), bw, bh);
+            }
+        }
+    }
 
     // --- Pre-render a texture for each CLI text argument ---
     std::vector<TextEntry> cli_entries;
@@ -1956,9 +1991,10 @@ int main(int argc, char** argv)
         }
 
         // Update plasma pixels
-        if (plasma_tex)
+        // 1) Update plasma background if active
+        if (plasma_tex && !bg_tex) {
             update_plasma_texture(plasma_tex, plasma_w, plasma_h, time_acc, plasma_params);
-
+        }
         // New frame
         ImGui_ImplSDLRenderer3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
@@ -2135,8 +2171,16 @@ int main(int argc, char** argv)
         SDL_SetRenderScale(renderer, io.DisplayFramebufferScale.x,
                                      io.DisplayFramebufferScale.y);
 
-        // 1) Draw animated plasma background (stretches from reduced res)
-        if (plasma_tex) {
+        if (bg_video && bg_tex) {
+            bg_video->getNextFrame(bg_tex);
+        }
+
+        // 1) Draw background (custom or plasma)
+        if (bg_tex) {
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            SDL_RenderClear(renderer);
+            SDL_RenderTexture(renderer, bg_tex, nullptr, nullptr);
+        } else if (plasma_tex) {
             SDL_RenderTexture(renderer, plasma_tex, nullptr, nullptr);
         } else {
             SDL_SetRenderDrawColorFloat(renderer, 0.10f, 0.08f, 0.15f, 1.0f);
@@ -2173,6 +2217,7 @@ int main(int argc, char** argv)
 
     // --- Cleanup ---
     recorder_stop(recorder);
+    if (bg_tex) SDL_DestroyTexture(bg_tex);
     for (auto* et : extra_textures) SDL_DestroyTexture(et);
     for (auto& e : cli_entries) { if (e.tex) SDL_DestroyTexture(e.tex); }
     if (plasma_tex) SDL_DestroyTexture(plasma_tex);
