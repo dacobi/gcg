@@ -36,8 +36,416 @@ extern "C" {
 
 }
 
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <queue>
+#include <atomic>
+#include <string>
+#include <vector>
+#include <chrono>
+#include <algorithm>
 
+extern "C" {
+#include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
+#include <libswscale/swscale.h>
+#include <libswresample/swresample.h>
+#include <libavutil/opt.h>
+#include <libavutil/imgutils.h>
+}
 
+// --- 1. Audio Mixer Class ---
+class AudioMixer {
+private:
+    std::mutex mtx;
+    std::vector<float> mix_buffer; 
+
+public:
+    AudioMixer(int rate) {}
+
+    void addAudio(const int16_t* data, int nb_samples) {
+        std::lock_guard<std::mutex> lock(mtx);
+        int total_values = nb_samples * 2; // Stereo
+        if (mix_buffer.size() < total_values) mix_buffer.resize(total_values, 0.0f);
+
+        for (int i = 0; i < total_values; ++i) {
+            mix_buffer[i] += data[i] / 32768.0f;
+        }
+    }
+
+    std::vector<int16_t> consume(int nb_samples) {
+        std::lock_guard<std::mutex> lock(mtx);
+        int total_values = nb_samples * 2;
+        if (mix_buffer.empty()) return {};
+
+        int available = std::min((int)mix_buffer.size(), total_values);
+        std::vector<int16_t> output(available);
+
+        for (int i = 0; i < available; ++i) {
+            float sample = std::max(-1.0f, std::min(1.0f, mix_buffer[i]));
+            output[i] = static_cast<int16_t>(sample * 32767.0f);
+        }
+
+        mix_buffer.erase(mix_buffer.begin(), mix_buffer.begin() + available);
+        return output;
+    }
+};
+
+// --- 2. Encoder Class ---
+class NvencEncoder {
+private:
+    AVFormatContext* out_ctx = nullptr;
+    AVCodecContext *v_enc = nullptr, *a_enc = nullptr;
+    AVStream *v_stream = nullptr, *a_stream = nullptr;
+    SwsContext* sws_ctx = nullptr;
+    SwrContext* swr_ctx = nullptr;
+
+    AudioMixer* shared_mixer;
+
+    std::thread worker_thread;
+    std::atomic<bool> quit{false};
+    std::mutex v_queue_mtx;
+    std::queue<AVFrame*> video_queue;
+
+    int width, height;
+    double target_fps;
+    int64_t a_pts = 0;
+    int a_frame_size = 0;
+
+    // Time-based Sync State
+    std::chrono::steady_clock::time_point start_time;
+    std::atomic<bool> recording_started{false};
+    const size_t MAX_QUEUE_SIZE = 10; 
+
+    void workerFunc() {
+        while (!quit || !video_queue.empty()) {
+            bool busy = false;
+
+            // 1. Process Video Frames
+            AVFrame* v_frame = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(v_queue_mtx);
+                if (!video_queue.empty()) {
+                    v_frame = video_queue.front();
+                    video_queue.pop();
+                    busy = true;
+                }
+            }
+
+            if (v_frame) {
+                encodeAndMux(v_frame, v_enc, v_stream);
+                av_frame_free(&v_frame);
+            }
+
+            // 2. Process Audio (Only if recording has officially started)
+            if (recording_started) {
+                std::vector<int16_t> mixed = shared_mixer->consume(a_frame_size);
+                if (!mixed.empty()) {
+                    busy = true;
+                    processAudio(mixed.data(), mixed.size() / 2);
+                }
+            }
+
+            if (!busy) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        }
+    }
+
+    void processAudio(const int16_t* data, int samples) {
+        AVFrame* f = av_frame_alloc();
+        f->format = a_enc->sample_fmt;
+        f->nb_samples = samples;
+        av_channel_layout_copy(&f->ch_layout, &a_enc->ch_layout);
+        av_frame_get_buffer(f, 0);
+
+        const uint8_t* src[] = { (const uint8_t*)data };
+        swr_convert(swr_ctx, f->data, samples, src, samples);
+        
+        f->pts = a_pts;
+        a_pts += samples;
+        encodeAndMux(f, a_enc, a_stream);
+        av_frame_free(&f);
+    }
+
+    void encodeAndMux(AVFrame* frame, AVCodecContext* enc, AVStream* st) {
+        if (avcodec_send_frame(enc, frame) < 0) return;
+        AVPacket* pkt = av_packet_alloc();
+        while (avcodec_receive_packet(enc, pkt) == 0) {
+            av_packet_rescale_ts(pkt, enc->time_base, st->time_base);
+            pkt->stream_index = st->index;
+            av_interleaved_write_frame(out_ctx, pkt);
+            av_packet_unref(pkt);
+        }
+        av_packet_free(&pkt);
+    }
+
+public:
+    NvencEncoder(int w, int h, int fps, int sample_rate, AudioMixer* mixer, const std::string& path) 
+        : width(w), height(h), target_fps((double)fps), shared_mixer(mixer) {
+        
+        avformat_alloc_output_context2(&out_ctx, nullptr, nullptr, path.c_str());
+
+        // Video: H264_NVENC
+        const AVCodec* v_codec = avcodec_find_encoder_by_name("h264_nvenc");
+        v_stream = avformat_new_stream(out_ctx, v_codec);
+        v_enc = avcodec_alloc_context3(v_codec);
+        v_enc->width = w; v_enc->height = h;
+        v_enc->pix_fmt = AV_PIX_FMT_NV12;
+        v_enc->time_base = {1, (int)target_fps};
+        v_enc->framerate = {(int)target_fps, 1};
+        av_opt_set(v_enc->priv_data, "preset", "p4", 0);
+        if (out_ctx->oformat->flags & AVFMT_GLOBALHEADER) v_enc->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+        avcodec_open2(v_enc, v_codec, nullptr);
+        avcodec_parameters_from_context(v_stream->codecpar, v_enc);
+
+        // Audio: AAC
+        const AVCodec* a_codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
+        a_stream = avformat_new_stream(out_ctx, a_codec);
+        a_enc = avcodec_alloc_context3(a_codec);
+        a_enc->sample_fmt = AV_SAMPLE_FMT_FLTP;
+        a_enc->sample_rate = sample_rate;
+        av_channel_layout_default(&a_enc->ch_layout, 2);
+        a_enc->time_base = {1, sample_rate};
+        avcodec_open2(a_enc, a_codec, nullptr);
+        avcodec_parameters_from_context(a_stream->codecpar, a_enc);
+        a_frame_size = a_enc->frame_size;
+
+        // Converters
+        sws_ctx = sws_getContext(w, h, AV_PIX_FMT_RGBA, w, h, v_enc->pix_fmt, SWS_BILINEAR, nullptr, nullptr, nullptr);
+        swr_alloc_set_opts2(&swr_ctx, &a_enc->ch_layout, a_enc->sample_fmt, sample_rate,
+                            &a_enc->ch_layout, AV_SAMPLE_FMT_S16, sample_rate, 0, nullptr);
+        swr_init(swr_ctx);
+
+        avio_open(&out_ctx->pb, path.c_str(), AVIO_FLAG_WRITE);
+        avformat_write_header(out_ctx, nullptr);
+
+        worker_thread = std::thread(&NvencEncoder::workerFunc, this);
+    }
+
+    void pushVideoFrame(const uint8_t* rgba_data) {
+        auto now = std::chrono::steady_clock::now();
+
+        if (!recording_started) {
+            start_time = now;
+            recording_started = true;
+        }
+
+        // Calculate PTS based on actual elapsed wall-time
+        auto elapsed = std::chrono::duration<double>(now - start_time).count();
+        int64_t pts = static_cast<int64_t>(elapsed * target_fps);
+
+        {
+            std::lock_guard<std::mutex> lock(v_queue_mtx);
+            // Drop frame if main thread is severely out-pacing the encoder
+            if (video_queue.size() > MAX_QUEUE_SIZE) return;
+        }
+
+        AVFrame* f = av_frame_alloc();
+        f->format = v_enc->pix_fmt;
+        f->width = width; f->height = height;
+        f->pts = pts; // Set calculated timestamp
+        av_frame_get_buffer(f, 0);
+
+        const uint8_t* src[] = { rgba_data };
+        int src_stride[] = { 4 * width };
+        sws_scale(sws_ctx, src, src_stride, 0, height, f->data, f->linesize);
+        
+        std::lock_guard<std::mutex> lock(v_queue_mtx);
+        video_queue.push(f);
+    }
+
+    ~NvencEncoder() {
+        quit = true;
+        if (worker_thread.joinable()) worker_thread.join();
+        encodeAndMux(nullptr, v_enc, v_stream);
+        encodeAndMux(nullptr, a_enc, a_stream);
+        av_write_trailer(out_ctx);
+        sws_freeContext(sws_ctx); swr_free(&swr_ctx);
+        avcodec_free_context(&v_enc); avcodec_free_context(&a_enc);
+        avio_closep(&out_ctx->pb); avformat_free_context(out_ctx);
+    }
+};
+/*
+class NvencEncoder {
+private:
+    // FFmpeg Contexts
+    AVFormatContext* out_ctx = nullptr;
+    AVCodecContext* v_enc = nullptr;
+    AVCodecContext* a_enc = nullptr;
+    AVStream* v_stream = nullptr;
+    AVStream* a_stream = nullptr;
+    SwsContext* sws_ctx = nullptr;
+    SwrContext* swr_ctx = nullptr;
+
+    // Threading & Queuing
+    std::thread worker_thread;
+    std::atomic<bool> quit{false};
+    std::mutex queue_mtx;
+    std::queue<AVFrame*> video_queue;
+    std::queue<AVFrame*> audio_queue;
+
+    // State
+    int width, height;
+    int64_t v_pts = 0;
+    int64_t a_pts = 0;
+
+    void workerFunc() {
+        while (!quit || !video_queue.empty() || !audio_queue.empty()) {
+            AVFrame* frame = nullptr;
+            bool is_video = false;
+
+            {
+                std::lock_guard<std::mutex> lock(queue_mtx);
+                if (!video_queue.empty()) {
+                    frame = video_queue.front();
+                    video_queue.pop();
+                    is_video = true;
+                } else if (!audio_queue.empty()) {
+                    frame = audio_queue.front();
+                    audio_queue.pop();
+                    is_video = false;
+                }
+            }
+
+            if (!frame) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                continue;
+            }
+
+            // Encode and Write
+            encodeAndMux(frame, is_video ? v_enc : a_enc, is_video ? v_stream : a_stream);
+            av_frame_free(&frame);
+        }
+    }
+
+    void encodeAndMux(AVFrame* frame, AVCodecContext* enc, AVStream* st) {
+        int ret = avcodec_send_frame(enc, frame);
+        if (ret < 0) return;
+
+        AVPacket* pkt = av_packet_alloc();
+        while (avcodec_receive_packet(enc, pkt) == 0) {
+            av_packet_rescale_ts(pkt, enc->time_base, st->time_base);
+            pkt->stream_index = st->index;
+            av_interleaved_write_frame(out_ctx, pkt);
+            av_packet_unref(pkt);
+        }
+        av_packet_free(&pkt);
+    }
+
+public:
+    NvencEncoder(int w, int h, int fps, int sample_rate, const std::string& path) 
+        : width(w), height(h) {
+        
+        // 1. Output Format
+        avformat_alloc_output_context2(&out_ctx, nullptr, nullptr, path.c_str());
+
+        // 2. Video Stream (NVENC)
+        const AVCodec* v_codec = avcodec_find_encoder_by_name("h264_nvenc");
+        if (!v_codec) throw std::runtime_error("NVENC not found");
+
+        v_stream = avformat_new_stream(out_ctx, v_codec);
+        v_enc = avcodec_alloc_context3(v_codec);
+        v_enc->width = w;
+        v_enc->height = h;
+        v_enc->pix_fmt = AV_PIX_FMT_NV12; // NVENC Native
+        v_enc->time_base = {1, fps};
+        v_enc->framerate = {fps, 1};
+        av_opt_set(v_enc->priv_data, "preset", "p4", 0);
+        av_opt_set(v_enc->priv_data, "rc", "vbr", 0);
+        av_opt_set_int(v_enc->priv_data, "cq", 23, 0);
+
+        if (out_ctx->oformat->flags & AVFMT_GLOBALHEADER)
+            v_enc->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+
+        avcodec_open2(v_enc, v_codec, nullptr);
+        avcodec_parameters_from_context(v_stream->codecpar, v_enc);
+
+        // 3. Audio Stream (AAC)
+        const AVCodec* a_codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
+        a_stream = avformat_new_stream(out_ctx, a_codec);
+        a_enc = avcodec_alloc_context3(a_codec);
+        a_enc->sample_fmt = AV_SAMPLE_FMT_FLTP; // AAC usually requires float planar
+        a_enc->sample_rate = sample_rate;
+        av_channel_layout_default(&a_enc->ch_layout, 2);
+        a_enc->time_base = {1, sample_rate};
+        
+        avcodec_open2(a_enc, a_codec, nullptr);
+        avcodec_parameters_from_context(a_stream->codecpar, a_enc);
+
+        // 4. Converters
+        sws_ctx = sws_getContext(w, h, AV_PIX_FMT_RGBA, w, h, v_enc->pix_fmt, 
+                                 SWS_BILINEAR, nullptr, nullptr, nullptr);
+        
+        swr_alloc_set_opts2(&swr_ctx, &a_enc->ch_layout, a_enc->sample_fmt, sample_rate,
+                            &a_enc->ch_layout, AV_SAMPLE_FMT_S16, sample_rate, 0, nullptr);
+        swr_init(swr_ctx);
+
+        // 5. Open File
+        avio_open(&out_ctx->pb, path.c_str(), AVIO_FLAG_WRITE);
+        avformat_write_header(out_ctx, nullptr);
+
+        // 6. Start Thread
+        worker_thread = std::thread(&NvencEncoder::workerFunc, this);
+    }
+
+    void pushVideoFrame(const uint8_t* rgba_data) {
+        AVFrame* f = av_frame_alloc();
+        f->format = v_enc->pix_fmt;
+        f->width = width;
+        f->height = height;
+        av_frame_get_buffer(f, 0);
+
+        const uint8_t* src_slices[] = { rgba_data };
+        int src_stride[] = { 4 * width };
+        sws_scale(sws_ctx, src_slices, src_stride, 0, height, f->data, f->linesize);
+        
+        f->pts = v_pts++;
+
+        std::lock_guard<std::mutex> lock(queue_mtx);
+        video_queue.push(f);
+    }
+
+    void pushAudioFrame(const uint8_t* s16_data, int nb_samples) {
+        AVFrame* f = av_frame_alloc();
+        f->format = a_enc->sample_fmt;
+        f->sample_rate = a_enc->sample_rate;
+        f->nb_samples = nb_samples;
+        av_channel_layout_copy(&f->ch_layout, &a_enc->ch_layout);
+        av_frame_get_buffer(f, 0);
+
+        swr_convert(swr_ctx, f->data, nb_samples, &s16_data, nb_samples);
+        
+        f->pts = a_pts;
+        a_pts += nb_samples;
+
+        std::lock_guard<std::mutex> lock(queue_mtx);
+        audio_queue.push(f);
+    }
+
+    ~NvencEncoder() {
+        quit = true;
+        if (worker_thread.joinable()) worker_thread.join();
+
+        // Flush encoders
+        encodeAndMux(nullptr, v_enc, v_stream);
+        encodeAndMux(nullptr, a_enc, a_stream);
+
+        av_write_trailer(out_ctx);
+
+        // Cleanup
+        sws_freeContext(sws_ctx);
+        swr_free(&swr_ctx);
+        avcodec_free_context(&v_enc);
+        avcodec_free_context(&a_enc);
+        avio_closep(&out_ctx->pb);
+        avformat_free_context(out_ctx);
+    }
+};
+*/
+
+/*
 class NvencEncoder {
 private:
     AVFormatContext* fmt_ctx = nullptr;
@@ -146,7 +554,7 @@ void encodeFrame(const uint8_t* rgba_data) {
         avformat_free_context(fmt_ctx);
     }
 };
-
+*/
 /*
 class NvdecDecode {
 private:
@@ -356,6 +764,7 @@ public:
     int getHeight() const { return height; }
 };
 */
+AudioMixer* myMix = NULL;
 
 class NvdecDecode {
 private:
@@ -398,37 +807,58 @@ private:
     }
 
     void audioWorker() {
-        while (!quit) {
-            AVPacket* pkt = nullptr;
-            {
-                std::lock_guard<std::mutex> lock(audio_mtx);
-                if (!audio_pkt_queue.empty()) {
-                    pkt = audio_pkt_queue.front();
-                    audio_pkt_queue.pop();
-                }
+    while (!quit) {
+        AVPacket* pkt = nullptr;
+        
+        // 1. Get packet from queue
+        {
+            std::lock_guard<std::mutex> lock(audio_mtx);
+            if (!audio_pkt_queue.empty()) {
+                pkt = audio_pkt_queue.front();
+                audio_pkt_queue.pop();
             }
+        }
 
-            if (!pkt) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                continue;
-            }
+        // 2. Sleep if queue is empty
+        if (!pkt) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            continue;
+        }
 
-            if (avcodec_send_packet(a_ctx, pkt) == 0) {
-                while (avcodec_receive_frame(a_ctx, audio_frame) == 0) {
-                    audio_clock.store(get_pts_seconds(audio_frame, audio_stream_idx));
+        // 3. Send packet to decoder
+        if (avcodec_send_packet(a_ctx, pkt) == 0) {
+            // 4. Receive decoded frames
+            while (avcodec_receive_frame(a_ctx, audio_frame) == 0) {
+                
+                // 5. Update Master Clock for Video Sync
+                audio_clock.store(get_pts_seconds(audio_frame, audio_stream_idx));
 
-                    int out_samples = swr_convert(swr_ctx, &audio_out_buf, 4096,
-                                                  (const uint8_t**)audio_frame->data, audio_frame->nb_samples);
-                    if (out_samples > 0) {
-                        if (snd_pcm_writei(alsa_handle, audio_out_buf, out_samples) == -EPIPE) {
-                            snd_pcm_prepare(alsa_handle);
-                        }
+                // 6. Resample to S16 Stereo (required for ALSA and Mixer)
+                int out_samples = swr_convert(swr_ctx, &audio_out_buf, 4096,
+                                              (const uint8_t**)audio_frame->data, 
+                                              audio_frame->nb_samples);
+                
+                if (out_samples > 0) {
+                    // 7. Write to Speakers (Live Playback)
+                    snd_pcm_sframes_t ret = snd_pcm_writei(alsa_handle, audio_out_buf, out_samples);
+                    if (ret == -EPIPE) {
+                        snd_pcm_prepare(alsa_handle);
+                        snd_pcm_writei(alsa_handle, audio_out_buf, out_samples);
+                    }
+
+                    // 8. Write to Shared Mixer (For NvencEncoder Recording)
+                    if (myMix) {
+                        // Cast buffer to int16_t because we resampled to S16
+                        myMix->addAudio((int16_t*)audio_out_buf, out_samples);
                     }
                 }
             }
-            av_packet_free(&pkt);
         }
+        
+        // 9. Free the cloned packet
+        av_packet_free(&pkt);
     }
+}
 
     void videoWorker() {
         AVPacket* pkt = av_packet_alloc();
@@ -565,7 +995,7 @@ struct Recorder {
     FILE*  pipe       = nullptr;
     int    width      = 0;
     int    height     = 0;
-    int    fps        = 60;
+    int    fps        = 30;
     int    frame_count = 0;
     std::string output_path;
 };
@@ -585,7 +1015,10 @@ static bool recorder_start(Recorder& rec, int w, int h, const char* path, int fp
     rec.frame_count = 0;
     rec.output_path = path;
 
-    myNvec = new NvencEncoder(w, h, fps, std::string(path));
+    
+    myMix = new AudioMixer(48000);
+    myNvec = new NvencEncoder(w, h, fps, 48000, myMix ,std::string(path));
+
 
     SDL_SetWindowResizable(window, false);
 
@@ -660,7 +1093,7 @@ static void recorder_feed_frame(Recorder& rec, SDL_Renderer* renderer) {
     //for (int y = 0; y < rec.height; ++y) {
     //    fwrite(pixels + y * final_surf->pitch, 1, row_bytes, rec.pipe);
     //}
-    myNvec->encodeFrame(pixels);
+    myNvec->pushVideoFrame(pixels);
     SDL_UnlockSurface(final_surf);
 
     //if (need_free_final)
