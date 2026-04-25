@@ -1,1 +1,1 @@
-Funny vibecoded Greeting Card Generator using SDL3/ImGui/C++.
+Silly little partially vibecoded Greeting Card Generator using SDL3/ImGui/C++.
