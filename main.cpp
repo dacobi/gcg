@@ -24,6 +24,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
+#include <libavutil/imgutils.h>
 #include <libswscale/swscale.h>
 #include <SDL2/SDL_render.h>
 }
@@ -80,7 +81,10 @@ public:
         
         AVDictionary* muxer_opts = nullptr;
         av_dict_set(&muxer_opts, "movflags", "faststart", 0); // -movflags +faststart
-        avformat_write_header(fmt_ctx, &muxer_opts);
+        if (avformat_write_header(fmt_ctx, &muxer_opts) < 0) {
+            av_dict_free(&muxer_opts);
+            throw std::runtime_error("Could not write header");
+        }
         av_dict_free(&muxer_opts);
 
         // Prepare working frame
@@ -132,6 +136,131 @@ void encodeFrame(const uint8_t* rgba_data) {
         avio_closep(&fmt_ctx->pb);
         avformat_free_context(fmt_ctx);
     }
+};
+
+class NvdecDecode {
+private:
+    AVFormatContext* fmt_ctx = nullptr;
+    AVCodecContext* codec_ctx = nullptr;
+    int video_stream_idx = -1;
+    AVFrame* frame = nullptr;
+    AVFrame* frame_rgba = nullptr;
+    AVPacket* packet = nullptr;
+    SwsContext* sws_ctx = nullptr;
+    uint8_t* rgba_buffer = nullptr;
+    int width = 0, height = 0;
+
+public:
+    NvdecDecode(const std::string& path) {
+        if (avformat_open_input(&fmt_ctx, path.c_str(), nullptr, nullptr) < 0)
+            throw std::runtime_error("Could not open source file: " + path);
+
+        if (avformat_find_stream_info(fmt_ctx, nullptr) < 0)
+            throw std::runtime_error("Could not find stream information");
+
+        const AVCodec* codec = nullptr;
+        for (unsigned int i = 0; i < fmt_ctx->nb_streams; i++) {
+            if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+                video_stream_idx = i;
+                AVCodecID codec_id = fmt_ctx->streams[i]->codecpar->codec_id;
+
+                // Attempt to find an NVIDIA CUVID hardware decoder
+                std::string cuvid_name;
+                switch (codec_id) {
+                    case AV_CODEC_ID_H264:  cuvid_name = "h264_cuvid"; break;
+                    case AV_CODEC_ID_HEVC:  cuvid_name = "hevc_cuvid"; break;
+                    case AV_CODEC_ID_VP8:   cuvid_name = "vp8_cuvid"; break;
+                    case AV_CODEC_ID_VP9:   cuvid_name = "vp9_cuvid"; break;
+                    case AV_CODEC_ID_AV1:   cuvid_name = "av1_cuvid"; break;
+                    case AV_CODEC_ID_VC1:   cuvid_name = "vc1_cuvid"; break;
+                    case AV_CODEC_ID_MPEG4: cuvid_name = "mpeg4_cuvid"; break;
+                    case AV_CODEC_ID_MPEG2VIDEO: cuvid_name = "mpeg2_cuvid"; break;
+                    case AV_CODEC_ID_MPEG1VIDEO: cuvid_name = "mpeg1_cuvid"; break;
+                    case AV_CODEC_ID_MJPEG: cuvid_name = "mjpeg_cuvid"; break;
+                    default: break;
+                }
+
+                if (!cuvid_name.empty()) {
+                    codec = avcodec_find_decoder_by_name(cuvid_name.c_str());
+                    if (codec) std::printf("NvdecDecode: Using hardware decoder %s\n", cuvid_name.c_str());
+                }
+
+                if (!codec) {
+                    codec = avcodec_find_decoder(codec_id);
+                    if (codec) std::printf("NvdecDecode: Falling back to software decoder %s\n", codec->name);
+                }
+                break;
+            }
+        }
+
+        if (video_stream_idx == -1 || !codec)
+            throw std::runtime_error("Could not find suitable video stream or decoder");
+
+        codec_ctx = avcodec_alloc_context3(codec);
+        avcodec_parameters_to_context(codec_ctx, fmt_ctx->streams[video_stream_idx]->codecpar);
+        
+        // Some HW decoders need threading disabled or specific options
+        // codec_ctx->thread_count = 1;
+
+        if (avcodec_open2(codec_ctx, codec, nullptr) < 0)
+            throw std::runtime_error("Could not open codec");
+
+        width = codec_ctx->width;
+        height = codec_ctx->height;
+
+        frame = av_frame_alloc();
+        frame_rgba = av_frame_alloc();
+        packet = av_packet_alloc();
+
+        int num_bytes = av_image_get_buffer_size(AV_PIX_FMT_RGBA, width, height, 32);
+        rgba_buffer = (uint8_t*)av_malloc(num_bytes * sizeof(uint8_t));
+        av_image_fill_arrays(frame_rgba->data, frame_rgba->linesize, rgba_buffer, AV_PIX_FMT_RGBA, width, height, 32);
+
+        // We'll defer SwsContext creation until we have the first frame's format
+    }
+
+    ~NvdecDecode() {
+        if (sws_ctx) sws_freeContext(sws_ctx);
+        if (rgba_buffer) av_free(rgba_buffer);
+        av_frame_free(&frame_rgba);
+        av_frame_free(&frame);
+        av_packet_free(&packet);
+        avcodec_free_context(&codec_ctx);
+        avformat_close_input(&fmt_ctx);
+    }
+
+    bool getNextFrame(SDL_Texture* texture) {
+        while (av_read_frame(fmt_ctx, packet) >= 0) {
+            if (packet->stream_index == video_stream_idx) {
+                if (avcodec_send_packet(codec_ctx, packet) == 0) {
+                    while (avcodec_receive_frame(codec_ctx, frame) == 0) {
+                        // Initialize sws_ctx if not already done (or if format changed)
+                        if (!sws_ctx) {
+                            sws_ctx = sws_getContext(width, height, (AVPixelFormat)frame->format,
+                                                     width, height, AV_PIX_FMT_RGBA,
+                                                     SWS_BILINEAR, nullptr, nullptr, nullptr);
+                        }
+
+                        if (sws_ctx) {
+                            sws_scale(sws_ctx, frame->data, frame->linesize, 0, height,
+                                      frame_rgba->data, frame_rgba->linesize);
+
+                            // Update SDL Texture
+                            SDL_UpdateTexture(texture, nullptr, rgba_buffer, width * 4);
+                            
+                            av_packet_unref(packet);
+                            return true;
+                        }
+                    }
+                }
+            }
+            av_packet_unref(packet);
+        }
+        return false; // EOF or error
+    }
+
+    int getWidth() const { return width; }
+    int getHeight() const { return height; }
 };
 
 bool  plasma_render_tiles = false;
@@ -334,7 +463,7 @@ struct ParsedSegment {
     bool bIsStatic;
     int r, g, b; 
     std::string content;
-    bool bIsFile;
+    int bIsFile; // 0: None, 1: PNG, 2: Video
     std::string fullInput;
 };
 
@@ -366,9 +495,9 @@ public:
             cursor = posMatch.length();
         }
 
-        // 2. Scan remaining string for [image:...] and [rgb:...]
+        // 2. Scan remaining string for [image:...], [video:...], and [rgb:...]
         std::string body = input.substr(cursor);
-        std::regex tagRegex(R"(\[(image|rgb):\s*([^\]]+)\])");
+        std::regex tagRegex(R"(\[(image|video|rgb):\s*([^\]]+)\])");
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -379,7 +508,7 @@ public:
 
             // Text segment before a tag
             if (matchPos > lastPos) {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), false, input});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input});
             }
 
             std::string tagType = match.str(1);
@@ -393,7 +522,9 @@ public:
                     cb = std::stoi(rgbTokens[2]);
                 }
             } else if (tagType == "image") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, true, input});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input});
+            } else if (tagType == "video") {
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input});
             }
 
             lastPos = matchPos + match.length();
@@ -401,7 +532,7 @@ public:
 
         // 3. Final trailing text
         if (lastPos < body.length()) {
-            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), false,input});
+            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input});
         }
 
         return results;
@@ -411,11 +542,11 @@ void processAndPrint(const std::string& input) {
     auto segments = ContentParser::parse(input);
     std::cout << "\nInput: " << input << "\n";
     for (const auto& s : segments) {
-        std::printf("  Pos:(%d,%d) Velo:(%d,%d) Static:%s RGB:(%d,%d,%d) | File:%s | Content: \"%s\"\n",
+        std::printf("  Pos:(%d,%d) Velo:(%d,%d) Static:%s RGB:(%d,%d,%d) | Type:%d | Content: \"%s\"\n",
                     s.posx, s.posy, s.velox, s.veloy,
                     s.bIsStatic ? "Y" : "N",
                     s.r, s.g, s.b,
-                    s.bIsFile ? "Y" : "N", s.content.c_str());
+                    s.bIsFile, s.content.c_str());
     }
 }
 
@@ -443,6 +574,7 @@ struct Bouncer {
     Uint8 r, g, b;   // random tint colour
     SDL_Texture* tex; // which text texture to use (not owned — shared)
     int tw, th;       // dimensions of that texture()
+    NvdecDecode* decoder = nullptr;
 };
 
 // ------------------------------------------------
@@ -567,6 +699,13 @@ private:
     }
     */
 public:
+    ~BDdisplay() {
+        for (auto& b : bouncers) {
+            if (b.decoder) delete b.decoder;
+            if (b.tex) SDL_DestroyTexture(b.tex);
+        }
+    }
+
     void recalculateBoundingBox() {
         if (bouncers.empty()) return;
 
@@ -591,6 +730,14 @@ public:
 
     void update(float deltaTime, int windowW, int windowH) {
         if (bouncers.empty()) return;
+
+        // Update video frames
+        for (auto& b : bouncers) {
+            if (b.decoder && b.tex) {
+                b.decoder->getNextFrame(b.tex);
+            }
+        }
+
         if(bAmNotMoving) return;
 
         // 1. Move all elements by the group velocity
@@ -631,15 +778,27 @@ public:
 
 
     bool add(ParsedSegment pd) {
-        
-//float px, float py,float vx, float vy, Uint8 r, Uint8 g, Uint8 b, std::string cText, bool bIsFile = false, bool bIsStatic = false, std::string cinput
-
         SDL_Texture* tex = NULL;
         Bouncer newB;
 
-        if(pd.bIsFile){
+        if (pd.bIsFile == 1) { // PNG
             tex = create_png_texture(renderer, pd.content.c_str(), &newB.tw, &newB.th);
-        } else { 
+        } else if (pd.bIsFile == 2) { // Video
+            try {
+                newB.decoder = new NvdecDecode(pd.content);
+                newB.tw = newB.decoder->getWidth();
+                newB.th = newB.decoder->getHeight();
+                // Create streaming texture for video (RGBA is preferred for SDL_UpdateTexture)
+                tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, newB.tw, newB.th);
+                if (tex) {
+                    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+                    newB.decoder->getNextFrame(tex); // load first frame
+                }
+            } catch (const std::exception& e) {
+                std::printf("Video load error: %s\n", e.what());
+                return false;
+            }
+        } else { // Text (pd.bIsFile == 0)
             tex = create_text_texture(renderer, pd.content.c_str(), &newB.tw, &newB.th);
         }
 
@@ -687,7 +846,7 @@ public:
 
     void draw(SDL_Renderer* renderer) {
         for (auto& b : bouncers) {
-            SDL_FRect dst = { b.x, b.y, b.tw, b.th };
+            SDL_FRect dst = { b.x, b.y, static_cast<float>(b.tw), static_cast<float>(b.th) };
             
             // Set tint (SDL3 uses Uint8 0-255)
             SDL_SetTextureColorMod(b.tex, b.r, b.g, b.b);
@@ -1473,7 +1632,7 @@ int main(int argc, char** argv)
     bool  cli_no_nerds = false;
     bool cli_no_maximize = false;
     bool cli_plasma_tile = false;
-    std::vector<BDdisplay>  mBdisplay;
+    std::vector<std::unique_ptr<BDdisplay>>  mBdisplay;
     
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--record") == 0 && i + 1 < argc) {
@@ -1547,15 +1706,12 @@ int main(int argc, char** argv)
         mParser.processAndPrint(t);
         auto pcsout = mParser.parse(t);
 
-        BDdisplay newBD;
-        mBdisplay.push_back(newBD);
+        auto newBD = std::make_unique<BDdisplay>();
         
-        BDdisplay& cbdBD = mBdisplay[mBdisplay.size()-1];
-
         for(auto& pd : pcsout){
-            
-            cbdBD.add(pd);
+            newBD->add(pd);
         }
+        mBdisplay.push_back(std::move(newBD));
         
 
         /*
@@ -1697,7 +1853,22 @@ int main(int argc, char** argv)
 
         // Handle resize — recreate plasma texture when window size changes
         
+        bool bWinChange = false;
+
         SDL_GetWindowSize(window, &cur_w, &cur_h);
+        if(cur_w % 16){
+            cur_w = (((int)cur_w)/16)*16;
+            bWinChange = true;
+        }
+        if(cur_h % 16){
+            cur_h = (((int)cur_h)/16)*16;
+            bWinChange = true;
+        }
+
+        if(bWinChange){
+            SDL_SetWindowSize(window, cur_w, cur_h);
+        }
+        
         cur_rel = (float)cur_w / (float)cur_h;
         if (cur_w != prev_win_w || cur_h != prev_win_h) {
             // Recreate plasma at new reduced size
@@ -1712,7 +1883,7 @@ int main(int argc, char** argv)
             );
 
             // Clamp all bouncers so they stay inside the new window
-       
+       /*
             for (auto& b : bouncers) {
                 float max_x = static_cast<float>(cur_w - b.tw);
                 float max_y = static_cast<float>(cur_h - b.th);
@@ -1721,13 +1892,13 @@ int main(int argc, char** argv)
                 if (b.x > max_x) b.x = max_x;
                 if (b.y > max_y) b.y = max_y;
             }
-
+    */
             prev_win_w = cur_w;
             prev_win_h = cur_h;
         }
 
         // --- Bounce all text instances (DVD screensaver style) ---
-        {
+        {/*
             for (auto& b : bouncers) {
                 b.x += b.vx * dt;
                 b.y += b.vy * dt;
@@ -1741,7 +1912,7 @@ int main(int argc, char** argv)
                 if (b.x >= right_edge)    { b.x = right_edge;   b.vx = -b.vx; }
                 if (b.y <= 0.0f)          { b.y = 0.0f;         b.vy = -b.vy; }
                 if (b.y >= bottom_edge)   { b.y = bottom_edge;  b.vy = -b.vy; }
-            }
+            } */
         }
 
         // Roll palette: smoothly rotate the colour phase offsets each frame
@@ -1771,7 +1942,7 @@ int main(int argc, char** argv)
                         ImGui::PushID(ti);
                         if (ImGui::SmallButton("X")) del_text_idx = ti;
                         ImGui::SameLine();
-                        ImGui::BulletText("\"%s\"", mBdisplay[ti].getInput().c_str());
+                        ImGui::BulletText("\"%s\"", mBdisplay[ti]->getInput().c_str());
                         ImGui::PopID();
                     }
                     if (del_text_idx >= 0) {
@@ -1803,15 +1974,12 @@ int main(int argc, char** argv)
 
                         auto pcsout = mParser.parse(custom_text_buf);
 
-                        BDdisplay newBD;
-                        mBdisplay.push_back(newBD);
+                        auto newBD = std::make_unique<BDdisplay>();
         
-                        BDdisplay& cbdBD = mBdisplay[mBdisplay.size()-1];
-
                         for(auto& pd : pcsout){
-            
-                            cbdBD.add(pd);
+                            newBD->add(pd);
                         }
+                        mBdisplay.push_back(std::move(newBD));
 
                         /* int cw = 0, ch = 0;
 
@@ -1860,7 +2028,7 @@ int main(int argc, char** argv)
                             */
                     }
                 }
-                ImGui::Text("Count: %d", static_cast<int>(bouncers.size()));
+                //ImGui::Text("Count: %d", static_cast<int>(bouncers.size()));
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Plasma")) {
@@ -1946,8 +2114,8 @@ int main(int argc, char** argv)
         // 2) Draw all bouncing text instances (each with its own texture & colour)
         
         for(auto& mbd : mBdisplay){
-            mbd.update(0.1,cur_w, cur_h);
-            mbd.draw(renderer);
+            mbd->update(dt,cur_w, cur_h);
+            mbd->draw(renderer);
         }
         
 
