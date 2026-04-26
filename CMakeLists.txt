@@ -31,6 +31,8 @@ pkg_check_modules(libavutil REQUIRED IMPORTED_TARGET libavutil)
 pkg_check_modules(libavformat REQUIRED IMPORTED_TARGET libavformat)
 pkg_check_modules(libavdevice REQUIRED IMPORTED_TARGET libavdevice)
 pkg_check_modules(libswscale REQUIRED IMPORTED_TARGET libswscale)
+pkg_check_modules(libswresample REQUIRED IMPORTED_TARGET libswresample)
+pkg_check_modules(ALSA REQUIRED IMPORTED_TARGET alsa)
 
 
 target_link_libraries(imgui PUBLIC PkgConfig::SDL3)
@@ -38,4 +40,4 @@ target_link_libraries(imgui PUBLIC PkgConfig::SDL3)
 # --- Our executable ---
 add_executable(gcg main.cpp)
 target_compile_options(gcg PRIVATE "-g")
-target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale)
+target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA)

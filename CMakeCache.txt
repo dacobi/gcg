@@ -211,6 +211,9 @@ gcg_IS_TOP_LEVEL:STATIC=ON
 gcg_SOURCE_DIR:STATIC=/home/klejs/src/gcg
 
 //Path to a library.
+pkgcfg_lib_ALSA_asound:FILEPATH=/usr/lib/libasound.so
+
+//Path to a library.
 pkgcfg_lib_SDL3_SDL3:FILEPATH=/usr/lib/libSDL3.so
 
 //Path to a library.
@@ -241,6 +244,9 @@ pkgcfg_lib_libavformat_avformat:FILEPATH=/usr/lib/libavformat.so
 pkgcfg_lib_libavutil_avutil:FILEPATH=/usr/lib/libavutil.so
 
 //Path to a library.
+pkgcfg_lib_libswresample_swresample:FILEPATH=/usr/lib/libswresample.so
+
+//Path to a library.
 pkgcfg_lib_libswscale_swscale:FILEPATH=/usr/lib/libswscale.so
 
 
@@ -248,6 +254,41 @@ pkgcfg_lib_libswscale_swscale:FILEPATH=/usr/lib/libswscale.so
 # INTERNAL cache entries
 ########################
 
+ALSA_CFLAGS:INTERNAL=-I/usr/include
+ALSA_CFLAGS_I:INTERNAL=
+ALSA_CFLAGS_OTHER:INTERNAL=
+ALSA_FOUND:INTERNAL=1
+ALSA_INCLUDEDIR:INTERNAL=/usr/include
+ALSA_INCLUDE_DIRS:INTERNAL=/usr/include
+ALSA_LDFLAGS:INTERNAL=-L/usr/lib;-lasound
+ALSA_LDFLAGS_OTHER:INTERNAL=
+ALSA_LIBDIR:INTERNAL=/usr/lib
+ALSA_LIBRARIES:INTERNAL=asound
+ALSA_LIBRARY_DIRS:INTERNAL=/usr/lib
+ALSA_LIBS:INTERNAL=
+ALSA_LIBS_L:INTERNAL=
+ALSA_LIBS_OTHER:INTERNAL=
+ALSA_LIBS_PATHS:INTERNAL=
+ALSA_MODULE_NAME:INTERNAL=alsa
+ALSA_PREFIX:INTERNAL=/usr
+ALSA_STATIC_CFLAGS:INTERNAL=-I/usr/include
+ALSA_STATIC_CFLAGS_I:INTERNAL=
+ALSA_STATIC_CFLAGS_OTHER:INTERNAL=
+ALSA_STATIC_INCLUDE_DIRS:INTERNAL=/usr/include
+ALSA_STATIC_LDFLAGS:INTERNAL=-L/usr/lib;-lasound;-lm;-lpthread;-lrt
+ALSA_STATIC_LDFLAGS_OTHER:INTERNAL=
+ALSA_STATIC_LIBDIR:INTERNAL=
+ALSA_STATIC_LIBRARIES:INTERNAL=asound;m;pthread;rt
+ALSA_STATIC_LIBRARY_DIRS:INTERNAL=/usr/lib
+ALSA_STATIC_LIBS:INTERNAL=
+ALSA_STATIC_LIBS_L:INTERNAL=
+ALSA_STATIC_LIBS_OTHER:INTERNAL=
+ALSA_STATIC_LIBS_PATHS:INTERNAL=
+ALSA_VERSION:INTERNAL=1.2.15.3
+ALSA_alsa_INCLUDEDIR:INTERNAL=
+ALSA_alsa_LIBDIR:INTERNAL=
+ALSA_alsa_PREFIX:INTERNAL=
+ALSA_alsa_VERSION:INTERNAL=
 //ADVANCED property for variable: CMAKE_ADDR2LINE
 CMAKE_ADDR2LINE-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_AR
@@ -492,6 +533,7 @@ SDL3_sdl3_INCLUDEDIR:INTERNAL=
 SDL3_sdl3_LIBDIR:INTERNAL=
 SDL3_sdl3_PREFIX:INTERNAL=
 SDL3_sdl3_VERSION:INTERNAL=
+__pkg_config_arguments_ALSA:INTERNAL=REQUIRED;IMPORTED_TARGET;alsa
 __pkg_config_arguments_SDL3:INTERNAL=REQUIRED;IMPORTED_TARGET;sdl3
 __pkg_config_arguments_SDL3_TTF:INTERNAL=REQUIRED;IMPORTED_TARGET;sdl3-ttf
 __pkg_config_arguments_SDL3_image:INTERNAL=REQUIRED;IMPORTED_TARGET;sdl3-image
@@ -500,7 +542,9 @@ __pkg_config_arguments_libavcodec:INTERNAL=REQUIRED;IMPORTED_TARGET;libavcodec
 __pkg_config_arguments_libavdevice:INTERNAL=REQUIRED;IMPORTED_TARGET;libavdevice
 __pkg_config_arguments_libavformat:INTERNAL=REQUIRED;IMPORTED_TARGET;libavformat
 __pkg_config_arguments_libavutil:INTERNAL=REQUIRED;IMPORTED_TARGET;libavutil
+__pkg_config_arguments_libswresample:INTERNAL=REQUIRED;IMPORTED_TARGET;libswresample
 __pkg_config_arguments_libswscale:INTERNAL=REQUIRED;IMPORTED_TARGET;libswscale
+__pkg_config_checked_ALSA:INTERNAL=1
 __pkg_config_checked_SDL3:INTERNAL=1
 __pkg_config_checked_SDL3_TTF:INTERNAL=1
 __pkg_config_checked_SDL3_image:INTERNAL=1
@@ -509,6 +553,7 @@ __pkg_config_checked_libavcodec:INTERNAL=1
 __pkg_config_checked_libavdevice:INTERNAL=1
 __pkg_config_checked_libavformat:INTERNAL=1
 __pkg_config_checked_libavutil:INTERNAL=1
+__pkg_config_checked_libswresample:INTERNAL=1
 __pkg_config_checked_libswscale:INTERNAL=1
 libavcode_CFLAGS:INTERNAL=-I/usr/include
 libavcode_CFLAGS_I:INTERNAL=
@@ -689,6 +734,41 @@ libavutil_libavutil_INCLUDEDIR:INTERNAL=
 libavutil_libavutil_LIBDIR:INTERNAL=
 libavutil_libavutil_PREFIX:INTERNAL=
 libavutil_libavutil_VERSION:INTERNAL=
+libswresample_CFLAGS:INTERNAL=-I/usr/include
+libswresample_CFLAGS_I:INTERNAL=
+libswresample_CFLAGS_OTHER:INTERNAL=
+libswresample_FOUND:INTERNAL=1
+libswresample_INCLUDEDIR:INTERNAL=/usr/include
+libswresample_INCLUDE_DIRS:INTERNAL=/usr/include
+libswresample_LDFLAGS:INTERNAL=-L/usr/lib;-lswresample
+libswresample_LDFLAGS_OTHER:INTERNAL=
+libswresample_LIBDIR:INTERNAL=/usr/lib
+libswresample_LIBRARIES:INTERNAL=swresample
+libswresample_LIBRARY_DIRS:INTERNAL=/usr/lib
+libswresample_LIBS:INTERNAL=
+libswresample_LIBS_L:INTERNAL=
+libswresample_LIBS_OTHER:INTERNAL=
+libswresample_LIBS_PATHS:INTERNAL=
+libswresample_MODULE_NAME:INTERNAL=libswresample
+libswresample_PREFIX:INTERNAL=/usr
+libswresample_STATIC_CFLAGS:INTERNAL=-I/usr/include
+libswresample_STATIC_CFLAGS_I:INTERNAL=
+libswresample_STATIC_CFLAGS_OTHER:INTERNAL=
+libswresample_STATIC_INCLUDE_DIRS:INTERNAL=/usr/include
+libswresample_STATIC_LDFLAGS:INTERNAL=-L/usr/lib;-lswresample;-lm;-lsoxr;-latomic;-lavutil;-lva-drm;-lva;-lva-x11;-lva;-lvdpau;-lX11;-lm;-ldrm;-L/usr/lib/pkgconfig/../;-lvpl;-ldl;-lOpenCL;-lva;-latomic;-pthread;-lX11
+libswresample_STATIC_LDFLAGS_OTHER:INTERNAL=-pthread
+libswresample_STATIC_LIBDIR:INTERNAL=
+libswresample_STATIC_LIBRARIES:INTERNAL=swresample;m;soxr;atomic;avutil;va-drm;va;va-x11;va;vdpau;X11;m;drm;vpl;dl;OpenCL;va;atomic;X11
+libswresample_STATIC_LIBRARY_DIRS:INTERNAL=/usr/lib;/usr/lib/pkgconfig/../
+libswresample_STATIC_LIBS:INTERNAL=
+libswresample_STATIC_LIBS_L:INTERNAL=
+libswresample_STATIC_LIBS_OTHER:INTERNAL=
+libswresample_STATIC_LIBS_PATHS:INTERNAL=
+libswresample_VERSION:INTERNAL=6.1.100
+libswresample_libswresample_INCLUDEDIR:INTERNAL=
+libswresample_libswresample_LIBDIR:INTERNAL=
+libswresample_libswresample_PREFIX:INTERNAL=
+libswresample_libswresample_VERSION:INTERNAL=
 libswscale_CFLAGS:INTERNAL=-I/usr/include
 libswscale_CFLAGS_I:INTERNAL=
 libswscale_CFLAGS_OTHER:INTERNAL=
@@ -724,6 +804,8 @@ libswscale_libswscale_INCLUDEDIR:INTERNAL=
 libswscale_libswscale_LIBDIR:INTERNAL=
 libswscale_libswscale_PREFIX:INTERNAL=
 libswscale_libswscale_VERSION:INTERNAL=
+//ADVANCED property for variable: pkgcfg_lib_ALSA_asound
+pkgcfg_lib_ALSA_asound-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib_SDL3_SDL3
 pkgcfg_lib_SDL3_SDL3-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib_SDL3_TTF_SDL3
@@ -744,6 +826,8 @@ pkgcfg_lib_libavdevice_avdevice-ADVANCED:INTERNAL=1
 pkgcfg_lib_libavformat_avformat-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib_libavutil_avutil
 pkgcfg_lib_libavutil_avutil-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_libswresample_swresample
+pkgcfg_lib_libswresample_swresample-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib_libswscale_swscale
 pkgcfg_lib_libswscale_swscale-ADVANCED:INTERNAL=1
 prefix_result:INTERNAL=/usr/lib
