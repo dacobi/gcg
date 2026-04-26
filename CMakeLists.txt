@@ -33,11 +33,12 @@ pkg_check_modules(libavdevice REQUIRED IMPORTED_TARGET libavdevice)
 pkg_check_modules(libswscale REQUIRED IMPORTED_TARGET libswscale)
 pkg_check_modules(libswresample REQUIRED IMPORTED_TARGET libswresample)
 pkg_check_modules(ALSA REQUIRED IMPORTED_TARGET alsa)
+find_package(OpenCL REQUIRED)
 
 
 target_link_libraries(imgui PUBLIC PkgConfig::SDL3)
 #target_compile_options(gcg PRIVATE -g -O2)
 # --- Our executable ---
-add_executable(gcg main.cpp)
+add_executable(gcg main.cpp clplasma.cpp)
 target_compile_options(gcg PRIVATE "-g")
-target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA)
+target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA OpenCL::OpenCL)

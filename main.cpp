@@ -24,6 +24,7 @@
 #include <queue>
 #include <atomic>
 #include <chrono>
+#include "clplasma.h"
 
 
 extern "C" {
@@ -2003,6 +2004,8 @@ static void update_plasma_texture(SDL_Texture* tex, int w, int h, float t,
 //------------
 
 ContentParser mParser;
+ 
+PlasmaOpenCL* myPlasma;
 
 // ---------------------------------------------------------------------------
 int main(int argc, char** argv)
@@ -2212,6 +2215,13 @@ int main(int argc, char** argv)
     Uint64 last_ticks = SDL_GetPerformanceCounter();
     Uint64 freq       = SDL_GetPerformanceFrequency();
 
+    myPlasma = new PlasmaOpenCL(plasma_w, plasma_h);
+    myPlasma->init();
+    //CLPlasmaParams ft1;
+    //myPlasma.setParams(ft1);
+    myPlasma->start();
+ 
+
     // --- Main loop ---
     while (running) {
         SDL_Event ev;
@@ -2265,18 +2275,8 @@ int main(int argc, char** argv)
                 renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
                 plasma_w, plasma_h
             );
-
-            // Clamp all bouncers so they stay inside the new window
-       /*
-            for (auto& b : bouncers) {
-                float max_x = static_cast<float>(cur_w - b.tw);
-                float max_y = static_cast<float>(cur_h - b.th);
-                if (max_x < 0) max_x = 0;
-                if (max_y < 0) max_y = 0;
-                if (b.x > max_x) b.x = max_x;
-                if (b.y > max_y) b.y = max_y;
-            }
-    */
+            myPlasma->resize(plasma_w, plasma_h);
+     
             prev_win_w = cur_w;
             prev_win_h = cur_h;
         }
@@ -2292,11 +2292,16 @@ int main(int argc, char** argv)
         // Update plasma pixels
         // 1) Update plasma background if active
         if (plasma_tex && !bg_tex) {
-            update_plasma_texture(plasma_tex, plasma_w, plasma_h, time_acc, plasma_params);
+            //update_plasma_texture(plasma_tex, plasma_w, plasma_h, time_acc, plasma_params);
+            myPlasma->updateTexture(plasma_tex);
         }
+        
+    
+        
         // New frame
         ImGui_ImplSDLRenderer3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
+
         ImGui::NewFrame();
 
         // --- Main Menu Bar ---
@@ -2471,6 +2476,7 @@ int main(int argc, char** argv)
 
     // --- Cleanup ---
     recorder_stop(recorder);
+    myPlasma->stop();
     if (bg_tex) SDL_DestroyTexture(bg_tex);
     for (auto* et : extra_textures) SDL_DestroyTexture(et);
     for (auto& e : cli_entries) { if (e.tex) SDL_DestroyTexture(e.tex); }

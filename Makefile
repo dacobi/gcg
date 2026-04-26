@@ -142,6 +142,30 @@ gcg/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/build
 .PHONY : gcg/fast
 
+clplasma.o: clplasma.cpp.o
+.PHONY : clplasma.o
+
+# target to build an object file
+clplasma.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clplasma.cpp.o
+.PHONY : clplasma.cpp.o
+
+clplasma.i: clplasma.cpp.i
+.PHONY : clplasma.i
+
+# target to preprocess a source file
+clplasma.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clplasma.cpp.i
+.PHONY : clplasma.cpp.i
+
+clplasma.s: clplasma.cpp.s
+.PHONY : clplasma.s
+
+# target to generate assembly for a file
+clplasma.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clplasma.cpp.s
+.PHONY : clplasma.cpp.s
+
 home/klejs/src/ImGui/backends/imgui_impl_sdl3.o: home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.o
 .PHONY : home/klejs/src/ImGui/backends/imgui_impl_sdl3.o
 
@@ -344,6 +368,9 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... gcg"
 	@echo "... imgui"
+	@echo "... clplasma.o"
+	@echo "... clplasma.i"
+	@echo "... clplasma.s"
 	@echo "... home/klejs/src/ImGui/backends/imgui_impl_sdl3.o"
 	@echo "... home/klejs/src/ImGui/backends/imgui_impl_sdl3.i"
 	@echo "... home/klejs/src/ImGui/backends/imgui_impl_sdl3.s"
