@@ -50,10 +50,11 @@ public:
     void addAudio(const int16_t* data, int nb_samples) {
         std::lock_guard<std::mutex> lock(mtx);
         int total_values = nb_samples * 2; // Stereo
-        if (mix_buffer.size() < total_values) mix_buffer.resize(total_values, 0.0f);
+        size_t current_size = mix_buffer.size();
+        mix_buffer.resize(current_size + total_values, 0.0f);
 
         for (int i = 0; i < total_values; ++i) {
-            mix_buffer[i] += data[i] / 32768.0f;
+            mix_buffer[current_size + i] = data[i] / 32768.0f;
         }
     }
 
@@ -78,6 +79,11 @@ public:
 // --- 2. Encoder Class ---
 class NvencEncoder {
 private:
+    struct RawFrame {
+        std::vector<uint8_t> data;
+        int64_t pts;
+    };
+
     AVFormatContext* out_ctx = nullptr;
     AVCodecContext *v_enc = nullptr, *a_enc = nullptr;
     AVStream *v_stream = nullptr, *a_stream = nullptr;
@@ -89,7 +95,9 @@ private:
     std::thread worker_thread;
     std::atomic<bool> quit{false};
     std::mutex v_queue_mtx;
-    std::queue<AVFrame*> video_queue;
+    std::queue<RawFrame*> video_queue;
+    std::vector<RawFrame*> buffer_pool;
+    std::mutex pool_mtx;
 
     int width, height;
     double target_fps;
@@ -99,26 +107,43 @@ private:
     // Time-based Sync State
     std::chrono::steady_clock::time_point start_time;
     std::atomic<bool> recording_started{false};
-    const size_t MAX_QUEUE_SIZE = 10; 
+    const size_t MAX_QUEUE_SIZE = 15; 
 
     void workerFunc() {
         while (!quit || !video_queue.empty()) {
             bool busy = false;
 
             // 1. Process Video Frames
-            AVFrame* v_frame = nullptr;
+            RawFrame* raw = nullptr;
             {
                 std::lock_guard<std::mutex> lock(v_queue_mtx);
                 if (!video_queue.empty()) {
-                    v_frame = video_queue.front();
+                    raw = video_queue.front();
                     video_queue.pop();
                     busy = true;
                 }
             }
 
-            if (v_frame) {
+            if (raw) {
+                AVFrame* v_frame = av_frame_alloc();
+                v_frame->format = v_enc->pix_fmt;
+                v_frame->width = width;
+                v_frame->height = height;
+                v_frame->pts = raw->pts;
+                av_frame_get_buffer(v_frame, 0);
+
+                const uint8_t* src[] = { raw->data.data() };
+                int src_stride[] = { 4 * width };
+                sws_scale(sws_ctx, src, src_stride, 0, height, v_frame->data, v_frame->linesize);
+
                 encodeAndMux(v_frame, v_enc, v_stream);
                 av_frame_free(&v_frame);
+
+                // Return to pool
+                {
+                    std::lock_guard<std::mutex> lock(pool_mtx);
+                    buffer_pool.push_back(raw);
+                }
             }
 
             // 2. Process Audio (Only if recording has officially started)
@@ -179,6 +204,7 @@ public:
         v_enc->time_base = {1, (int)target_fps};
         v_enc->framerate = {(int)target_fps, 1};
         av_opt_set(v_enc->priv_data, "preset", "p4", 0);
+        v_enc->gop_size = 30; // Add GOP for stability
         if (out_ctx->oformat->flags & AVFMT_GLOBALHEADER) v_enc->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
         avcodec_open2(v_enc, v_codec, nullptr);
         avcodec_parameters_from_context(v_stream->codecpar, v_enc);
@@ -196,13 +222,20 @@ public:
         a_frame_size = a_enc->frame_size;
 
         // Converters
-        sws_ctx = sws_getContext(w, h, AV_PIX_FMT_RGBA, w, h, v_enc->pix_fmt, SWS_BILINEAR, nullptr, nullptr, nullptr);
+        sws_ctx = sws_getContext(w, h, AV_PIX_FMT_RGBA, w, h, v_enc->pix_fmt, SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
         swr_alloc_set_opts2(&swr_ctx, &a_enc->ch_layout, a_enc->sample_fmt, sample_rate,
                             &a_enc->ch_layout, AV_SAMPLE_FMT_S16, sample_rate, 0, nullptr);
         swr_init(swr_ctx);
 
         avio_open(&out_ctx->pb, path.c_str(), AVIO_FLAG_WRITE);
         avformat_write_header(out_ctx, nullptr);
+
+        // Pre-allocate some buffers
+        for (int i = 0; i < 5; ++i) {
+            RawFrame* rf = new RawFrame();
+            rf->data.resize(w * h * 4);
+            buffer_pool.push_back(rf);
+        }
 
         worker_thread = std::thread(&NvencEncoder::workerFunc, this);
     }
@@ -225,18 +258,27 @@ public:
             if (video_queue.size() > MAX_QUEUE_SIZE) return;
         }
 
-        AVFrame* f = av_frame_alloc();
-        f->format = v_enc->pix_fmt;
-        f->width = width; f->height = height;
-        f->pts = pts; // Set calculated timestamp
-        av_frame_get_buffer(f, 0);
+        RawFrame* raw = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(pool_mtx);
+            if (!buffer_pool.empty()) {
+                raw = buffer_pool.back();
+                buffer_pool.pop_back();
+            }
+        }
 
-        const uint8_t* src[] = { rgba_data };
-        int src_stride[] = { 4 * width };
-        sws_scale(sws_ctx, src, src_stride, 0, height, f->data, f->linesize);
-        
-        std::lock_guard<std::mutex> lock(v_queue_mtx);
-        video_queue.push(f);
+        if (!raw) {
+            raw = new RawFrame();
+            raw->data.resize(width * height * 4);
+        }
+
+        std::memcpy(raw->data.data(), rgba_data, width * height * 4);
+        raw->pts = pts;
+
+        {
+            std::lock_guard<std::mutex> lock(v_queue_mtx);
+            video_queue.push(raw);
+        }
     }
 
     ~NvencEncoder() {
@@ -248,6 +290,12 @@ public:
         sws_freeContext(sws_ctx); swr_free(&swr_ctx);
         avcodec_free_context(&v_enc); avcodec_free_context(&a_enc);
         avio_closep(&out_ctx->pb); avformat_free_context(out_ctx);
+
+        while (!video_queue.empty()) {
+            delete video_queue.front();
+            video_queue.pop();
+        }
+        for (auto b : buffer_pool) delete b;
     }
 };
 
@@ -261,10 +309,7 @@ private:
     SwsContext* sws_ctx = nullptr;
     SwrContext* swr_ctx = nullptr;
 
-    AVFrame* frame = nullptr;
-    AVFrame* frame_rgba = nullptr;
     AVFrame* audio_frame = nullptr;
-    uint8_t* rgba_buffer = nullptr;
     uint8_t* audio_out_buf = nullptr;
 
     int video_stream_idx = -1;
@@ -273,19 +318,37 @@ private:
 
     snd_pcm_t* alsa_handle = nullptr;
     
+    std::thread demux_thread;
     std::thread video_thread;
     std::thread audio_thread;
-    std::mutex audio_mtx;
-    std::mutex texture_mtx;
-    std::queue<AVPacket*> audio_pkt_queue;
     
+    std::mutex audio_mtx;
+    std::mutex video_pkt_mtx;
+    std::mutex texture_mtx;
+    std::mutex pool_mtx;
+
+    std::queue<AVPacket*> audio_pkt_queue;
+    std::queue<AVPacket*> video_pkt_queue;
+    
+    struct DecodedFrame {
+        AVFrame* frame_rgba;
+        double pts;
+    };
+    std::queue<DecodedFrame> decoded_queue;
+    std::vector<AVFrame*> frame_pool;
+    
+    const size_t MAX_DECODED_QUEUE = 8;
+    const size_t MAX_PACKET_QUEUE = 128;
+
     std::atomic<bool> quit{false};
+    std::atomic<bool> seek_req{false};
     std::atomic<double> audio_clock{0.0}; 
 
     void setupALSA(int channels, int rate) {
         if (snd_pcm_open(&alsa_handle, "default", SND_PCM_STREAM_PLAYBACK, 0) < 0) return;
         snd_pcm_set_params(alsa_handle, SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED,
                            channels, rate, 1, 100000); 
+        snd_pcm_nonblock(alsa_handle, 1);
     }
 
     double get_pts_seconds(AVFrame* f, int stream_idx) {
@@ -293,100 +356,193 @@ private:
         return f->pts * av_q2d(fmt_ctx->streams[stream_idx]->time_base);
     }
 
-    void audioWorker() {
-    while (!quit) {
-        AVPacket* pkt = nullptr;
-        
-        // 1. Get packet from queue
-        {
-            std::lock_guard<std::mutex> lock(audio_mtx);
-            if (!audio_pkt_queue.empty()) {
-                pkt = audio_pkt_queue.front();
-                audio_pkt_queue.pop();
-            }
-        }
-
-        // 2. Sleep if queue is empty
-        if (!pkt) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            continue;
-        }
-
-        // 3. Send packet to decoder
-        if (avcodec_send_packet(a_ctx, pkt) == 0) {
-            // 4. Receive decoded frames
-            while (avcodec_receive_frame(a_ctx, audio_frame) == 0) {
-                
-                // 5. Update Master Clock for Video Sync
-                audio_clock.store(get_pts_seconds(audio_frame, audio_stream_idx));
-
-                // 6. Resample to S16 Stereo (required for ALSA and Mixer)
-                int out_samples = swr_convert(swr_ctx, &audio_out_buf, 4096,
-                                              (const uint8_t**)audio_frame->data, 
-                                              audio_frame->nb_samples);
-                
-                if (out_samples > 0) {
-                    // 7. Write to Speakers (Live Playback)
-                    snd_pcm_sframes_t ret = snd_pcm_writei(alsa_handle, audio_out_buf, out_samples);
-                    if (ret == -EPIPE) {
-                        snd_pcm_prepare(alsa_handle);
-                        snd_pcm_writei(alsa_handle, audio_out_buf, out_samples);
-                    }
-
-                    // 8. Write to Shared Mixer (For NvencEncoder Recording)
-                    if (myMix) {
-                        // Cast buffer to int16_t because we resampled to S16
-                        myMix->addAudio((int16_t*)audio_out_buf, out_samples);
-                    }
-                }
-            }
-        }
-        
-        // 9. Free the cloned packet
-        av_packet_free(&pkt);
-    }
-}
-
-    void videoWorker() {
+    void demuxWorker() {
         AVPacket* pkt = av_packet_alloc();
         while (!quit) {
+            size_t v_q, a_q;
+            { std::lock_guard<std::mutex> l(video_pkt_mtx); v_q = video_pkt_queue.size(); }
+            { std::lock_guard<std::mutex> l(audio_mtx); a_q = audio_pkt_queue.size(); }
+
+            if (v_q > MAX_PACKET_QUEUE || a_q > MAX_PACKET_QUEUE) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                continue;
+            }
+
             if (av_read_frame(fmt_ctx, pkt) < 0) {
                 av_seek_frame(fmt_ctx, video_stream_idx, 0, AVSEEK_FLAG_BACKWARD);
+                seek_req.store(true);
                 continue;
             }
 
             if (pkt->stream_index == video_stream_idx) {
-                if (avcodec_send_packet(v_ctx, pkt) == 0) {
-                    while (avcodec_receive_frame(v_ctx, frame) == 0) {
-                        
-                        double pts = get_pts_seconds(frame, video_stream_idx);
-                        double diff = pts - audio_clock.load();
-                        
-                        // Wait if video is ahead of audio
-                        if (diff > 0.01) {
-                            av_usleep((int64_t)(diff * 1000000.0));
-                        }
-
-                        {
-                            std::lock_guard<std::mutex> lock(texture_mtx);
-                            if (!sws_ctx) {
-                                sws_ctx = sws_getContext(width, height, (AVPixelFormat)frame->format,
-                                                         width, height, AV_PIX_FMT_RGBA,
-                                                         SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
-                            }
-                            sws_scale(sws_ctx, frame->data, frame->linesize, 0, height,
-                                      frame_rgba->data, frame_rgba->linesize);
-                        }
-                    }
-                }
+                AVPacket* v_pkt = av_packet_clone(pkt);
+                std::lock_guard<std::mutex> l(video_pkt_mtx);
+                video_pkt_queue.push(v_pkt);
             } else if (pkt->stream_index == audio_stream_idx) {
                 AVPacket* a_pkt = av_packet_clone(pkt);
-                std::lock_guard<std::mutex> lock(audio_mtx);
+                std::lock_guard<std::mutex> l(audio_mtx);
                 audio_pkt_queue.push(a_pkt);
             }
             av_packet_unref(pkt);
         }
         av_packet_free(&pkt);
+    }
+
+    double get_current_audio_time() {
+        if (!alsa_handle) return audio_clock.load();
+        snd_pcm_sframes_t delay = 0;
+        // snd_pcm_delay returns the number of frames currently in the buffer
+        if (snd_pcm_delay(alsa_handle, &delay) < 0) return audio_clock.load();
+        double pts_in_buffer = (double)delay / a_ctx->sample_rate;
+        return audio_clock.load() - pts_in_buffer;
+    }
+
+    void audioWorker() {
+        if (alsa_handle) {
+            snd_pcm_nonblock(alsa_handle, 1);
+        }
+        while (!quit) {
+            if (seek_req.load()) {
+                avcodec_flush_buffers(a_ctx);
+                audio_clock.store(0.0);
+                std::lock_guard<std::mutex> l(audio_mtx);
+                while(!audio_pkt_queue.empty()) {
+                    AVPacket* p = audio_pkt_queue.front();
+                    av_packet_free(&p);
+                    audio_pkt_queue.pop();
+                }
+            }
+
+            AVPacket* pkt = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(audio_mtx);
+                if (!audio_pkt_queue.empty()) {
+                    pkt = audio_pkt_queue.front();
+                    audio_pkt_queue.pop();
+                }
+            }
+
+            if (!pkt) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                continue;
+            }
+
+            if (avcodec_send_packet(a_ctx, pkt) == 0) {
+                while (avcodec_receive_frame(a_ctx, audio_frame) == 0) {
+                    double pts = get_pts_seconds(audio_frame, audio_stream_idx);
+                    double duration = (double)audio_frame->nb_samples / a_ctx->sample_rate;
+                    
+                    // The clock represents the PTS at the END of the audio we just decoded
+                    audio_clock.store(pts + duration);
+
+                    int out_samples = swr_convert(swr_ctx, &audio_out_buf, 4096,
+                                                  (const uint8_t**)audio_frame->data, 
+                                                  audio_frame->nb_samples);
+                    if (out_samples > 0) {
+                        int written = 0;
+                        while(written < out_samples && !quit && !seek_req.load()) {
+                            snd_pcm_sframes_t ret = snd_pcm_writei(alsa_handle, audio_out_buf + written * 4, out_samples - written);
+                            if (ret == -EAGAIN) { 
+                                std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
+                                continue; 
+                            }
+                            if (ret == -EPIPE) { snd_pcm_prepare(alsa_handle); continue; }
+                            if (ret < 0) break;
+                            written += ret;
+                        }
+                        if (myMix) myMix->addAudio((int16_t*)audio_out_buf, out_samples);
+                    }
+                }
+            }
+            av_packet_free(&pkt);
+        }
+    }
+
+    void videoWorker() {
+        AVFrame* raw_frame = av_frame_alloc();
+        while (!quit) {
+            if (seek_req.load()) {
+                avcodec_flush_buffers(v_ctx);
+                {
+                    std::lock_guard<std::mutex> l(video_pkt_mtx);
+                    while(!video_pkt_queue.empty()) {
+                        AVPacket* p = video_pkt_queue.front();
+                        av_packet_free(&p);
+                        video_pkt_queue.pop();
+                    }
+                }
+                {
+                    std::lock_guard<std::mutex> l(texture_mtx);
+                    while(!decoded_queue.empty()) {
+                        AVFrame* f = decoded_queue.front().frame_rgba;
+                        { std::lock_guard<std::mutex> pl(pool_mtx); frame_pool.push_back(f); }
+                        decoded_queue.pop();
+                    }
+                }
+                // wait for audio worker to also see seek_req
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                seek_req.store(false); 
+            }
+
+            size_t q_size;
+            { std::lock_guard<std::mutex> l(texture_mtx); q_size = decoded_queue.size(); }
+            if (q_size >= MAX_DECODED_QUEUE) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                continue;
+            }
+
+            AVPacket* pkt = nullptr;
+            {
+                std::lock_guard<std::mutex> l(video_pkt_mtx);
+                if (!video_pkt_queue.empty()) {
+                    pkt = video_pkt_queue.front();
+                    video_pkt_queue.pop();
+                }
+            }
+
+            if (!pkt) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                continue;
+            }
+
+            if (avcodec_send_packet(v_ctx, pkt) == 0) {
+                while (avcodec_receive_frame(v_ctx, raw_frame) == 0) {
+                    AVFrame* rgba_f = nullptr;
+                    {
+                        std::lock_guard<std::mutex> l(pool_mtx);
+                        if (!frame_pool.empty()) {
+                            rgba_f = frame_pool.back();
+                            frame_pool.pop_back();
+                        }
+                    }
+                    if (!rgba_f) {
+                        rgba_f = av_frame_alloc();
+                        rgba_f->format = AV_PIX_FMT_RGBA;
+                        rgba_f->width = width; rgba_f->height = height;
+                        av_frame_get_buffer(rgba_f, 32);
+                    }
+
+                    if (!sws_ctx) {
+                        sws_ctx = sws_getContext(width, height, (AVPixelFormat)raw_frame->format,
+                                                 width, height, AV_PIX_FMT_RGBA,
+                                                 SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
+                    }
+                    sws_scale(sws_ctx, raw_frame->data, raw_frame->linesize, 0, height,
+                              rgba_f->data, rgba_f->linesize);
+
+                    DecodedFrame df;
+                    df.frame_rgba = rgba_f;
+                    df.pts = get_pts_seconds(raw_frame, video_stream_idx);
+
+                    {
+                        std::lock_guard<std::mutex> l(texture_mtx);
+                        decoded_queue.push(df);
+                    }
+                }
+            }
+            av_packet_free(&pkt);
+        }
+        av_frame_free(&raw_frame);
     }
 
 public:
@@ -399,7 +555,8 @@ public:
             AVCodecParameters* p = fmt_ctx->streams[i]->codecpar;
             if (p->codec_type == AVMEDIA_TYPE_VIDEO && video_stream_idx == -1) {
                 video_stream_idx = i;
-                vcodec = avcodec_find_decoder_by_name(p->codec_id == AV_CODEC_ID_H264 ? "h264_cuvid" : "hevc_cuvid");
+                if (p->codec_id == AV_CODEC_ID_H264) vcodec = avcodec_find_decoder_by_name("h264_cuvid");
+                else if (p->codec_id == AV_CODEC_ID_HEVC) vcodec = avcodec_find_decoder_by_name("hevc_cuvid");
                 if (!vcodec) vcodec = avcodec_find_decoder(p->codec_id);
             } else if (p->codec_type == AVMEDIA_TYPE_AUDIO && audio_stream_idx == -1) {
                 audio_stream_idx = i;
@@ -409,6 +566,8 @@ public:
 
         v_ctx = avcodec_alloc_context3(vcodec);
         avcodec_parameters_to_context(v_ctx, fmt_ctx->streams[video_stream_idx]->codecpar);
+        v_ctx->thread_count = 0;
+        v_ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
         avcodec_open2(v_ctx, vcodec, nullptr);
         width = v_ctx->width; height = v_ctx->height;
 
@@ -422,35 +581,38 @@ public:
         swr_init(swr_ctx);
         setupALSA(2, a_ctx->sample_rate);
         audio_out_buf = (uint8_t*)av_malloc(av_samples_get_buffer_size(nullptr, 2, 4096, AV_SAMPLE_FMT_S16, 0));
-
-        frame = av_frame_alloc();
-        frame_rgba = av_frame_alloc();
         audio_frame = av_frame_alloc();
-        int bytes = av_image_get_buffer_size(AV_PIX_FMT_RGBA, width, height, 32);
-        rgba_buffer = (uint8_t*)av_malloc(bytes);
-        av_image_fill_arrays(frame_rgba->data, frame_rgba->linesize, rgba_buffer, AV_PIX_FMT_RGBA, width, height, 32);
 
+        demux_thread = std::thread(&NvdecDecode::demuxWorker, this);
         video_thread = std::thread(&NvdecDecode::videoWorker, this);
         audio_thread = std::thread(&NvdecDecode::audioWorker, this);
     }
 
     ~NvdecDecode() {
         quit = true;
+        if (demux_thread.joinable()) demux_thread.join();
         if (video_thread.joinable()) video_thread.join();
         if (audio_thread.joinable()) audio_thread.join();
 
-        while (!audio_pkt_queue.empty()) {
-            AVPacket* p = audio_pkt_queue.front();
-            av_packet_free(&p);
-            audio_pkt_queue.pop();
+        auto clear_q = [](std::queue<AVPacket*>& q) {
+            while(!q.empty()) { av_packet_free(&q.front()); q.pop(); }
+        };
+        clear_q(audio_pkt_queue);
+        clear_q(video_pkt_queue);
+
+        {
+            std::lock_guard<std::mutex> lock(texture_mtx);
+            while(!decoded_queue.empty()){
+                AVFrame* f = decoded_queue.front().frame_rgba;
+                av_frame_free(&f);
+                decoded_queue.pop();
+            }
         }
+        for(auto f : frame_pool) av_frame_free(&f);
 
         if (sws_ctx) sws_freeContext(sws_ctx);
         if (swr_ctx) swr_free(&swr_ctx);
-        av_free(rgba_buffer);
         av_free(audio_out_buf);
-        av_frame_free(&frame);
-        av_frame_free(&frame_rgba);
         av_frame_free(&audio_frame);
         avcodec_free_context(&v_ctx);
         avcodec_free_context(&a_ctx);
@@ -458,11 +620,33 @@ public:
         if (alsa_handle) snd_pcm_close(alsa_handle);
     }
 
-    // SDL3 Specific Update
     void updateTexture(SDL_Texture* tex) {
-        std::lock_guard<std::mutex> lock(texture_mtx);
-        // In SDL3, SDL_UpdateTexture returns a boolean (true on success)
-        SDL_UpdateTexture(tex, nullptr, frame_rgba->data[0], frame_rgba->linesize[0]);
+        AVFrame* best_frame = nullptr;
+        std::vector<AVFrame*> old_frames;
+        {
+            std::lock_guard<std::mutex> lock(texture_mtx);
+            if (decoded_queue.empty()) return;
+            double target_pts = get_current_audio_time();
+            while (decoded_queue.size() > 2 && decoded_queue.front().pts < target_pts - 0.5) {
+                old_frames.push_back(decoded_queue.front().frame_rgba);
+                decoded_queue.pop();
+            }
+            while (!decoded_queue.empty()) {
+                if (decoded_queue.front().pts <= target_pts + 0.02) {
+                    if (best_frame) old_frames.push_back(best_frame);
+                    best_frame = decoded_queue.front().frame_rgba;
+                    decoded_queue.pop();
+                } else break;
+            }
+        }
+        if (best_frame) {
+            SDL_UpdateTexture(tex, nullptr, best_frame->data[0], best_frame->linesize[0]);
+            old_frames.push_back(best_frame);
+        }
+        if (!old_frames.empty()) {
+            std::lock_guard<std::mutex> plock(pool_mtx);
+            for (auto f : old_frames) frame_pool.push_back(f);
+        }
     }
 
     int getWidth() const { return width; }
@@ -1918,7 +2102,6 @@ int main(int argc, char** argv)
                 bg_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, 
                                            bg_video->getWidth(), bg_video->getHeight());
                 if (bg_tex) {
-                    bg_video->updateTexture(bg_tex);
                     std::printf("BG: Loaded video %s (%dx%d)\n", cli_bg_path.c_str(), bg_video->getWidth(), bg_video->getHeight());
                 }
             } catch (const std::exception& e) {
