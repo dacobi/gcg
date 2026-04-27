@@ -16,6 +16,8 @@
 #include <string>
 #include <algorithm>
 #include <vector>
+#include <deque>
+#include <map>
 #include <iostream>
 #include <tuple>
 #include <regex>
@@ -39,45 +41,168 @@ extern "C" {
 
 }
 
+const int MIXER_SAMPLE_RATE = 48000;
+
 // --- 1. Audio Mixer Class ---
 class AudioMixer {
 private:
+    struct SourceState {
+        std::vector<float> buffer;
+        int64_t total_pushed = 0; // Total samples (frames * channels)
+        double start_pts = -1.0;
+    };
+
     std::mutex mtx;
-    std::vector<float> mix_buffer; 
+    std::map<void*, SourceState> sources;
+    std::deque<int16_t> encoder_queue;
+
+    snd_pcm_t* alsa_handle = nullptr;
+    std::thread playback_thread;
+    std::atomic<bool> quit{false};
+    int sample_rate;
+    int64_t total_written_to_alsa = 0; // In samples (frames * channels)
+
+    struct DelaySnap {
+        double delay;
+        std::chrono::steady_clock::time_point timestamp;
+    };
+    std::mutex snap_mtx;
+    DelaySnap last_snap;
+
+    void setupALSA(int channels, int rate) {
+        if (snd_pcm_open(&alsa_handle, "default", SND_PCM_STREAM_PLAYBACK, 0) < 0) return;
+        // 500ms buffer for stability
+        snd_pcm_set_params(alsa_handle, SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED,
+                           channels, rate, 1, 500000); 
+        snd_pcm_nonblock(alsa_handle, 1);
+        snd_pcm_prepare(alsa_handle);
+    }
+
+    void updateDelaySnap() {
+        snd_pcm_sframes_t delay_frames = 0;
+        double d = 0;
+        if (alsa_handle && snd_pcm_delay(alsa_handle, &delay_frames) == 0) {
+            d = (double)delay_frames / sample_rate;
+        }
+        std::lock_guard<std::mutex> lock(snap_mtx);
+        last_snap = {d, std::chrono::steady_clock::now()};
+    }
+
+    void playbackWorker() {
+        const int max_frames = 512;
+        std::vector<float> mix_buf(max_frames * 2);
+        std::vector<int16_t> out_buf(max_frames * 2);
+
+        while (!quit) {
+            int frames_to_write = 0;
+            {
+                std::lock_guard<std::mutex> lock(mtx);
+                int max_avail = 0;
+                for (auto& p : sources) max_avail = std::max(max_avail, (int)p.second.buffer.size());
+
+                if (max_avail > 0) {
+                    int samples = std::min(max_avail, (int)mix_buf.size());
+                    if (samples % 2 != 0) samples--;
+                    if (samples > 0) {
+                        std::fill(mix_buf.begin(), mix_buf.begin() + samples, 0.0f);
+                        for (auto& p : sources) {
+                            auto& src = p.second;
+                            int to_copy = std::min((int)src.buffer.size(), samples);
+                            for (int i = 0; i < to_copy; ++i) mix_buf[i] += src.buffer[i];
+                            src.buffer.erase(src.buffer.begin(), src.buffer.begin() + to_copy);
+                        }
+                        for (int i = 0; i < samples; ++i) {
+                            float s = std::max(-1.0f, std::min(1.0f, mix_buf[i]));
+                            out_buf[i] = static_cast<int16_t>(s * 32767.0f);
+                            encoder_queue.push_back(out_buf[i]);
+                        }
+                        if (encoder_queue.size() > (size_t)sample_rate * 2 * 5)
+                            encoder_queue.erase(encoder_queue.begin(), encoder_queue.begin() + (encoder_queue.size() - (size_t)sample_rate * 2 * 5));
+                        frames_to_write = samples / 2;
+                    }
+                }
+            }
+
+            if (frames_to_write == 0) {
+                updateDelaySnap();
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                continue;
+            }
+
+            int written = 0;
+            while (written < frames_to_write && !quit && alsa_handle) {
+                snd_pcm_sframes_t ret = snd_pcm_writei(alsa_handle, out_buf.data() + written * 2, frames_to_write - written);
+                if (ret == -EAGAIN) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
+                if (ret == -EPIPE) { snd_pcm_prepare(alsa_handle); continue; }
+                if (ret < 0) break;
+                written += ret;
+                total_written_to_alsa += ret * 2;
+            }
+            updateDelaySnap();
+        }
+    }
 
 public:
-    AudioMixer(int rate) {}
+    AudioMixer(int rate) : sample_rate(rate) {
+        last_snap = {0.0, std::chrono::steady_clock::now()};
+        setupALSA(2, rate);
+        playback_thread = std::thread(&AudioMixer::playbackWorker, this);
+    }
 
-    void addAudio(const int16_t* data, int nb_samples) {
+    ~AudioMixer() {
+        quit = true;
+        if (alsa_handle) snd_pcm_drop(alsa_handle);
+        if (playback_thread.joinable()) playback_thread.join();
+        if (alsa_handle) snd_pcm_close(alsa_handle);
+    }
+
+    void addAudio(void* source, const int16_t* data, int nb_samples, double pts) {
         std::lock_guard<std::mutex> lock(mtx);
-        int total_values = nb_samples * 2; // Stereo
-        size_t current_size = mix_buffer.size();
-        mix_buffer.resize(current_size + total_values, 0.0f);
-
-        for (int i = 0; i < total_values; ++i) {
-            mix_buffer[current_size + i] = data[i] / 32768.0f;
+        auto& src = sources[source];
+        if (src.start_pts < 0 || std::abs(pts - (src.start_pts + (double)src.total_pushed / (sample_rate * 2))) > 0.5) {
+            src.start_pts = pts;
+            src.total_pushed = 0;
+            src.buffer.clear();
         }
+        for (int i = 0; i < nb_samples * 2; ++i) src.buffer.push_back(data[i] / 32768.0f);
+        src.total_pushed += nb_samples * 2;
+    }
+
+    void removeSource(void* source) {
+        std::lock_guard<std::mutex> lock(mtx);
+        sources.erase(source);
     }
 
     std::vector<int16_t> consume(int nb_samples) {
         std::lock_guard<std::mutex> lock(mtx);
-        int total_values = nb_samples * 2;
-        if (mix_buffer.empty()) return {};
-
-        int available = std::min((int)mix_buffer.size(), total_values);
-        std::vector<int16_t> output(available);
-
-        for (int i = 0; i < available; ++i) {
-            float sample = std::max(-1.0f, std::min(1.0f, mix_buffer[i]));
-            output[i] = static_cast<int16_t>(sample * 32767.0f);
-        }
-
-        mix_buffer.erase(mix_buffer.begin(), mix_buffer.begin() + available);
-        return output;
+        int total = nb_samples * 2;
+        int available = std::min((int)encoder_queue.size(), total);
+        if (available == 0) return {};
+        std::vector<int16_t> out(available);
+        for (int i = 0; i < available; ++i) { out[i] = encoder_queue.front(); encoder_queue.pop_front(); }
+        return out;
     }
-};
 
-// --- 2. Encoder Class ---
+    double getSourcePTS(void* source) {
+        std::lock_guard<std::mutex> lock(mtx);
+        if (sources.find(source) == sources.end()) return 0.0;
+        auto& src = sources[source];
+        if (src.start_pts < 0) return 0.0;
+
+        DelaySnap snap;
+        {
+            std::lock_guard<std::mutex> slock(snap_mtx);
+            snap = last_snap;
+        }
+        auto now = std::chrono::steady_clock::now();
+        double elapsed = std::chrono::duration<double>(now - snap.timestamp).count();
+        double alsa_delay = std::max(0.0, snap.delay - elapsed);
+        double buffer_delay = (double)(src.buffer.size() / 2) / sample_rate;
+
+        double total_delay = alsa_delay + buffer_delay;
+        return src.start_pts + (double)(src.total_pushed / 2) / sample_rate - total_delay;
+    }
+};// --- 2. Encoder Class ---
 class NvencEncoder {
 private:
     struct RawFrame {
@@ -157,7 +282,7 @@ private:
             }
 
             if (!busy) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
     }
@@ -317,8 +442,6 @@ private:
     int audio_stream_idx = -1;
     int width = 0, height = 0;
 
-    snd_pcm_t* alsa_handle = nullptr;
-    
     std::thread demux_thread;
     std::thread video_thread;
     std::thread audio_thread;
@@ -338,23 +461,18 @@ private:
     std::queue<DecodedFrame> decoded_queue;
     std::vector<AVFrame*> frame_pool;
     
-    const size_t MAX_DECODED_QUEUE = 8;
+    const size_t MAX_DECODED_QUEUE = 16;
     const size_t MAX_PACKET_QUEUE = 128;
 
     std::atomic<bool> quit{false};
     std::atomic<bool> seek_req{false};
     std::atomic<double> audio_clock{0.0}; 
 
-    void setupALSA(int channels, int rate) {
-        if (snd_pcm_open(&alsa_handle, "default", SND_PCM_STREAM_PLAYBACK, 0) < 0) return;
-        snd_pcm_set_params(alsa_handle, SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED,
-                           channels, rate, 1, 100000); 
-        snd_pcm_nonblock(alsa_handle, 1);
-    }
-
     double get_pts_seconds(AVFrame* f, int stream_idx) {
-        if (f->pts == AV_NOPTS_VALUE) return 0;
-        return f->pts * av_q2d(fmt_ctx->streams[stream_idx]->time_base);
+        int64_t pts = f->best_effort_timestamp;
+        if (pts == AV_NOPTS_VALUE) pts = f->pts;
+        if (pts == AV_NOPTS_VALUE) return audio_clock.load(); 
+        return pts * av_q2d(fmt_ctx->streams[stream_idx]->time_base);
     }
 
     void demuxWorker() {
@@ -365,16 +483,18 @@ private:
             { std::lock_guard<std::mutex> l(audio_mtx); a_q = audio_pkt_queue.size(); }
 
             if (v_q > MAX_PACKET_QUEUE || a_q > MAX_PACKET_QUEUE) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                if (quit) break;
                 continue;
             }
 
             if (av_read_frame(fmt_ctx, pkt) < 0) {
+                if (quit) break;
                 av_seek_frame(fmt_ctx, video_stream_idx, 0, AVSEEK_FLAG_BACKWARD);
                 seek_req.store(true);
                 continue;
             }
-
+            // ... (rest of the demuxWorker logic)
             if (pkt->stream_index == video_stream_idx) {
                 AVPacket* v_pkt = av_packet_clone(pkt);
                 std::lock_guard<std::mutex> l(video_pkt_mtx);
@@ -390,18 +510,11 @@ private:
     }
 
     double get_current_audio_time() {
-        if (!alsa_handle) return audio_clock.load();
-        snd_pcm_sframes_t delay = 0;
-        // snd_pcm_delay returns the number of frames currently in the buffer
-        if (snd_pcm_delay(alsa_handle, &delay) < 0) return audio_clock.load();
-        double pts_in_buffer = (double)delay / a_ctx->sample_rate;
-        return audio_clock.load() - pts_in_buffer;
+        if (!myMix) return audio_clock.load();
+        return myMix->getSourcePTS(this);
     }
 
     void audioWorker() {
-        if (alsa_handle) {
-            snd_pcm_nonblock(alsa_handle, 1);
-        }
         while (!quit) {
             if (seek_req.load()) {
                 avcodec_flush_buffers(a_ctx);
@@ -429,29 +542,18 @@ private:
             }
 
             if (avcodec_send_packet(a_ctx, pkt) == 0) {
-                while (avcodec_receive_frame(a_ctx, audio_frame) == 0) {
+                while (avcodec_receive_frame(a_ctx, audio_frame) == 0 && !quit) {
                     double pts = get_pts_seconds(audio_frame, audio_stream_idx);
-                    double duration = (double)audio_frame->nb_samples / a_ctx->sample_rate;
                     
-                    // The clock represents the PTS at the END of the audio we just decoded
-                    audio_clock.store(pts + duration);
-
                     int out_samples = swr_convert(swr_ctx, &audio_out_buf, 4096,
                                                   (const uint8_t**)audio_frame->data, 
                                                   audio_frame->nb_samples);
+                    
                     if (out_samples > 0) {
-                        int written = 0;
-                        while(written < out_samples && !quit && !seek_req.load()) {
-                            snd_pcm_sframes_t ret = snd_pcm_writei(alsa_handle, audio_out_buf + written * 4, out_samples - written);
-                            if (ret == -EAGAIN) { 
-                                std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
-                                continue; 
-                            }
-                            if (ret == -EPIPE) { snd_pcm_prepare(alsa_handle); continue; }
-                            if (ret < 0) break;
-                            written += ret;
+                        if (myMix) {
+                            myMix->addAudio(this, (int16_t*)audio_out_buf, out_samples, pts);
+                            audio_clock.store(pts + (double)out_samples / MIXER_SAMPLE_RATE);
                         }
-                        if (myMix) myMix->addAudio((int16_t*)audio_out_buf, out_samples);
                     }
                 }
             }
@@ -507,7 +609,7 @@ private:
             }
 
             if (avcodec_send_packet(v_ctx, pkt) == 0) {
-                while (avcodec_receive_frame(v_ctx, raw_frame) == 0) {
+                while (avcodec_receive_frame(v_ctx, raw_frame) == 0 && !quit) {
                     AVFrame* rgba_f = nullptr;
                     {
                         std::lock_guard<std::mutex> l(pool_mtx);
@@ -577,10 +679,9 @@ public:
         avcodec_open2(a_ctx, acodec, nullptr);
 
         AVChannelLayout out_ch; av_channel_layout_default(&out_ch, 2);
-        swr_alloc_set_opts2(&swr_ctx, &out_ch, AV_SAMPLE_FMT_S16, a_ctx->sample_rate,
+        swr_alloc_set_opts2(&swr_ctx, &out_ch, AV_SAMPLE_FMT_S16, MIXER_SAMPLE_RATE,
                             &a_ctx->ch_layout, a_ctx->sample_fmt, a_ctx->sample_rate, 0, nullptr);
         swr_init(swr_ctx);
-        setupALSA(2, a_ctx->sample_rate);
         audio_out_buf = (uint8_t*)av_malloc(av_samples_get_buffer_size(nullptr, 2, 4096, AV_SAMPLE_FMT_S16, 0));
         audio_frame = av_frame_alloc();
 
@@ -594,6 +695,8 @@ public:
         if (demux_thread.joinable()) demux_thread.join();
         if (video_thread.joinable()) video_thread.join();
         if (audio_thread.joinable()) audio_thread.join();
+
+        if (myMix) myMix->removeSource(this);
 
         auto clear_q = [](std::queue<AVPacket*>& q) {
             while(!q.empty()) { av_packet_free(&q.front()); q.pop(); }
@@ -618,7 +721,6 @@ public:
         avcodec_free_context(&v_ctx);
         avcodec_free_context(&a_ctx);
         avformat_close_input(&fmt_ctx);
-        if (alsa_handle) snd_pcm_close(alsa_handle);
     }
 
     void updateTexture(SDL_Texture* tex) {
@@ -633,7 +735,7 @@ public:
                 decoded_queue.pop();
             }
             while (!decoded_queue.empty()) {
-                if (decoded_queue.front().pts <= target_pts + 0.02) {
+                if (decoded_queue.front().pts <= target_pts + 0.04) {
                     if (best_frame) old_frames.push_back(best_frame);
                     best_frame = decoded_queue.front().frame_rgba;
                     decoded_queue.pop();
@@ -688,8 +790,8 @@ static bool recorder_start(Recorder& rec, int w, int h, const char* path, int fp
     rec.output_path = path;
 
     
-    myMix = new AudioMixer(48000);
-    myNvec = new NvencEncoder(w, h, fps, 48000, myMix ,std::string(path));
+    if (!myMix) myMix = new AudioMixer(MIXER_SAMPLE_RATE);
+    myNvec = new NvencEncoder(w, h, fps, MIXER_SAMPLE_RATE, myMix ,std::string(path));
 
 
     SDL_SetWindowResizable(window, false);
@@ -2004,12 +2106,14 @@ static void update_plasma_texture(SDL_Texture* tex, int w, int h, float t,
 //------------
 
 ContentParser mParser;
- 
-PlasmaOpenCL* myPlasma;
+
+PlasmaOpenCL* myPlasma = nullptr;
+bool bUsePlasma = true;
 
 // ---------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
+    myMix = new AudioMixer(MIXER_SAMPLE_RATE);
     // --- Parse CLI arguments ---
     // Usage: ./imtest [--record output.mp4] [text...]
     std::vector<std::string> cli_texts;
@@ -2020,14 +2124,14 @@ int main(int argc, char** argv)
     bool cli_no_maximize = false;
     bool cli_plasma_tile = false;
     std::vector<std::unique_ptr<BDdisplay>>  mBdisplay;
-    
+
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--record") == 0 && i + 1 < argc) {
             cli_record_path = argv[++i];
         } else if (std::strcmp(argv[i], "--bg") == 0 && i + 1 < argc) {
             cli_bg_path = argv[++i];
-        } else if (std::strcmp(argv[i], "--record-max") == 0 && i + 1 < argc) {
-            cli_record_max = std::atoi(argv[++i]);
+            bUsePlasma = false;
+        } else if (std::strcmp(argv[i], "--record-max") == 0 && i + 1 < argc) {            cli_record_max = std::atoi(argv[++i]);
             if (cli_record_max < 1) cli_record_max = 1;
         } else if (std::strcmp(argv[i], "--no-maximize") == 0) {
             cli_no_maximize = true;
@@ -2083,10 +2187,13 @@ int main(int argc, char** argv)
     // Use a reduced resolution for performance — will stretch to fill window
     int plasma_w = win_w / 4;
     int plasma_h = win_h / 4;
-    SDL_Texture* plasma_tex = SDL_CreateTexture(
-        renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
-        plasma_w, plasma_h
-    );
+    SDL_Texture* plasma_tex = nullptr;
+    if (bUsePlasma) {
+        plasma_tex = SDL_CreateTexture(
+            renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+            plasma_w, plasma_h
+        );
+    }
 
     // --- Custom Background layer ---
     std::unique_ptr<NvdecDecode> bg_video;
@@ -2215,14 +2322,15 @@ int main(int argc, char** argv)
     Uint64 last_ticks = SDL_GetPerformanceCounter();
     Uint64 freq       = SDL_GetPerformanceFrequency();
 
-    myPlasma = new PlasmaOpenCL(plasma_w, plasma_h);
-    myPlasma->init();
-    //CLPlasmaParams ft1;
-    //myPlasma.setParams(ft1);
-    myPlasma->start();
- 
+    if (bUsePlasma) {
+        myPlasma = new PlasmaOpenCL(plasma_w, plasma_h);
+        myPlasma->init();
+        //CLPlasmaParams ft1;
+        //myPlasma.setParams(ft1);
+        myPlasma->start();
+    }
 
-    // --- Main loop ---
+
     while (running) {
         SDL_Event ev;
         while (SDL_PollEvent(&ev)) {
@@ -2266,17 +2374,18 @@ int main(int argc, char** argv)
         cur_rel = (float)cur_w / (float)cur_h;
         if (cur_w != prev_win_w || cur_h != prev_win_h) {
             // Recreate plasma at new reduced size
-            if (plasma_tex) SDL_DestroyTexture(plasma_tex);
-            plasma_w = cur_w / 4;
-            plasma_h = cur_h / 4;
-            if (plasma_w < 1) plasma_w = 1;
-            if (plasma_h < 1) plasma_h = 1;
-            plasma_tex = SDL_CreateTexture(
-                renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
-                plasma_w, plasma_h
-            );
-            myPlasma->resize(plasma_w, plasma_h);
-     
+            if(bUsePlasma){
+                if (plasma_tex) SDL_DestroyTexture(plasma_tex);
+                plasma_w = cur_w / 4;
+                plasma_h = cur_h / 4;
+                if (plasma_w < 1) plasma_w = 1;
+                if (plasma_h < 1) plasma_h = 1;
+                plasma_tex = SDL_CreateTexture(
+                    renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+                    plasma_w, plasma_h
+                );
+                myPlasma->resize(plasma_w, plasma_h);
+            }
             prev_win_w = cur_w;
             prev_win_h = cur_h;
         }
@@ -2291,7 +2400,7 @@ int main(int argc, char** argv)
 
         // Update plasma pixels
         // 1) Update plasma background if active
-        if (plasma_tex && !bg_tex) {
+        if (bUsePlasma) {
             //update_plasma_texture(plasma_tex, plasma_w, plasma_h, time_acc, plasma_params);
             myPlasma->updateTexture(plasma_tex);
         }
@@ -2476,11 +2585,16 @@ int main(int argc, char** argv)
 
     // --- Cleanup ---
     recorder_stop(recorder);
-    myPlasma->stop();
+    if(bUsePlasma) myPlasma->stop();
     if (bg_tex) SDL_DestroyTexture(bg_tex);
     for (auto* et : extra_textures) SDL_DestroyTexture(et);
     for (auto& e : cli_entries) { if (e.tex) SDL_DestroyTexture(e.tex); }
     if (plasma_tex) SDL_DestroyTexture(plasma_tex);
+
+    // Explicitly destroy all decoders before the mixer
+    mBdisplay.clear();
+    bg_video.reset();
+
     ImGui_ImplSDLRenderer3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
@@ -2488,6 +2602,11 @@ int main(int argc, char** argv)
     SDL_DestroyWindow(window);
     TTF_Quit();
     SDL_Quit();
+
+    if (myMix) {
+        delete myMix;
+        myMix = nullptr;
+    }
 
     return 0;
 }
