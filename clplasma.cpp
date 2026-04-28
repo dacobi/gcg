@@ -6,7 +6,11 @@ const char* kernelSource = R"(
 kernel void plasma_kernel(
     global uint* pixels, int w, int h, float t,
     float d_amp, float d_sx, float d_sy, float r_s,
-    float s_bx, float s_by, float p_r, float p_g, float p_b) 
+    float s_bx, float s_by, float p_r, float p_g, float p_b,
+    float s_ma, float s_msx, float s_msy,
+    float w_b, float w_a, float w_s, float s_dm,
+    float d_r, float d_g, float d_b,
+    float t_c) 
 {
     int x = get_global_id(0);
     int y = get_global_id(1);
@@ -14,6 +18,13 @@ kernel void plasma_kernel(
 
     float fx = (float)x / (float)w;
     float fy = (float)y / (float)h;
+
+    // Optional tiling
+    if (t_c > 0.0f) {
+        float cur_rel = (float)w / (float)h;
+        fy = floor(fy * t_c) / t_c;
+        fx = floor(fx * (t_c * cur_rel)) / (t_c * cur_rel);
+    }
 
     float dx = d_amp * sin(t * d_sx);
     float dy = d_amp * cos(t * d_sy);
@@ -26,13 +37,25 @@ kernel void plasma_kernel(
     float rx = cx * rc - cy * rs + 0.5f + dx;
     float ry = cx * rs + cy * rc + 0.5f + dy;
 
-    float v = (sin(rx * s_bx + t) + sin(ry * s_by - t * 0.5f) + 
-               sin((rx + ry) * (s_bx * 0.5f) + t) + 
-               sin(sqrt(rx * rx + ry * ry) * 10.0f + t)) * 0.25f;
+    // Swirl logic
+    float dist = sqrt(cx * cx + cy * cy);
+    float warp_str = w_b + w_a * sin(t * w_s);
+    float swirl_angle = dist * s_dm * warp_str;
+    float sw_sin = sin(swirl_angle), sw_cos = cos(swirl_angle);
+    float wx = (rx - 0.5f) * sw_cos - (ry - 0.5f) * sw_sin + 0.5f;
+    float wy = (rx - 0.5f) * sw_sin + (ry - 0.5f) * sw_cos + 0.5f;
 
-    uint R = (uint)((0.5f + 0.5f * cos(6.28318f * (v + p_r))) * 255.0f);
-    uint G = (uint)((0.5f + 0.5f * cos(6.28318f * (v + p_g))) * 255.0f);
-    uint B = (uint)((0.5f + 0.5f * cos(6.28318f * (v + p_b))) * 255.0f);
+    // Animated scale
+    float scale_x = s_bx + s_ma * sin(t * s_msx);
+    float scale_y = s_by + s_ma * cos(t * s_msy);
+
+    float v = (sin(wx * scale_x + t) + sin(wy * scale_y - t * 0.5f) + 
+               sin((wx + wy) * (scale_x * 0.5f) + t) + 
+               sin(sqrt(wx * wx + wy * wy) * 10.0f + t)) * 0.25f;
+
+    uint R = (uint)((0.5f + 0.5f * cos(6.28318f * (v + p_r))) * d_r * 255.0f);
+    uint G = (uint)((0.5f + 0.5f * cos(6.28318f * (v + p_g))) * d_g * 255.0f);
+    uint B = (uint)((0.5f + 0.5f * cos(6.28318f * (v + p_b))) * d_b * 255.0f);
 
     pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
 })";
@@ -106,7 +129,7 @@ void PlasmaOpenCL::workerLoop() {
         CLPlasmaParams p;
         { std::lock_guard<std::mutex> lock(dataMutex); p = params; }
 
-        // Set all 13 arguments in correct order
+        // Set arguments - Total 24 arguments now
         clSetKernelArg(kernel, 0, sizeof(cl_mem), &clMemBuffer);
         clSetKernelArg(kernel, 1, sizeof(int), &width);
         clSetKernelArg(kernel, 2, sizeof(int), &height);
@@ -120,6 +143,19 @@ void PlasmaOpenCL::workerLoop() {
         clSetKernelArg(kernel, 10, sizeof(float), &p.palette_phase_r);
         clSetKernelArg(kernel, 11, sizeof(float), &p.palette_phase_g);
         clSetKernelArg(kernel, 12, sizeof(float), &p.palette_phase_b);
+        
+        // Advanced Params
+        clSetKernelArg(kernel, 13, sizeof(float), &p.scale_mod_amp);
+        clSetKernelArg(kernel, 14, sizeof(float), &p.scale_mod_speed_x);
+        clSetKernelArg(kernel, 15, sizeof(float), &p.scale_mod_speed_y);
+        clSetKernelArg(kernel, 16, sizeof(float), &p.warp_base);
+        clSetKernelArg(kernel, 17, sizeof(float), &p.warp_amp);
+        clSetKernelArg(kernel, 18, sizeof(float), &p.warp_speed);
+        clSetKernelArg(kernel, 19, sizeof(float), &p.swirl_dist_mul);
+        clSetKernelArg(kernel, 20, sizeof(float), &p.darken_r);
+        clSetKernelArg(kernel, 21, sizeof(float), &p.darken_g);
+        clSetKernelArg(kernel, 22, sizeof(float), &p.darken_b);
+        clSetKernelArg(kernel, 23, sizeof(float), &p.tile_count);
 
         cl_int err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, globalSize, NULL, 0, NULL, NULL);
         if (err == CL_SUCCESS) {

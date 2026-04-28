@@ -1314,42 +1314,13 @@ static Bouncer make_bouncer(int win_w, int win_h, SDL_Texture* tex, int tw, int 
 // ---------------------------------------------------------------------------
 // Plasma parameters — randomised once at startup for a unique look each run
 // ---------------------------------------------------------------------------
-struct PlasmaParams {
-    // X/Y animation speeds (used as multipliers on time)
-    float drift_speed_x;   // how fast the field drifts horizontally
-    float drift_speed_y;   // how fast the field drifts vertically
-    float drift_amp;       // amplitude of the drift
-
-    float scale_base_x;    // base spatial frequency X
-    float scale_base_y;    // base spatial frequency Y
-    float scale_mod_amp;   // breathing amplitude
-    float scale_mod_speed_x;
-    float scale_mod_speed_y;
-
-    float rot_speed;       // rotation speed
-    float warp_base;       // swirl base intensity
-    float warp_amp;        // swirl modulation amplitude
-    float warp_speed;      // swirl modulation speed
-    float swirl_dist_mul;  // distance multiplier for swirl
-
-    // Palette: three phase offsets for R, G, B colour cosines
-    float palette_phase_r;
-    float palette_phase_g;
-    float palette_phase_b;
-
-    // Darkening multipliers (kept moderate so ImGui stays readable)
-    float darken_r;
-    float darken_g;
-    float darken_b;
-
-    float tile_count;
-};
 
 
-PlasmaParams plasma_params;
+    
+CLPlasmaParams plasma_params;
 
-static PlasmaParams randomise_plasma() {
-    PlasmaParams p;
+static CLPlasmaParams randomise_plasma() {
+    CLPlasmaParams p;
     p.drift_speed_x    = rand_range(0.15f, 0.60f);
     p.drift_speed_y    = rand_range(0.15f, 0.60f);
     p.drift_amp        = rand_range(1.0f, 3.5f);
@@ -1382,7 +1353,7 @@ static PlasmaParams randomise_plasma() {
 }
 
 // Re-randomise only the palette (colour) fields
-static void randomise_plasma_palette(PlasmaParams& p) {
+static void randomise_plasma_palette(CLPlasmaParams& p) {
     p.palette_phase_r = rand_range(0.0f, 1.0f);
     p.palette_phase_g = rand_range(0.0f, 1.0f);
     p.palette_phase_b = rand_range(0.0f, 1.0f);
@@ -1392,7 +1363,7 @@ static void randomise_plasma_palette(PlasmaParams& p) {
 }
 
 // Re-randomise only the X/Y spatial / animation fields
-static void randomise_plasma_xy(PlasmaParams& p) {
+static void randomise_plasma_xy(CLPlasmaParams& p) {
     p.drift_speed_x     = rand_range(0.15f, 0.60f);
     p.drift_speed_y     = rand_range(0.15f, 0.60f);
     p.drift_amp         = rand_range(1.0f, 3.5f);
@@ -1633,8 +1604,8 @@ int main(int argc, char** argv)
     if (bUsePlasma) {
         myPlasma = new PlasmaOpenCL(plasma_w, plasma_h);
         myPlasma->init();
-        //CLPlasmaParams ft1;
-        //myPlasma.setParams(ft1);
+        CLPlasmaParams p = randomise_plasma();
+        myPlasma->setParams(p);
         myPlasma->start();
     }
 

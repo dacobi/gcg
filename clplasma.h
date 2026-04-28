@@ -18,6 +18,19 @@ struct CLPlasmaParams {
     float palette_phase_r = 0.0f;
     float palette_phase_g = 0.33f;
     float palette_phase_b = 0.66f;
+
+    // Advanced Parameters
+    float scale_mod_amp = 0.1f;
+    float scale_mod_speed_x = 0.4f;
+    float scale_mod_speed_y = 0.3f;
+    float warp_base = 0.5f;
+    float warp_amp = 0.2f;
+    float warp_speed = 0.3f;
+    float swirl_dist_mul = 1.0f;
+    float darken_r = 1.0f;
+    float darken_g = 1.0f;
+    float darken_b = 1.0f;
+    float tile_count = 0.0f; // 0.0 = disabled
 };
 
 class PlasmaOpenCL {
