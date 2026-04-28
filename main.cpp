@@ -1278,10 +1278,7 @@ public:
     }
 };
 
-// Helper: random float in [lo, hi]
-static float rand_range(float lo, float hi) {
-    return lo + static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX) * (hi - lo);
-}
+
 
 // Spawn a new bouncer with random position & velocity
 static Bouncer make_bouncer(int win_w, int win_h, SDL_Texture* tex, int tw, int th, bool bNoColor=false) {
