@@ -1340,9 +1340,9 @@ static CLPlasmaParams randomise_plasma() {
     p.palette_phase_b   = rand_range(0.0f, 1.0f);
 
     // Darkening: keep each channel between 0.25 and 0.60 so it's visible but not blinding
-    p.darken_r          = rand_range(0.25f, 0.60f);
-    p.darken_g          = rand_range(0.25f, 0.60f);
-    p.darken_b          = rand_range(0.25f, 0.60f);
+    p.darken_r          = 1.0f; // rand_range(0.25f, 0.60f);
+    p.darken_g          = 1.0f; // rand_range(0.25f, 0.60f);
+    p.darken_b          = 1.0f; // rand_range(0.25f, 0.60f);
 
     p.tile_count        = rand_range(10.0f, 100.0f);
 
@@ -1354,9 +1354,9 @@ static void randomise_plasma_palette(CLPlasmaParams& p) {
     p.palette_phase_r = rand_range(0.0f, 1.0f);
     p.palette_phase_g = rand_range(0.0f, 1.0f);
     p.palette_phase_b = rand_range(0.0f, 1.0f);
-    p.darken_r        = rand_range(0.25f, 0.60f);
-    p.darken_g        = rand_range(0.25f, 0.60f);
-    p.darken_b        = rand_range(0.25f, 0.60f);
+    p.darken_r        = 1.0f; // rand_range(0.25f, 0.60f);
+    p.darken_g        = 1.0f; // rand_range(0.25f, 0.60f);
+    p.darken_b        = 1.0f; // rand_range(0.25f, 0.60f);
 }
 
 // Re-randomise only the X/Y spatial / animation fields
@@ -1778,6 +1778,15 @@ int main(int argc, char** argv)
                     if (ImGui::SliderFloat("Tile Size", &plasma_params.tile_count, 10, 100)) {
                         if (myPlasma) myPlasma->setArgs(plasma_params);
                     }
+                }
+                ImGui::Separator();
+                bool darken_changed = false;
+                ImGui::Text("Darken Color");
+                darken_changed |= ImGui::SliderFloat("Red", &plasma_params.darken_r, 0.0f, 2.0f);
+                darken_changed |= ImGui::SliderFloat("Green", &plasma_params.darken_g, 0.0f, 2.0f);
+                darken_changed |= ImGui::SliderFloat("Blue", &plasma_params.darken_b, 0.0f, 2.0f);
+                if (darken_changed && myPlasma) {
+                    myPlasma->setArgs(plasma_params);
                 }
                 ImGui::Separator();
                 ImGui::Checkbox("Roll Palette", &roll_palette);

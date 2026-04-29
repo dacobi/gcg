@@ -203,10 +203,9 @@ kernel void plasma_kernel(
     float g = 0.5f + 0.5f * cos(3.14159f * (v + p_g));
     float b = 0.5f + 0.5f * cos(3.14159f * (v + p_b));
 
-    float brightness_boost = 1.8f;
-    uint R = (uint)clamp(r * v * brightness_boost * 255.0f, 0.0f, 255.0f);
-    uint G = (uint)clamp(g * v * brightness_boost * 255.0f, 0.0f, 255.0f);
-    uint B = (uint)clamp(b * v * brightness_boost * 255.0f, 0.0f, 255.0f);
+    uint R = (uint)clamp(r * v * d_r * 255.0f, 0.0f, 255.0f);
+    uint G = (uint)clamp(g * v * d_g * 255.0f, 0.0f, 255.0f);
+    uint B = (uint)clamp(b * v * d_b * 255.0f, 0.0f, 255.0f);
 
     pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
 })";
@@ -243,9 +242,9 @@ kernel void plasma_kernel(
     float g_val = 0.5f + 0.5f * cos(3.14159f * (electric_v + p_g));
     float b_val = 0.5f + 0.5f * cos(3.14159f * (electric_v + p_b));
 
-    uint R = (uint)(r_val * electric_v * 255.0f);
-    uint G = (uint)(g_val * electric_v * 255.0f);
-    uint B = (uint)(b_val * electric_v * 255.0f);
+    uint R = (uint)(r_val * electric_v * d_r *  255.0f);
+    uint G = (uint)(g_val * electric_v * d_g * 255.0f);
+    uint B = (uint)(b_val * electric_v * d_b * 255.0f);
 
     pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
 })";
@@ -292,9 +291,9 @@ kernel void plasma_kernel(
     float g_val = 0.5f + 0.5f * cos(3.14159f * (v + p_g));
     float b_val = 0.5f + 0.5f * cos(3.14159f * (v + p_b));
 
-    uint R = (uint)min(255.0f, r_val * v * 255.0f);
-    uint G = (uint)min(255.0f, g_val * v * 255.0f);
-    uint B = (uint)min(255.0f, b_val * v * 255.0f);
+    uint R = (uint)min(255.0f, r_val * v * d_r * 255.0f);
+    uint G = (uint)min(255.0f, g_val * v * d_g * 255.0f);
+    uint B = (uint)min(255.0f, b_val * v * d_b * 255.0f);
 
     pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
 })";
@@ -342,9 +341,9 @@ kernel void plasma_kernel(
     float g_val = 0.5f + 0.5f * cos(3.14159f * (electric_v + p_g));
     float b_val = 0.5f + 0.5f * cos(3.14159f * (electric_v + p_b));
 
-    uint R = (uint)min(255.0f, r_val * electric_v * 255.0f);
-    uint G = (uint)min(255.0f, g_val * electric_v * 255.0f);
-    uint B = (uint)min(255.0f, b_val * electric_v * 255.0f);
+    uint R = (uint)min(255.0f, r_val * electric_v * d_r * 255.0f);
+    uint G = (uint)min(255.0f, g_val * electric_v * d_g * 255.0f);
+    uint B = (uint)min(255.0f, b_val * electric_v * d_b * 255.0f);
 
     pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
 })";
@@ -385,9 +384,9 @@ kernel void plasma_kernel(
     v += sin(sqrt(rx * rx + ry * ry) * 10.0f + t);
     v *= 0.25f;
 
-    float r_f = 0.5f + 0.5f * cos(6.28318f * (v + p_r));
-    float g_f = 0.5f + 0.5f * cos(6.28318f * (v + p_g));
-    float b_f = 0.5f + 0.5f * cos(6.28318f * (v + p_b));
+    float r_f = 0.5f + 0.5f * cos(6.28318f * d_r * (v + p_r));
+    float g_f = 0.5f + 0.5f * cos(6.28318f * d_g * (v + p_g));
+    float b_f = 0.5f + 0.5f * cos(6.28318f * d_b * (v + p_b));
 
     uint R = (uint)(r_f * 255.0f);
     uint G = (uint)(g_f * 255.0f);
