@@ -1,7 +1,7 @@
 {
 	"InstallScripts" : 
 	[
-		"/home/klejs/src/gcg/cmake_install.cmake"
+		"/home/dacobi/src/gcg/cmake_install.cmake"
 	],
 	"Parallel" : false
 }

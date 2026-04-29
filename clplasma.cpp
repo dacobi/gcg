@@ -13,26 +13,33 @@ PlasmaOpenCL::~PlasmaOpenCL() {
     cleanup();
 }
 
-bool PlasmaOpenCL::init(){
+bool PlasmaOpenCL::init(int cPlasmaIDX){
 
-    switch(rand_int(10)){
+
+    if(cPlasmaIDX == -1){
+        iPlasmaIDX = rand_int(10);
+    } else {
+        iPlasmaIDX = cPlasmaIDX;
+    }
+
+    switch(iPlasmaIDX){
         case 0:
-                return init(kernelSource0);    
+                return init(kernelSource0);             
                 break;   
         case 1:
                 return init(kernelSource1);    
                 break;   
         case 2:
-                return init(kernelSource2);    
+                return init(kernelSource2);                    
                 break;   
         case 3:
-                return init(kernelSource3);    
+                return init(kernelSource3);                    
                 break;   
         case 4:
-                return init(kernelSource4);    
+                return init(kernelSource4);                    
                 break;   
         case 5:
-                return init(kernelSource5);    
+                return init(kernelSource5);                
                 break;   
         case 6:
                 return init(kernelSource6);    
@@ -51,6 +58,7 @@ bool PlasmaOpenCL::init(){
 }
 
 bool PlasmaOpenCL::init(const char* cKS) {
+    cleanup();
     cl_int err;
     err = clGetPlatformIDs(1, &platform, NULL);
     err |= clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
@@ -95,7 +103,7 @@ void PlasmaOpenCL::resize(int w, int h) {
     backBuffer.assign(w * h, 0xFF000000);
     frameReady = false;
 
-    init(); // Re-init OpenCL buffers for new size
+    init(iPlasmaIDX); // Re-init OpenCL buffers for new size
     if (wasRunning) start();
 }
 
@@ -176,15 +184,15 @@ void PlasmaOpenCL::updateTexture(SDL_Texture* tex) {
     }
 }
 
-void PlasmaOpenCL::setParams(const CLPlasmaParams& p) {
+void PlasmaOpenCL::setArgs(const CLPlasmaParams& p) {
     std::lock_guard<std::mutex> lock(dataMutex);
     params = p;
 }
 
 void PlasmaOpenCL::cleanup() {
-    if (clMemBuffer) clReleaseMemObject(clMemBuffer);
-    if (kernel) clReleaseKernel(kernel);
-    if (program) clReleaseProgram(program);
-    if (queue) clReleaseCommandQueue(queue);
-    if (context) clReleaseContext(context);
+    if (clMemBuffer) { clReleaseMemObject(clMemBuffer); clMemBuffer = nullptr; }
+    if (kernel) { clReleaseKernel(kernel); kernel = nullptr; }
+    if (program) { clReleaseProgram(program); program = nullptr; }
+    if (queue) { clReleaseCommandQueue(queue); queue = nullptr; }
+    if (context) { clReleaseContext(context); context = nullptr; }
 }

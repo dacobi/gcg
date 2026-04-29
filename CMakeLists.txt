@@ -41,4 +41,4 @@ target_link_libraries(imgui PUBLIC PkgConfig::SDL3)
 # --- Our executable ---
 add_executable(gcg main.cpp clplasma.cpp)
 target_compile_options(gcg PRIVATE "-g")
-target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA OpenCL::OpenCL)
+target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA OpenCL::OpenCL m)

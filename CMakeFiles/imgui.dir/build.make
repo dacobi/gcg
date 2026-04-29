@@ -53,10 +53,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/klejs/src/gcg
+CMAKE_SOURCE_DIR = /home/dacobi/src/gcg
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/klejs/src/gcg
+CMAKE_BINARY_DIR = /home/dacobi/src/gcg
 
 # Include any dependencies generated for this target.
 include CMakeFiles/imgui.dir/depend.make
@@ -72,127 +72,127 @@ include CMakeFiles/imgui.dir/flags.make
 CMakeFiles/imgui.dir/codegen:
 .PHONY : CMakeFiles/imgui.dir/codegen
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.o: CMakeFiles/imgui.dir/flags.make
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.o: /home/klejs/src/ImGui/imgui.cpp
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/klejs/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.o -MF CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.o.d -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.o -c /home/klejs/src/ImGui/imgui.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.o: CMakeFiles/imgui.dir/flags.make
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.o: /home/dacobi/src/ImGui/imgui.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/dacobi/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.o -MF CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.o.d -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.o -c /home/dacobi/src/ImGui/imgui.cpp
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/klejs/src/ImGui/imgui.cpp > CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.i
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/dacobi/src/ImGui/imgui.cpp > CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.i
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/klejs/src/ImGui/imgui.cpp -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.s
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/dacobi/src/ImGui/imgui.cpp -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.s
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.o: CMakeFiles/imgui.dir/flags.make
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.o: /home/klejs/src/ImGui/imgui_demo.cpp
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/klejs/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.o -MF CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.o.d -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.o -c /home/klejs/src/ImGui/imgui_demo.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.o: CMakeFiles/imgui.dir/flags.make
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.o: /home/dacobi/src/ImGui/imgui_demo.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/dacobi/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.o -MF CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.o.d -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.o -c /home/dacobi/src/ImGui/imgui_demo.cpp
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/klejs/src/ImGui/imgui_demo.cpp > CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.i
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/dacobi/src/ImGui/imgui_demo.cpp > CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.i
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/klejs/src/ImGui/imgui_demo.cpp -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.s
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/dacobi/src/ImGui/imgui_demo.cpp -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.s
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.o: CMakeFiles/imgui.dir/flags.make
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.o: /home/klejs/src/ImGui/imgui_draw.cpp
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/klejs/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.o -MF CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.o.d -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.o -c /home/klejs/src/ImGui/imgui_draw.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.o: CMakeFiles/imgui.dir/flags.make
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.o: /home/dacobi/src/ImGui/imgui_draw.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/dacobi/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.o -MF CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.o.d -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.o -c /home/dacobi/src/ImGui/imgui_draw.cpp
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/klejs/src/ImGui/imgui_draw.cpp > CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.i
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/dacobi/src/ImGui/imgui_draw.cpp > CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.i
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/klejs/src/ImGui/imgui_draw.cpp -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.s
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/dacobi/src/ImGui/imgui_draw.cpp -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.s
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.o: CMakeFiles/imgui.dir/flags.make
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.o: /home/klejs/src/ImGui/imgui_tables.cpp
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/klejs/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.o -MF CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.o.d -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.o -c /home/klejs/src/ImGui/imgui_tables.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.o: CMakeFiles/imgui.dir/flags.make
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.o: /home/dacobi/src/ImGui/imgui_tables.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/dacobi/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.o -MF CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.o.d -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.o -c /home/dacobi/src/ImGui/imgui_tables.cpp
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/klejs/src/ImGui/imgui_tables.cpp > CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.i
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/dacobi/src/ImGui/imgui_tables.cpp > CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.i
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/klejs/src/ImGui/imgui_tables.cpp -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.s
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/dacobi/src/ImGui/imgui_tables.cpp -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.s
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.o: CMakeFiles/imgui.dir/flags.make
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.o: /home/klejs/src/ImGui/imgui_widgets.cpp
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/klejs/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.o -MF CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.o.d -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.o -c /home/klejs/src/ImGui/imgui_widgets.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.o: CMakeFiles/imgui.dir/flags.make
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.o: /home/dacobi/src/ImGui/imgui_widgets.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/dacobi/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.o -MF CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.o.d -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.o -c /home/dacobi/src/ImGui/imgui_widgets.cpp
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/klejs/src/ImGui/imgui_widgets.cpp > CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.i
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/dacobi/src/ImGui/imgui_widgets.cpp > CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.i
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/klejs/src/ImGui/imgui_widgets.cpp -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.s
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/dacobi/src/ImGui/imgui_widgets.cpp -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.s
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.o: CMakeFiles/imgui.dir/flags.make
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.o: /home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/klejs/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.o -MF CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.o.d -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.o -c /home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.o: CMakeFiles/imgui.dir/flags.make
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.o: /home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/dacobi/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.o -MF CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.o.d -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.o -c /home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp > CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.i
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp > CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.i
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.s
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.s
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o: CMakeFiles/imgui.dir/flags.make
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o: /home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/klejs/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o -MF CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o.d -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o -c /home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o: CMakeFiles/imgui.dir/flags.make
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o: /home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o: CMakeFiles/imgui.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/dacobi/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o -MF CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o.d -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o -c /home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp > CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.i
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp > CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.i
 
-CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp -o CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.s
+CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp -o CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.s
 
 # Object files for target imgui
 imgui_OBJECTS = \
-"CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.o" \
-"CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.o" \
-"CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.o" \
-"CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.o" \
-"CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.o" \
-"CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.o" \
-"CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o"
+"CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.o" \
+"CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.o" \
+"CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.o" \
+"CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.o" \
+"CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.o" \
+"CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.o" \
+"CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o"
 
 # External object files for target imgui
 imgui_EXTERNAL_OBJECTS =
 
-libimgui.a: CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui.cpp.o
-libimgui.a: CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_demo.cpp.o
-libimgui.a: CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_draw.cpp.o
-libimgui.a: CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_tables.cpp.o
-libimgui.a: CMakeFiles/imgui.dir/home/klejs/src/ImGui/imgui_widgets.cpp.o
-libimgui.a: CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdl3.cpp.o
-libimgui.a: CMakeFiles/imgui.dir/home/klejs/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o
+libimgui.a: CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui.cpp.o
+libimgui.a: CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_demo.cpp.o
+libimgui.a: CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_draw.cpp.o
+libimgui.a: CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_tables.cpp.o
+libimgui.a: CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.o
+libimgui.a: CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.o
+libimgui.a: CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o
 libimgui.a: CMakeFiles/imgui.dir/build.make
 libimgui.a: CMakeFiles/imgui.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/klejs/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Linking CXX static library libimgui.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/dacobi/src/gcg/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Linking CXX static library libimgui.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/imgui.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/imgui.dir/link.txt --verbose=$(VERBOSE)
 
@@ -205,6 +205,6 @@ CMakeFiles/imgui.dir/clean:
 .PHONY : CMakeFiles/imgui.dir/clean
 
 CMakeFiles/imgui.dir/depend:
-	cd /home/klejs/src/gcg && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/klejs/src/gcg /home/klejs/src/gcg /home/klejs/src/gcg /home/klejs/src/gcg /home/klejs/src/gcg/CMakeFiles/imgui.dir/DependInfo.cmake "--color=$(COLOR)" imgui
+	cd /home/dacobi/src/gcg && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/dacobi/src/gcg /home/dacobi/src/gcg /home/dacobi/src/gcg /home/dacobi/src/gcg /home/dacobi/src/gcg/CMakeFiles/imgui.dir/DependInfo.cmake "--color=$(COLOR)" imgui
 .PHONY : CMakeFiles/imgui.dir/depend
 

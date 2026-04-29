@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/klejs/src/gcg/build/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

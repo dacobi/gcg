@@ -107,7 +107,7 @@ kernel void plasma_kernel(
     PlasmaOpenCL(int w, int h);
     ~PlasmaOpenCL();
 
-    bool init();
+    bool init(int cPlasmaIXD = -1);
     bool init(const char* cKS);
     void start();
     void stop();
@@ -116,8 +116,8 @@ kernel void plasma_kernel(
     
     // Call this from the main SDL thread
     void updateTexture(SDL_Texture* tex);
-    void setParams(const CLPlasmaParams& p);
-
+    void setArgs(const CLPlasmaParams& p);
+    int iPlasmaIDX = 0;
 private:
     void workerLoop();
     void cleanup();

@@ -1601,8 +1601,7 @@ int main(int argc, char** argv)
     if (bUsePlasma) {
         myPlasma = new PlasmaOpenCL(plasma_w, plasma_h);
         myPlasma->init();
-        CLPlasmaParams p = randomise_plasma();
-        myPlasma->setParams(p);
+        myPlasma->setArgs(plasma_params);
         myPlasma->start();
     }
 
@@ -1661,6 +1660,7 @@ int main(int argc, char** argv)
                     plasma_w, plasma_h
                 );
                 myPlasma->resize(plasma_w, plasma_h);
+                myPlasma->setArgs(plasma_params);
             }
             prev_win_w = cur_w;
             prev_win_h = cur_h;
@@ -1672,6 +1672,12 @@ int main(int argc, char** argv)
             plasma_params.palette_phase_r = std::fmod(plasma_params.palette_phase_r + step,        2.0f);
             plasma_params.palette_phase_g = std::fmod(plasma_params.palette_phase_g + step * 0.7f, 2.0f);
             plasma_params.palette_phase_b = std::fmod(plasma_params.palette_phase_b + step * 1.3f, 2.0f);
+            
+            if (myPlasma) {
+                CLPlasmaParams p = plasma_params;
+                if (!plasma_render_tiles) p.tile_count = 0.0f;
+                myPlasma->setArgs(p);
+            }
         }
 
         // Update plasma pixels
@@ -1744,19 +1750,55 @@ int main(int argc, char** argv)
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Plasma")) {
-                if (ImGui::MenuItem("Randomise Palette"))
+                if (ImGui::MenuItem("Randomise Palette")) {
                     randomise_plasma_palette(plasma_params);
-                if (ImGui::MenuItem("Randomise X/Y"))
+                    if (myPlasma) {
+                        CLPlasmaParams p = plasma_params;
+                        if (!plasma_render_tiles) p.tile_count = 0.0f;
+                        myPlasma->setArgs(p);
+                    }
+                }
+                if (ImGui::MenuItem("Randomise X/Y")) {
                     randomise_plasma_xy(plasma_params);
+                    if (myPlasma) {
+                        CLPlasmaParams p = plasma_params;
+                        if (!plasma_render_tiles) p.tile_count = 0.0f;
+                        myPlasma->setArgs(p);
+                    }
+                }
                 ImGui::Separator();
-                ImGui::Checkbox("Tile Effect", &plasma_render_tiles);
+                if (ImGui::Checkbox("Tile Effect", &plasma_render_tiles)) {
+                    if (myPlasma) {
+                        CLPlasmaParams p = plasma_params;
+                        if (!plasma_render_tiles) p.tile_count = 0.0f;
+                        myPlasma->setArgs(p);
+                    }
+                }
                 if(plasma_render_tiles){
-                    ImGui::SliderFloat("Tile Size", &plasma_params.tile_count, 10, 100);
+                    if (ImGui::SliderFloat("Tile Size", &plasma_params.tile_count, 10, 100)) {
+                        if (myPlasma) myPlasma->setArgs(plasma_params);
+                    }
                 }
                 ImGui::Separator();
                 ImGui::Checkbox("Roll Palette", &roll_palette);
                 if (roll_palette)
                     ImGui::SliderFloat("Roll Speed", &roll_palette_speed, 0.05f, 3.0f);
+
+                if (myPlasma) {
+                    ImGui::Separator();
+                    ImGui::Text("Plasma Type");
+                    for (int i = 0; i < 10; i++) {
+                        char label[32];
+                        std::snprintf(label, sizeof(label), "T%d", i);
+                        if (ImGui::RadioButton(label, myPlasma->iPlasmaIDX == i)) {
+                            myPlasma->stop();
+                            myPlasma->init(i);
+                            myPlasma->setArgs(plasma_params);
+                            myPlasma->start();
+                        }
+                        if ((i + 1) % 5 != 0) ImGui::SameLine();
+                    }
+                }
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Record")) {

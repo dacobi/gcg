@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/klejs/src/ImGui -I/home/klejs/src/ImGui/backends
+CXX_INCLUDES = -I/home/dacobi/src/ImGui -I/home/dacobi/src/ImGui/backends
 
 CXX_FLAGS = -std=gnu++17
 

@@ -1,4 +1,0 @@
-/home/klejs/src/gcg/build/CMakeFiles/imgui.dir
-/home/klejs/src/gcg/build/CMakeFiles/gcg.dir
-/home/klejs/src/gcg/build/CMakeFiles/edit_cache.dir
-/home/klejs/src/gcg/build/CMakeFiles/rebuild_cache.dir
