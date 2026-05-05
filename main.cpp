@@ -939,6 +939,7 @@ struct ParsedSegment {
     std::string fullInput;
     int over_w = 0, over_h = 0;
     int line_breaks = 0;
+    bool start_new_group = false;
 };
 
 class ContentParser {
@@ -952,28 +953,11 @@ public:
         int ow = 0, oh = 0;
         int line_breaks = 0;
         bool bIsStatic = false;
-        size_t cursor = 0;
+        bool next_is_new_group = true; // First segment always starts a group
 
-        // 1. Parse the [pos: ...] prefix
-        std::regex posRegex(R"(^\[pos:\s*([^\]]+)\])");
-        std::smatch posMatch;
-        if (std::regex_search(input, posMatch, posRegex)) {
-            std::vector<std::string> tokens = tokenize(posMatch.str(1));
-            if (tokens.size() >= 5) {
-                px = std::stoi(tokens[0]); py = std::stoi(tokens[1]);
-                vx = std::stoi(tokens[2]); vy = std::stoi(tokens[3]);
-                bIsStatic = (std::stoi(tokens[4]) == 1);
-            } else if (tokens.size() >= 3) {
-                px = std::stoi(tokens[0]); py = std::stoi(tokens[1]);
-                vx = 0; vy = 0;
-                bIsStatic = (std::stoi(tokens[2]) == 1);
-            }
-            cursor = posMatch.length();
-        }
-
-        // 2. Scan remaining string for [image:...], [video:...], [rgb:...], [rect:...], and [lf]
-        std::string body = input.substr(cursor);
-        std::regex tagRegex(R"(\[(image|video|rgb|rect|lf)(?::\s*([^\]]*))?\])", std::regex::icase);
+        // Scan string for tags
+        std::string body = input;
+        std::regex tagRegex(R"(\[(image|video|rgb|rect|lf|pos)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -984,15 +968,27 @@ public:
 
             // Text segment before a tag
             if (matchPos > lastPos) {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks});
-                line_breaks = 0;
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group});
+                line_breaks = 0; next_is_new_group = false;
             }
 
             std::string tagType = match.str(1);
             std::transform(tagType.begin(), tagType.end(), tagType.begin(), ::tolower);
             std::string tagContent = match.str(2);
 
-            if (tagType == "rgb") {
+            if (tagType == "pos") {
+                std::vector<std::string> tokens = tokenize(tagContent);
+                if (tokens.size() >= 4) {
+                    px = std::stoi(tokens[0]); py = std::stoi(tokens[1]);
+                    vx = std::stoi(tokens[2]); vy = std::stoi(tokens[3]);
+                    bIsStatic = false;
+                } else if (tokens.size() >= 2) {
+                    px = std::stoi(tokens[0]); py = std::stoi(tokens[1]);
+                    vx = 0; vy = 0;
+                    bIsStatic = true;
+                }
+                next_is_new_group = true;
+            } else if (tagType == "rgb") {
                 std::vector<std::string> rgbTokens = tokenize(tagContent);
                 if (rgbTokens.size() >= 3) {
                     cr = std::stoi(rgbTokens[0]);
@@ -1008,11 +1004,11 @@ public:
             } else if (tagType == "lf") {
                 line_breaks++;
             } else if (tagType == "image") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks});
-                ow = 0; oh = 0; line_breaks = 0;
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false;
             } else if (tagType == "video") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh, line_breaks});
-                ow = 0; oh = 0; line_breaks = 0;
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh, line_breaks, next_is_new_group});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false;
             }
 
             lastPos = matchPos + match.length();
@@ -1020,7 +1016,7 @@ public:
 
         // 3. Final trailing text
         if (lastPos < body.length()) {
-            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks});
+            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group});
         }
 
         return results;
@@ -1618,10 +1614,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     // --- Pre-render CLI text ---
     for (const auto& t : state->cli_texts) {
         mParser.processAndPrint(t);
-        auto pcsout = mParser.parse(t);
-        auto newBD = std::make_unique<BDdisplay>();
-        for(auto& pd : pcsout) newBD->add(pd);
-        state->mBdisplay.push_back(std::move(newBD));
+        auto segments = mParser.parse(t);
+        
+        BDdisplay* currentGroup = nullptr;
+        for (auto& seg : segments) {
+            if (seg.start_new_group || currentGroup == nullptr) {
+                auto newBD = std::make_unique<BDdisplay>();
+                currentGroup = newBD.get();
+                state->mBdisplay.push_back(std::move(newBD));
+            }
+            currentGroup->add(seg);
+        }
     }
 
     std::srand(static_cast<unsigned>(SDL_GetPerformanceCounter()));
@@ -1773,10 +1776,16 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             }
             if (ImGui::MenuItem("Add Bouncer")) {
                 if (state->use_custom_text && state->custom_text_buf[0] != '\0') {
-                    auto pcsout = mParser.parse(state->custom_text_buf);
-                    auto newBD = std::make_unique<BDdisplay>();
-                    for(auto& pd : pcsout) newBD->add(pd);
-                    state->mBdisplay.push_back(std::move(newBD));
+                    auto segments = mParser.parse(state->custom_text_buf);
+                    BDdisplay* currentGroup = nullptr;
+                    for (auto& seg : segments) {
+                        if (seg.start_new_group || currentGroup == nullptr) {
+                            auto newBD = std::make_unique<BDdisplay>();
+                            currentGroup = newBD.get();
+                            state->mBdisplay.push_back(std::move(newBD));
+                        }
+                        currentGroup->add(seg);
+                    }
                 }
             }
             ImGui::EndMenu();
