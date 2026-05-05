@@ -938,6 +938,7 @@ struct ParsedSegment {
     int bIsFile; // 0: None, 1: PNG, 2: Video
     std::string fullInput;
     int over_w = 0, over_h = 0;
+    int line_breaks = 0;
 };
 
 class ContentParser {
@@ -949,6 +950,7 @@ public:
         int px = 0, py = 0, vx = 0, vy = 0;
         int cr = 255, cg = 255, cb = 255;
         int ow = 0, oh = 0;
+        int line_breaks = 0;
         bool bIsStatic = false;
         size_t cursor = 0;
 
@@ -969,9 +971,9 @@ public:
             cursor = posMatch.length();
         }
 
-        // 2. Scan remaining string for [image:...], [video:...], [rect:...], and [rgb:...]
+        // 2. Scan remaining string for [image:...], [video:...], [rgb:...], [rect:...], and [lf]
         std::string body = input.substr(cursor);
-        std::regex tagRegex(R"(\[(image|video|rgb|rect):\s*([^\]]+)\])");
+        std::regex tagRegex(R"(\[(image|video|rgb|rect|lf)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -982,10 +984,12 @@ public:
 
             // Text segment before a tag
             if (matchPos > lastPos) {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks});
+                line_breaks = 0;
             }
 
             std::string tagType = match.str(1);
+            std::transform(tagType.begin(), tagType.end(), tagType.begin(), ::tolower);
             std::string tagContent = match.str(2);
 
             if (tagType == "rgb") {
@@ -1001,12 +1005,14 @@ public:
                     ow = std::stoi(rectTokens[0]);
                     oh = std::stoi(rectTokens[1]);
                 }
+            } else if (tagType == "lf") {
+                line_breaks++;
             } else if (tagType == "image") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh});
-                ow = 0; oh = 0; // Reset after use
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks});
+                ow = 0; oh = 0; line_breaks = 0;
             } else if (tagType == "video") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh});
-                ow = 0; oh = 0; // Reset after use
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh, line_breaks});
+                ow = 0; oh = 0; line_breaks = 0;
             }
 
             lastPos = matchPos + match.length();
@@ -1014,7 +1020,7 @@ public:
 
         // 3. Final trailing text
         if (lastPos < body.length()) {
-            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0});
+            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks});
         }
 
         return results;
@@ -1152,6 +1158,10 @@ private:
     float groupVx = 20.0f; // Default horizontal speed
     float groupVy = 20.0f; // Default vertical speed
 
+    float initialStartX = 0.0f;
+    float currentLineY = 0.0f;
+    float maxLineHeight = 0.0f;
+
     std::string cli_input;
 
     bool bAmNotMoving = false;
@@ -1279,20 +1289,26 @@ public:
             // Initial spawn point
             newB.x = pd.posx;
             newB.y = pd.posy;
+            initialStartX = pd.posx;
+            currentLineY = pd.posy;
+            maxLineHeight = (float)newB.th;
             groupVx = pd.velox;
             groupVy = pd.veloy;
             cli_input = pd.fullInput;
         } else {
-            // First entry in vector is the anchor
-            const Bouncer& first = bouncers[0];
-            
-            // Draw 2nd to the left of the first, etc.
-            // We use the current boundingBox.x to keep stacking left
-            newB.x = boundingBox.x + boundingBox.w;
-            
-            // Center around the middle horizontal line of the first entry
-            float firstMidline = first.y + (first.th / 2.0f);
-            newB.y = firstMidline - (newB.th / 2.0f);
+            if (pd.line_breaks > 0) {
+                // Reset X and move Y down
+                newB.x = initialStartX;
+                currentLineY += maxLineHeight * pd.line_breaks;
+                newB.y = currentLineY;
+                maxLineHeight = (float)newB.th; // Reset line height for new line
+            } else {
+                // Continue on current line
+                newB.x = boundingBox.x + boundingBox.w;
+                // Align to the middle of the current line's tallest element (approx)
+                newB.y = currentLineY + (maxLineHeight / 2.0f) - (newB.th / 2.0f);
+                maxLineHeight = std::max(maxLineHeight, (float)newB.th);
+            }
         }
 
         bouncers.push_back(newB);
