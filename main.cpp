@@ -935,7 +935,7 @@ struct ParsedSegment {
     bool bIsStatic;
     int r, g, b; 
     std::string content;
-    int bIsFile; // 0: None, 1: PNG, 2: Video
+    int bIsFile; // 0: None, 1: PNG, 2: Video, 3: Plasma
     std::string fullInput;
     int over_w = 0, over_h = 0;
     int line_breaks = 0;
@@ -957,7 +957,7 @@ public:
 
         // Scan string for tags
         std::string body = input;
-        std::regex tagRegex(R"(\[(image|video|rgb|rect|lf|pos)(?::\s*([^\]]*))?\])", std::regex::icase);
+        std::regex tagRegex(R"(\[(image|video|plasma|rgb|rect|lf|pos)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -1008,6 +1008,9 @@ public:
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false;
             } else if (tagType == "video") {
                 results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh, line_breaks, next_is_new_group});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false;
+            } else if (tagType == "plasma") {
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false;
             }
 
@@ -1060,6 +1063,7 @@ struct Bouncer {
     SDL_Texture* tex; // which text texture to use (not owned — shared)
     int tw, th;       // dimensions of that texture()
     NvdecDecode* decoder = nullptr;
+    PlasmaOpenCL* plasma = nullptr;
 };
 
 // ------------------------------------------------
@@ -1166,6 +1170,7 @@ public:
     ~BDdisplay() {
         for (auto& b : bouncers) {
             if (b.decoder) delete b.decoder;
+            if (b.plasma) delete b.plasma;
             if (b.tex) SDL_DestroyTexture(b.tex);
         }
     }
@@ -1195,10 +1200,13 @@ public:
     void update(float deltaTime, int windowW, int windowH) {
         if (bouncers.empty()) return;
 
-        // Update video frames
+        // Update video and plasma frames
         for (auto& b : bouncers) {
             if (b.decoder && b.tex) {
                 b.decoder->updateTexture(b.tex);
+            }
+            if (b.plasma && b.tex) {
+                b.plasma->updateTexture(b.tex);
             }
         }
 
@@ -1260,6 +1268,22 @@ public:
                 }
             } catch (const std::exception& e) {
                 std::printf("Video load error: %s\n", e.what());
+                return false;
+            }
+        } else if (pd.bIsFile == 3) { // Plasma
+            int p_idx = pd.content.empty() ? -1 : std::stoi(pd.content);
+            newB.tw = (pd.over_w > 0) ? pd.over_w : 256;
+            newB.th = (pd.over_h > 0) ? pd.over_h : 256;
+            newB.plasma = new PlasmaOpenCL(newB.tw, newB.th);
+            if (newB.plasma->init(p_idx)) {
+                newB.plasma->start();
+                tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, newB.tw, newB.th);
+                if (tex) {
+                    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+                }
+            } else {
+                delete newB.plasma;
+                newB.plasma = nullptr;
                 return false;
             }
         } else { // Text (pd.bIsFile == 0)
