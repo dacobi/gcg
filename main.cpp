@@ -233,6 +233,7 @@ private:
     int64_t a_pts = 0;
     int64_t last_v_pts = -1;
     int a_frame_size = 0;
+    std::vector<int16_t> audio_remainder_buf;
 
     // Time-based Sync State
     std::chrono::steady_clock::time_point start_time;
@@ -278,10 +279,15 @@ private:
 
             // 2. Process Audio (Only if recording has officially started)
             if (recording_started) {
-                std::vector<int16_t> mixed = shared_mixer->consume(a_frame_size);
+                // Request a decent chunk of audio to avoid frequent wakeups, but stay responsive
+                std::vector<int16_t> mixed = shared_mixer->consume(a_frame_size * 2);
                 if (!mixed.empty()) {
                     busy = true;
-                    processAudio(mixed.data(), mixed.size() / 2);
+                    audio_remainder_buf.insert(audio_remainder_buf.end(), mixed.begin(), mixed.end());
+                    while ((int)audio_remainder_buf.size() >= a_frame_size * 2) {
+                        processAudio(audio_remainder_buf.data(), a_frame_size);
+                        audio_remainder_buf.erase(audio_remainder_buf.begin(), audio_remainder_buf.begin() + a_frame_size * 2);
+                    }
                 }
             }
 
@@ -289,9 +295,16 @@ private:
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
+        // Flush remaining audio on exit
+        if (!audio_remainder_buf.empty()) {
+            int samples = audio_remainder_buf.size() / 2;
+            processAudio(audio_remainder_buf.data(), samples);
+            audio_remainder_buf.clear();
+        }
     }
 
     void processAudio(const int16_t* data, int samples) {
+        if (samples <= 0) return;
         AVFrame* f = av_frame_alloc();
         f->format = a_enc->sample_fmt;
         f->nb_samples = samples;
@@ -1353,6 +1366,8 @@ struct AppState {
     bool cli_no_nerds = false;
     bool cli_no_maximize = false;
     bool cli_plasma_tile = false;
+    int cli_win_w = 0;
+    int cli_win_h = 0;
 
     std::vector<std::unique_ptr<BDdisplay>> mBdisplay;
 
@@ -1494,6 +1509,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             if (state->cli_record_max < 1) state->cli_record_max = 1;
         } else if (std::strcmp(argv[i], "--no-maximize") == 0) {
             state->cli_no_maximize = true;
+        } else if (std::strcmp(argv[i], "--w") == 0 && i + 1 < argc) {
+            state->cli_win_w = std::atoi(argv[++i]);
+            state->cli_no_maximize = true;
+        } else if (std::strcmp(argv[i], "--h") == 0 && i + 1 < argc) {
+            state->cli_win_h = std::atoi(argv[++i]);
+            state->cli_no_maximize = true;
         } else if (std::strcmp(argv[i], "--no-nerds") == 0) {
             state->cli_no_nerds = true;
         } else if (std::strcmp(argv[i], "--plasma-tiles") == 0) {
@@ -1519,8 +1540,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
     float scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
 
-    cur_w = static_cast<int>(1024 * scale);
-    cur_h = static_cast<int>(768 * scale);
+    cur_w = (state->cli_win_w > 0) ? state->cli_win_w : static_cast<int>(1024 * scale);
+    cur_h = (state->cli_win_h > 0) ? state->cli_win_h : static_cast<int>(768 * scale);
     cur_rel = (float)cur_w / (float)cur_h;
 
     SDL_WindowFlags win_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
