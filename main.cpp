@@ -1,6 +1,8 @@
 // SDL3 + Dear ImGui with animated plasma background and transparent text overlay
-// Usage: ./imtest [--record output.mp4] [--record-max N] [--no-maximize] [text...]
+// Usage: ./gcg [--record output.mp4] [--bg FILE|"[plasma:#]"] [--record-max N] [--no-maximize] [text...]
 //   --record FILE     start recording frames to FILE on launch
+//   --bg FILE         use image or video as background
+//   --bg "[plasma:#]" use specific plasma index (#) as background
 //   --record-max N    max recording length in seconds (default 59)
 //   --no-maximize     don't start the window maximized
 #define SDL_MAIN_USE_CALLBACKS 1
@@ -1398,6 +1400,7 @@ struct AppState {
     std::vector<std::string> cli_texts;
     std::string cli_record_path;
     std::string cli_bg_path;
+    int cli_bg_plasma_idx = -1;
     int cli_record_max = -1;
     bool cli_no_nerds = false;
     bool cli_no_maximize = false;
@@ -1538,8 +1541,20 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         if (std::strcmp(argv[i], "--record") == 0 && i + 1 < argc) {
             state->cli_record_path = argv[++i];
         } else if (std::strcmp(argv[i], "--bg") == 0 && i + 1 < argc) {
-            state->cli_bg_path = argv[++i];
-            bUsePlasma = false;
+            std::string arg = argv[++i];
+            if (arg.size() > 8 && arg.substr(0, 8) == "[plasma:" && arg.back() == ']') {
+                std::string idx_str = arg.substr(8, arg.size() - 9);
+                try {
+                    state->cli_bg_plasma_idx = std::stoi(idx_str);
+                    bUsePlasma = true;
+                } catch (...) {
+                    state->cli_bg_path = arg;
+                    bUsePlasma = false;
+                }
+            } else {
+                state->cli_bg_path = arg;
+                bUsePlasma = false;
+            }
         } else if (std::strcmp(argv[i], "--record-max") == 0 && i + 1 < argc) {
             state->cli_record_max = std::atoi(argv[++i]);
             if (state->cli_record_max < 1) state->cli_record_max = 1;
@@ -1692,7 +1707,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
     if (bUsePlasma) {
         myPlasma = new PlasmaOpenCL(state->plasma_w, state->plasma_h);
-        myPlasma->init();
+        myPlasma->init(state->cli_bg_plasma_idx);
         myPlasma->setArgs(plasma_params);
         myPlasma->start();
     }
