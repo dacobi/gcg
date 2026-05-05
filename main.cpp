@@ -3,10 +3,9 @@
 //   --record FILE     start recording frames to FILE on launch
 //   --record-max N    max recording length in seconds (default 59)
 //   --no-maximize     don't start the window maximized
-#include "imgui.h"
-#include "imgui_impl_sdl3.h"
-#include "imgui_impl_sdlrenderer3.h"
+#define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <SDL3_image/SDL_image.h>
 #include <cmath>
@@ -27,7 +26,9 @@
 #include <atomic>
 #include <chrono>
 #include "clplasma.h"
-
+#include "imgui.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_sdlrenderer3.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -44,7 +45,9 @@ extern "C" {
 const int MIXER_SAMPLE_RATE = 48000;
 
 // --- 1. Audio Mixer Class ---
+
 class AudioMixer {
+
 private:
     struct SourceState {
         std::vector<float> buffer;
@@ -228,6 +231,7 @@ private:
     int width, height;
     double target_fps;
     int64_t a_pts = 0;
+    int64_t last_v_pts = -1;
     int a_frame_size = 0;
 
     // Time-based Sync State
@@ -372,11 +376,15 @@ public:
         if (!recording_started) {
             start_time = now;
             recording_started = true;
+            last_v_pts = -1;
         }
 
         // Calculate PTS based on actual elapsed wall-time
         auto elapsed = std::chrono::duration<double>(now - start_time).count();
         int64_t pts = static_cast<int64_t>(elapsed * target_fps);
+
+        if (pts <= last_v_pts) return;
+        last_v_pts = pts;
 
         {
             std::lock_guard<std::mutex> lock(v_queue_mtx);
@@ -467,8 +475,10 @@ private:
     std::atomic<bool> quit{false};
     std::atomic<bool> seek_req{false};
     std::atomic<double> audio_clock{0.0}; 
+    std::chrono::steady_clock::time_point start_t = std::chrono::steady_clock::now();
 
     double get_pts_seconds(AVFrame* f, int stream_idx) {
+        if (stream_idx < 0 || !fmt_ctx || stream_idx >= (int)fmt_ctx->nb_streams) return audio_clock.load();
         int64_t pts = f->best_effort_timestamp;
         if (pts == AV_NOPTS_VALUE) pts = f->pts;
         if (pts == AV_NOPTS_VALUE) return audio_clock.load(); 
@@ -490,16 +500,17 @@ private:
 
             if (av_read_frame(fmt_ctx, pkt) < 0) {
                 if (quit) break;
-                av_seek_frame(fmt_ctx, video_stream_idx, 0, AVSEEK_FLAG_BACKWARD);
+                int seek_idx = (video_stream_idx != -1) ? video_stream_idx : audio_stream_idx;
+                if (seek_idx != -1) av_seek_frame(fmt_ctx, seek_idx, 0, AVSEEK_FLAG_BACKWARD);
                 seek_req.store(true);
                 continue;
             }
-            // ... (rest of the demuxWorker logic)
+
             if (pkt->stream_index == video_stream_idx) {
                 AVPacket* v_pkt = av_packet_clone(pkt);
                 std::lock_guard<std::mutex> l(video_pkt_mtx);
                 video_pkt_queue.push(v_pkt);
-            } else if (pkt->stream_index == audio_stream_idx) {
+            } else if (audio_stream_idx != -1 && pkt->stream_index == audio_stream_idx) {
                 AVPacket* a_pkt = av_packet_clone(pkt);
                 std::lock_guard<std::mutex> l(audio_mtx);
                 audio_pkt_queue.push(a_pkt);
@@ -510,14 +521,20 @@ private:
     }
 
     double get_current_audio_time() {
+        if (audio_stream_idx == -1) {
+            auto now = std::chrono::steady_clock::now();
+            return std::chrono::duration<double>(now - start_t).count();
+        }
         if (!myMix) return audio_clock.load();
-        return myMix->getSourcePTS(this);
+        double pts = myMix->getSourcePTS(this);
+        if (pts == 0.0) return audio_clock.load();
+        return pts;
     }
 
     void audioWorker() {
         while (!quit) {
             if (seek_req.load()) {
-                avcodec_flush_buffers(a_ctx);
+                if (a_ctx) avcodec_flush_buffers(a_ctx);
                 audio_clock.store(0.0);
                 std::lock_guard<std::mutex> l(audio_mtx);
                 while(!audio_pkt_queue.empty()) {
@@ -541,7 +558,7 @@ private:
                 continue;
             }
 
-            if (avcodec_send_packet(a_ctx, pkt) == 0) {
+            if (a_ctx && avcodec_send_packet(a_ctx, pkt) == 0) {
                 while (avcodec_receive_frame(a_ctx, audio_frame) == 0 && !quit) {
                     double pts = get_pts_seconds(audio_frame, audio_stream_idx);
                     
@@ -565,7 +582,7 @@ private:
         AVFrame* raw_frame = av_frame_alloc();
         while (!quit) {
             if (seek_req.load()) {
-                avcodec_flush_buffers(v_ctx);
+                if (v_ctx) avcodec_flush_buffers(v_ctx);
                 {
                     std::lock_guard<std::mutex> l(video_pkt_mtx);
                     while(!video_pkt_queue.empty()) {
@@ -584,6 +601,7 @@ private:
                 }
                 // wait for audio worker to also see seek_req
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                if (audio_stream_idx == -1) start_t = std::chrono::steady_clock::now();
                 seek_req.store(false); 
             }
 
@@ -608,7 +626,7 @@ private:
                 continue;
             }
 
-            if (avcodec_send_packet(v_ctx, pkt) == 0) {
+            if (v_ctx && avcodec_send_packet(v_ctx, pkt) == 0) {
                 while (avcodec_receive_frame(v_ctx, raw_frame) == 0 && !quit) {
                     AVFrame* rgba_f = nullptr;
                     {
@@ -650,8 +668,12 @@ private:
 
 public:
     NvdecDecode(const std::string& path) {
-        avformat_open_input(&fmt_ctx, path.c_str(), nullptr, nullptr);
-        avformat_find_stream_info(fmt_ctx, nullptr);
+        if (avformat_open_input(&fmt_ctx, path.c_str(), nullptr, nullptr) < 0) {
+            throw std::runtime_error("Could not open input file: " + path);
+        }
+        if (avformat_find_stream_info(fmt_ctx, nullptr) < 0) {
+            throw std::runtime_error("Could not find stream information: " + path);
+        }
 
         const AVCodec *vcodec = nullptr, *acodec = nullptr;
         for (unsigned int i = 0; i < fmt_ctx->nb_streams; i++) {
@@ -667,27 +689,45 @@ public:
             }
         }
 
-        v_ctx = avcodec_alloc_context3(vcodec);
-        avcodec_parameters_to_context(v_ctx, fmt_ctx->streams[video_stream_idx]->codecpar);
-        v_ctx->thread_count = 0;
-        v_ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
-        avcodec_open2(v_ctx, vcodec, nullptr);
-        width = v_ctx->width; height = v_ctx->height;
+        if (video_stream_idx != -1 && vcodec) {
+            v_ctx = avcodec_alloc_context3(vcodec);
+            if (v_ctx) {
+                avcodec_parameters_to_context(v_ctx, fmt_ctx->streams[video_stream_idx]->codecpar);
+                v_ctx->thread_count = 0;
+                v_ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
+                if (avcodec_open2(v_ctx, vcodec, nullptr) >= 0) {
+                    width = v_ctx->width; height = v_ctx->height;
+                } else {
+                    avcodec_free_context(&v_ctx);
+                    video_stream_idx = -1;
+                }
+            }
+        }
 
-        a_ctx = avcodec_alloc_context3(acodec);
-        avcodec_parameters_to_context(a_ctx, fmt_ctx->streams[audio_stream_idx]->codecpar);
-        avcodec_open2(a_ctx, acodec, nullptr);
+        if (audio_stream_idx != -1 && acodec) {
+            a_ctx = avcodec_alloc_context3(acodec);
+            if (a_ctx) {
+                avcodec_parameters_to_context(a_ctx, fmt_ctx->streams[audio_stream_idx]->codecpar);
+                if (avcodec_open2(a_ctx, acodec, nullptr) >= 0) {
+                    AVChannelLayout out_ch; av_channel_layout_default(&out_ch, 2);
+                    swr_alloc_set_opts2(&swr_ctx, &out_ch, AV_SAMPLE_FMT_S16, MIXER_SAMPLE_RATE,
+                                        &a_ctx->ch_layout, a_ctx->sample_fmt, a_ctx->sample_rate, 0, nullptr);
+                    swr_init(swr_ctx);
+                    audio_out_buf = (uint8_t*)av_malloc(av_samples_get_buffer_size(nullptr, 2, 4096, AV_SAMPLE_FMT_S16, 0));
+                    audio_frame = av_frame_alloc();
+                } else {
+                    avcodec_free_context(&a_ctx);
+                    audio_stream_idx = -1;
+                }
+            }
+        }
 
-        AVChannelLayout out_ch; av_channel_layout_default(&out_ch, 2);
-        swr_alloc_set_opts2(&swr_ctx, &out_ch, AV_SAMPLE_FMT_S16, MIXER_SAMPLE_RATE,
-                            &a_ctx->ch_layout, a_ctx->sample_fmt, a_ctx->sample_rate, 0, nullptr);
-        swr_init(swr_ctx);
-        audio_out_buf = (uint8_t*)av_malloc(av_samples_get_buffer_size(nullptr, 2, 4096, AV_SAMPLE_FMT_S16, 0));
-        audio_frame = av_frame_alloc();
+        if (!v_ctx) throw std::runtime_error("Could not initialize video decoder for: " + path);
 
+        start_t = std::chrono::steady_clock::now();
         demux_thread = std::thread(&NvdecDecode::demuxWorker, this);
         video_thread = std::thread(&NvdecDecode::videoWorker, this);
-        audio_thread = std::thread(&NvdecDecode::audioWorker, this);
+        if (a_ctx) audio_thread = std::thread(&NvdecDecode::audioWorker, this);
     }
 
     ~NvdecDecode() {
@@ -792,10 +832,7 @@ static bool recorder_start(Recorder& rec, int w, int h, const char* path, int fp
     
     if (!myMix) myMix = new AudioMixer(MIXER_SAMPLE_RATE);
     myNvec = new NvencEncoder(w, h, fps, MIXER_SAMPLE_RATE, myMix ,std::string(path));
-
-
-    SDL_SetWindowResizable(window, false);
-
+ 
     std::printf("Recording started: %s (%dx%d @ %d fps)\n", path, w, h, fps);
     return true;
 }
@@ -1308,6 +1345,58 @@ static Bouncer make_bouncer(int win_w, int win_h, SDL_Texture* tex, int tw, int 
     return b;
 }
 
+struct AppState {
+    std::vector<std::string> cli_texts;
+    std::string cli_record_path;
+    std::string cli_bg_path;
+    int cli_record_max = -1;
+    bool cli_no_nerds = false;
+    bool cli_no_maximize = false;
+    bool cli_plasma_tile = false;
+
+    std::vector<std::unique_ptr<BDdisplay>> mBdisplay;
+
+    SDL_Texture* plasma_tex = nullptr;
+    std::unique_ptr<NvdecDecode> bg_video;
+    SDL_Texture* bg_tex = nullptr;
+
+    std::vector<TextEntry> cli_entries;
+    std::vector<Bouncer> bouncers;
+
+    bool use_custom_text = false;
+    char custom_text_buf[256];
+    std::vector<SDL_Texture*> extra_textures;
+
+    int plasma_w, plasma_h;
+    int prev_win_w, prev_win_h;
+
+    float time_acc = 0.0f;
+    bool roll_palette = false;
+    float roll_palette_speed = 0.5f;
+
+    Recorder recorder;
+    char record_path_buf[256];
+    float record_time = 0.0f;
+    float record_frame_accum = 0.0f;
+    bool record_max_enabled = true;
+    int record_max_seconds = 59;
+    bool record_gui = true;
+
+    Uint64 last_ticks;
+    Uint64 freq;
+    Uint64 last_time;
+    double frequency;
+
+
+    int event_burst_cooldown = 0;
+
+    AppState() {
+        std::memset(record_path_buf, 0, sizeof(record_path_buf));
+        std::strcpy(record_path_buf, "output.mp4");
+        std::memset(custom_text_buf, 0, sizeof(custom_text_buf));
+    }
+};
+
 // ---------------------------------------------------------------------------
 // Plasma parameters — randomised once at startup for a unique look each run
 // ---------------------------------------------------------------------------
@@ -1380,102 +1469,95 @@ static void randomise_plasma_xy(CLPlasmaParams& p) {
 
 
 //------------
-
-ContentParser mParser;
-
-PlasmaOpenCL* myPlasma = nullptr;
-bool bUsePlasma = true;
+static ContentParser mParser;
+static PlasmaOpenCL* myPlasma = nullptr;
+static bool bUsePlasma = true;
 
 // ---------------------------------------------------------------------------
-int main(int argc, char** argv)
+// ---------------------------------------------------------------------------
+SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
-    myMix = new AudioMixer(MIXER_SAMPLE_RATE);
-    // --- Parse CLI arguments ---
-    // Usage: ./imtest [--record output.mp4] [text...]
-    std::vector<std::string> cli_texts;
-    std::string cli_record_path;
-    std::string cli_bg_path;
-    int cli_record_max = -1;  // -1 = not specified on CLI
-    bool  cli_no_nerds = false;
-    bool cli_no_maximize = false;
-    bool cli_plasma_tile = false;
-    std::vector<std::unique_ptr<BDdisplay>>  mBdisplay;
+    AppState* state = new AppState();
+    *appstate = state;
 
+    myMix = new AudioMixer(MIXER_SAMPLE_RATE);
+
+    // --- Parse CLI arguments ---
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--record") == 0 && i + 1 < argc) {
-            cli_record_path = argv[++i];
+            state->cli_record_path = argv[++i];
         } else if (std::strcmp(argv[i], "--bg") == 0 && i + 1 < argc) {
-            cli_bg_path = argv[++i];
+            state->cli_bg_path = argv[++i];
             bUsePlasma = false;
-        } else if (std::strcmp(argv[i], "--record-max") == 0 && i + 1 < argc) {            cli_record_max = std::atoi(argv[++i]);
-            if (cli_record_max < 1) cli_record_max = 1;
+        } else if (std::strcmp(argv[i], "--record-max") == 0 && i + 1 < argc) {
+            state->cli_record_max = std::atoi(argv[++i]);
+            if (state->cli_record_max < 1) state->cli_record_max = 1;
         } else if (std::strcmp(argv[i], "--no-maximize") == 0) {
-            cli_no_maximize = true;
+            state->cli_no_maximize = true;
         } else if (std::strcmp(argv[i], "--no-nerds") == 0) {
-            cli_no_nerds = true;
+            state->cli_no_nerds = true;
         } else if (std::strcmp(argv[i], "--plasma-tiles") == 0) {
-            cli_plasma_tile = true;       
+            state->cli_plasma_tile = true;       
         } else {
-            cli_texts.push_back(argv[i]);
+            state->cli_texts.push_back(argv[i]);
         }
     }
     
-    for (const auto& t : cli_texts)
+    for (const auto& t : state->cli_texts)
         std::printf("Overlay text: \"%s\"\n", t.c_str());
-    if (!cli_record_path.empty())
-        std::printf("Will record to: %s\n", cli_record_path.c_str());
+    if (!state->cli_record_path.empty())
+        std::printf("Will record to: %s\n", state->cli_record_path.c_str());
 
     // --- SDL init ---
+    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+    SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "1");
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         std::printf("SDL_Init error: %s\n", SDL_GetError());
-        return 1;
+        return SDL_APP_FAILURE;
     }
 
     float scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
 
-    int win_w = static_cast<int>(1024 * scale);
-    int win_h = static_cast<int>(768 * scale);
-
-    cur_rel = (float)win_w / (float)win_h;
+    cur_w = static_cast<int>(1024 * scale);
+    cur_h = static_cast<int>(768 * scale);
+    cur_rel = (float)cur_w / (float)cur_h;
 
     SDL_WindowFlags win_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-    if (!cli_no_maximize)
+    if (!state->cli_no_maximize)
         win_flags |= SDL_WINDOW_MAXIMIZED;
 
     window = SDL_CreateWindow(
         "SDL/ImGui Greeting Card",
-        win_w, win_h,
+        cur_w, cur_h,
         win_flags
     );
     if (!window) {
         std::printf("SDL_CreateWindow error: %s\n", SDL_GetError());
-        return 1;
+        return SDL_APP_FAILURE;
     }
 
     renderer = SDL_CreateRenderer(window, nullptr);
     SDL_SetRenderVSync(renderer, 1);
     if (!renderer) {
         std::printf("SDL_CreateRenderer error: %s\n", SDL_GetError());
-        return 1;
+        return SDL_APP_FAILURE;
     }
+    std::printf("Active Renderer: %s\n", SDL_GetRendererName(renderer));
 
-    // --- Plasma texture (streaming, updated every frame) ---
-    // Use a reduced resolution for performance — will stretch to fill window
-    int plasma_w = win_w / 4;
-    int plasma_h = win_h / 4;
-    SDL_Texture* plasma_tex = nullptr;
+    // --- Plasma texture ---
+    state->plasma_w = cur_w / 8;
+    state->plasma_h = cur_h / 8;
     if (bUsePlasma) {
-        plasma_tex = SDL_CreateTexture(
+        state->plasma_tex = SDL_CreateTexture(
             renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
-            plasma_w, plasma_h
+            state->plasma_w, state->plasma_h
         );
     }
 
     // --- Custom Background layer ---
-    std::unique_ptr<NvdecDecode> bg_video;
-    SDL_Texture* bg_tex = nullptr;
-    if (!cli_bg_path.empty()) {
-        std::string ext = cli_bg_path;
+    if (!state->cli_bg_path.empty()) {
+        std::string ext = state->cli_bg_path;
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
         bool is_video = (ext.find(".mp4") != std::string::npos || 
                          ext.find(".mkv") != std::string::npos || 
@@ -1484,456 +1566,349 @@ int main(int argc, char** argv)
         
         if (is_video) {
             try {
-                bg_video = std::make_unique<NvdecDecode>(cli_bg_path);
-                bg_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, 
-                                           bg_video->getWidth(), bg_video->getHeight());
-                if (bg_tex) {
-                    std::printf("BG: Loaded video %s (%dx%d)\n", cli_bg_path.c_str(), bg_video->getWidth(), bg_video->getHeight());
-                }
+                state->bg_video = std::make_unique<NvdecDecode>(state->cli_bg_path);
+                state->bg_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, 
+                                           state->bg_video->getWidth(), state->bg_video->getHeight());
             } catch (const std::exception& e) {
                 std::printf("BG Video error: %s\n", e.what());
             }
         } else {
             int bw, bh;
-            bg_tex = create_png_texture(renderer, cli_bg_path.c_str(), &bw, &bh);
-            if (bg_tex) {
-                std::printf("BG: Loaded image %s (%dx%d)\n", cli_bg_path.c_str(), bw, bh);
-            }
+            state->bg_tex = create_png_texture(renderer, state->cli_bg_path.c_str(), &bw, &bh);
         }
     }
 
-    // --- Pre-render a texture for each CLI text argument ---
-    std::vector<TextEntry> cli_entries;
-    for (const auto& t : cli_texts) {
-
+    // --- Pre-render CLI text ---
+    for (const auto& t : state->cli_texts) {
         mParser.processAndPrint(t);
         auto pcsout = mParser.parse(t);
-
         auto newBD = std::make_unique<BDdisplay>();
-        
-        for(auto& pd : pcsout){
-            newBD->add(pd);
-        }
-        mBdisplay.push_back(std::move(newBD));
-        
+        for(auto& pd : pcsout) newBD->add(pd);
+        state->mBdisplay.push_back(std::move(newBD));
     }
 
-    // Seed RNG and create one bouncer per CLI text
     std::srand(static_cast<unsigned>(SDL_GetPerformanceCounter()));
-    std::vector<Bouncer> bouncers;
-    for (const auto& e : cli_entries)
-        bouncers.push_back(make_bouncer(win_w, win_h, e.tex, e.w, e.h, e.bNoColor));
-
-    // Custom bouncer text — checkbox + input field state
-    bool  use_custom_text = false;
-    char  custom_text_buf[256] = "";
-
-    // Keep track of all created textures so we can clean them up
-    std::vector<SDL_Texture*> extra_textures;
-
-    // Randomise plasma palette & X/Y properties for this run
     plasma_params = randomise_plasma();
-    
-    int prev_win_h = win_h;
-    int prev_win_w = win_w;
+    state->prev_win_w = cur_w;
+    state->prev_win_h = cur_h;
 
     // --- ImGui init ---
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
     style.ScaleAllSizes(scale);
     style.FontScaleDpi = scale;
-
-    // Make ImGui windows slightly transparent so background shows through
     style.Colors[ImGuiCol_WindowBg].w = 0.80f;
 
     ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer3_Init(renderer);
 
-    // --- State ---
-    bool  running = true;
-    
-    float time_acc = 0.0f;
-    bool  roll_palette = false;
-    float roll_palette_speed = 0.5f;  // how fast the palette phases rotate
-
-    // Recording state
-    Recorder recorder;
-    char record_path_buf[256] = "output.mp4";
-    float record_time = 0.0f;  // elapsed recording time in seconds
-    float record_frame_accum = 0.0f;  // accumulator for fixed-rate frame capture
-    bool  record_max_enabled = true;   // whether max-length auto-stop is active
-    int   record_max_seconds = 59;     // max recording length in seconds
-    bool  record_gui = true;
-    
-    // Apply CLI overrides for recording max
-    if (cli_plasma_tile == true) {
-        plasma_render_tiles = true;
+    if (state->cli_plasma_tile) plasma_render_tiles = true;
+    if (state->cli_no_nerds) state->record_gui = false;
+    if (state->cli_record_max > 0) {
+        state->record_max_seconds = state->cli_record_max;
+        state->record_max_enabled = true;
     }
 
-
-    // Apply CLI overrides for recording max
-    if (cli_no_nerds == true) {
-        record_gui = false;
-    }
-
-    // Apply CLI overrides for recording max
-    if (cli_record_max > 0) {
-        record_max_seconds = cli_record_max;
-        record_max_enabled = true;
-    }
-
-    // Start recording immediately if --record was passed
-    if (!cli_record_path.empty()) {
-        std::snprintf(record_path_buf, sizeof(record_path_buf), "%s", cli_record_path.c_str());
+    if (!state->cli_record_path.empty()) {
+        std::snprintf(state->record_path_buf, sizeof(state->record_path_buf), "%s", state->cli_record_path.c_str());
         int out_w = 0, out_h = 0;
         SDL_GetRenderOutputSize(renderer, &out_w, &out_h);
-        recorder_start(recorder, out_w, out_h, cli_record_path.c_str());
+        recorder_start(state->recorder, out_w, out_h, state->cli_record_path.c_str());
     }
 
-    Uint64 last_ticks = SDL_GetPerformanceCounter();
-    Uint64 freq       = SDL_GetPerformanceFrequency();
+    state->last_ticks = SDL_GetPerformanceCounter();
+    state->freq       = SDL_GetPerformanceFrequency();
+
+    state->last_time = SDL_GetPerformanceCounter();
+    state->frequency = (double)SDL_GetPerformanceFrequency();
 
     if (bUsePlasma) {
-        myPlasma = new PlasmaOpenCL(plasma_w, plasma_h);
+        myPlasma = new PlasmaOpenCL(state->plasma_w, state->plasma_h);
         myPlasma->init();
         myPlasma->setArgs(plasma_params);
         myPlasma->start();
     }
 
+    return SDL_APP_CONTINUE;
+}
 
-    while (running) {
-        SDL_Event ev;
-        while (SDL_PollEvent(&ev)) {
-            ImGui_ImplSDL3_ProcessEvent(&ev);
-            if (ev.type == SDL_EVENT_QUIT)
-                running = false;
-            if (ev.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
-                ev.window.windowID == SDL_GetWindowID(window))
-                running = false;
-        }
+SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
+{
+    AppState* state = (AppState*)appstate;
+    state->event_burst_cooldown = 10;
 
-        if (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED) {
-            SDL_Delay(10);
-            continue;
-        }
+    if (ev->type != SDL_EVENT_WINDOW_EXPOSED && 
+        ev->type != SDL_EVENT_WINDOW_MOUSE_ENTER && 
+        ev->type != SDL_EVENT_WINDOW_MOUSE_LEAVE) {
+        ImGui_ImplSDL3_ProcessEvent(ev);
+    } else {
+        return SDL_APP_CONTINUE; 
+    }
 
-        // Delta time
-        Uint64 now = SDL_GetPerformanceCounter();
-        float dt = static_cast<float>(now - last_ticks) / static_cast<float>(freq);
-        last_ticks = now;
-        time_acc += dt * 1.5f;  // speed multiplier for the plasma
-
-        // Handle resize — recreate plasma texture when window size changes
-        
-        bool bWinChange = false;
-
-        SDL_GetWindowSize(window, &cur_w, &cur_h);
-        if(cur_w % 16){
-            cur_w = (((int)cur_w)/16)*16;
-            bWinChange = true;
-        }
-        if(cur_h % 16){
-            cur_h = (((int)cur_h)/16)*16;
-            bWinChange = true;
-        }
-
-        if(bWinChange){
-            SDL_SetWindowSize(window, cur_w, cur_h);
-        }
-        
-        cur_rel = (float)cur_w / (float)cur_h;
-        if (cur_w != prev_win_w || cur_h != prev_win_h) {
-            // Recreate plasma at new reduced size
-            if(bUsePlasma){
-                if (plasma_tex) SDL_DestroyTexture(plasma_tex);
-                plasma_w = cur_w / 4;
-                plasma_h = cur_h / 4;
-                if (plasma_w < 1) plasma_w = 1;
-                if (plasma_h < 1) plasma_h = 1;
-                plasma_tex = SDL_CreateTexture(
-                    renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
-                    plasma_w, plasma_h
-                );
-                myPlasma->resize(plasma_w, plasma_h);
-                myPlasma->setArgs(plasma_params);
-            }
-            prev_win_w = cur_w;
-            prev_win_h = cur_h;
-        }
-
-        // Roll palette: smoothly rotate the colour phase offsets each frame
-        if (roll_palette) {
-            float step = roll_palette_speed * dt;
-            plasma_params.palette_phase_r = std::fmod(plasma_params.palette_phase_r + step,        2.0f);
-            plasma_params.palette_phase_g = std::fmod(plasma_params.palette_phase_g + step * 0.7f, 2.0f);
-            plasma_params.palette_phase_b = std::fmod(plasma_params.palette_phase_b + step * 1.3f, 2.0f);
-            
-            if (myPlasma) {
-                CLPlasmaParams p = plasma_params;
-                if (!plasma_render_tiles) p.tile_count = 0.0f;
-                myPlasma->setArgs(p);
-            }
-        }
-
-        // Update plasma pixels
-        // 1) Update plasma background if active
-        if (bUsePlasma) {
-            //update_plasma_texture(plasma_tex, plasma_w, plasma_h, time_acc, plasma_params);
-            myPlasma->updateTexture(plasma_tex);
-        }
-        
+    if (ev->type == SDL_EVENT_QUIT) return SDL_APP_SUCCESS;
+    if (ev->type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && ev->window.windowID == SDL_GetWindowID(window))
+        return SDL_APP_SUCCESS;
     
-        
-        // New frame
-        ImGui_ImplSDLRenderer3_NewFrame();
-        ImGui_ImplSDL3_NewFrame();
+    if (ev->type == SDL_EVENT_WINDOW_RESIZED) {
+        cur_w = ev->window.data1;
+        cur_h = ev->window.data2;
+        cur_rel = (float)cur_w / (float)cur_h;
 
-        ImGui::NewFrame();
-
-        // --- Main Menu Bar ---
-        if (ImGui::BeginMainMenuBar()) {
-            if (ImGui::BeginMenu("Bouncers")) {
-                ImGui::Text("Bouncer Texts (%d):", static_cast<int>(mBdisplay.size()));
-                {
-                    int del_text_idx = -1;
-                    for (int ti = 0; ti < static_cast<int>(mBdisplay.size()); ++ti) {
-                        ImGui::PushID(ti);
-                        if (ImGui::SmallButton("X")) del_text_idx = ti;
-                        ImGui::SameLine();
-                        ImGui::BulletText("\"%s\"", mBdisplay[ti]->getInput().c_str());
-                        ImGui::PopID();
-                    }
-                    if (del_text_idx >= 0) {
-                        // Remove all bouncers that use this texture
-                        /*
-                        SDL_Texture* dead_tex = cli_entries[static_cast<size_t>(del_text_idx)].tex;
-                        bouncers.erase(
-                            std::remove_if(bouncers.begin(), bouncers.end(),
-                                [dead_tex](const Bouncer& b) { return b.tex == dead_tex; }),
-                            bouncers.end());
-                        // Destroy the texture and remove the entry
-                        if (dead_tex) SDL_DestroyTexture(dead_tex);
-                        cli_entries.erase(cli_entries.begin() + del_text_idx);
-                    */
-                        mBdisplay.erase(mBdisplay.begin() + del_text_idx);
-                    }
-                }
-                ImGui::Separator();
-                ImGui::Checkbox("Custom Text", &use_custom_text);
-                if (use_custom_text) {
-                    ImGui::SetNextItemWidth(200.0f);
-                    ImGui::InputText("##custom", custom_text_buf, sizeof(custom_text_buf));
-                }
-                if (ImGui::MenuItem("Add Bouncer")) {
-                    SDL_Texture* spawn_tex = nullptr;
-                    int spawn_w = 0, spawn_h = 0;
-                    bool cNoColor = false;
-                    if (use_custom_text && custom_text_buf[0] != '\0') {
-
-                        auto pcsout = mParser.parse(custom_text_buf);
-
-                        auto newBD = std::make_unique<BDdisplay>();
-        
-                        for(auto& pd : pcsout){
-                            newBD->add(pd);
-                        }
-                        mBdisplay.push_back(std::move(newBD));
-
-                    }
-                }
-                //ImGui::Text("Count: %d", static_cast<int>(bouncers.size()));
-                ImGui::EndMenu();
+        if (cur_w != state->prev_win_w || cur_h != state->prev_win_h) {
+            if (bUsePlasma && state->plasma_tex) {
+                SDL_DestroyTexture(state->plasma_tex);
+                state->plasma_w = cur_w / 8;
+                state->plasma_h = cur_h / 8;
+                if (state->plasma_w < 1) state->plasma_w = 1;
+                if (state->plasma_h < 1) state->plasma_h = 1;
+                state->plasma_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, state->plasma_w, state->plasma_h);
+                myPlasma->resize(state->plasma_w, state->plasma_h);
+                myPlasma->setArgs(plasma_params);                
             }
-            if (ImGui::BeginMenu("Plasma")) {
-                if (ImGui::MenuItem("Randomise Palette")) {
-                    randomise_plasma_palette(plasma_params);
-                    if (myPlasma) {
-                        CLPlasmaParams p = plasma_params;
-                        if (!plasma_render_tiles) p.tile_count = 0.0f;
-                        myPlasma->setArgs(p);
-                    }
-                }
-                if (ImGui::MenuItem("Randomise X/Y")) {
-                    randomise_plasma_xy(plasma_params);
-                    if (myPlasma) {
-                        CLPlasmaParams p = plasma_params;
-                        if (!plasma_render_tiles) p.tile_count = 0.0f;
-                        myPlasma->setArgs(p);
-                    }
-                }
-                ImGui::Separator();
-                if (ImGui::Checkbox("Tile Effect", &plasma_render_tiles)) {
-                    if (myPlasma) {
-                        CLPlasmaParams p = plasma_params;
-                        if (!plasma_render_tiles) p.tile_count = 0.0f;
-                        myPlasma->setArgs(p);
-                    }
-                }
-                if(plasma_render_tiles){
-                    if (ImGui::SliderFloat("Tile Size", &plasma_params.tile_count, 10, 100)) {
-                        if (myPlasma) myPlasma->setArgs(plasma_params);
-                    }
-                }
-                ImGui::Separator();
-                bool darken_changed = false;
-                ImGui::Text("Darken Color");
-                darken_changed |= ImGui::SliderFloat("Red", &plasma_params.darken_r, 0.0f, 2.0f);
-                darken_changed |= ImGui::SliderFloat("Green", &plasma_params.darken_g, 0.0f, 2.0f);
-                darken_changed |= ImGui::SliderFloat("Blue", &plasma_params.darken_b, 0.0f, 2.0f);
-                if (darken_changed && myPlasma) {
-                    myPlasma->setArgs(plasma_params);
-                }
-                ImGui::Separator();
-                ImGui::Checkbox("Roll Palette", &roll_palette);
-                if (roll_palette)
-                    ImGui::SliderFloat("Roll Speed", &roll_palette_speed, 0.05f, 3.0f);
+            state->prev_win_w = cur_w;
+            state->prev_win_h = cur_h;
+        }
+    }
 
+    return SDL_APP_CONTINUE;
+}
+
+SDL_AppResult SDL_AppIterate(void *appstate)
+{    
+    AppState* state = (AppState*)appstate;
+    ImGuiIO& io = ImGui::GetIO();
+
+    Uint64 current_time = SDL_GetPerformanceCounter();
+
+    Uint64 now = SDL_GetPerformanceCounter();
+
+    double delta_time = (double)(current_time - state->last_time) / state->frequency;
+    state->last_time = current_time;
+
+    float dt = static_cast<float>(now - state->last_ticks) / static_cast<float>(state->freq);
+    state->last_ticks = now;
+    state->time_acc += dt * 1.5f;
+
+    //if (state->event_burst_cooldown > 0) state->event_burst_cooldown--;
+
+    if (state->roll_palette) {
+        float step = state->roll_palette_speed * dt;
+        plasma_params.palette_phase_r = std::fmod(plasma_params.palette_phase_r + step, 2.0f);
+        plasma_params.palette_phase_g = std::fmod(plasma_params.palette_phase_g + step * 0.7f, 2.0f);
+        plasma_params.palette_phase_b = std::fmod(plasma_params.palette_phase_b + step * 1.3f, 2.0f);
+        if (myPlasma) {
+            CLPlasmaParams p = plasma_params;
+            if (!plasma_render_tiles) p.tile_count = 0.0f;
+            myPlasma->setArgs(p);
+        }
+    }
+
+    if (bUsePlasma){// && state->event_burst_cooldown == 0) {
+        myPlasma->updateTexture(state->plasma_tex);
+    }
+
+    ImGui_ImplSDLRenderer3_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
+
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("Bouncers")) {
+            ImGui::Text("Bouncer Texts (%d):", static_cast<int>(state->mBdisplay.size()));
+            int del_text_idx = -1;
+            for (int ti = 0; ti < static_cast<int>(state->mBdisplay.size()); ++ti) {
+                ImGui::PushID(ti);
+                if (ImGui::SmallButton("X")) del_text_idx = ti;
+                ImGui::SameLine();
+                ImGui::BulletText("\"%s\"", state->mBdisplay[ti]->getInput().c_str());
+                ImGui::PopID();
+            }
+            if (del_text_idx >= 0) state->mBdisplay.erase(state->mBdisplay.begin() + del_text_idx);
+            
+            ImGui::Separator();
+            ImGui::Checkbox("Custom Text", &state->use_custom_text);
+            if (state->use_custom_text) {
+                ImGui::SetNextItemWidth(200.0f);
+                ImGui::InputText("##custom", state->custom_text_buf, sizeof(state->custom_text_buf));
+            }
+            if (ImGui::MenuItem("Add Bouncer")) {
+                if (state->use_custom_text && state->custom_text_buf[0] != '\0') {
+                    auto pcsout = mParser.parse(state->custom_text_buf);
+                    auto newBD = std::make_unique<BDdisplay>();
+                    for(auto& pd : pcsout) newBD->add(pd);
+                    state->mBdisplay.push_back(std::move(newBD));
+                }
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Plasma")) {
+            if (ImGui::MenuItem("Randomise Palette")) {
+                randomise_plasma_palette(plasma_params);
                 if (myPlasma) {
-                    ImGui::Separator();
-                    ImGui::Text("Plasma Type");
-                    for (int i = 0; i < 10; i++) {
-                        char label[32];
-                        std::snprintf(label, sizeof(label), "T%d", i);
-                        if (ImGui::RadioButton(label, myPlasma->iPlasmaIDX == i)) {
-                            myPlasma->stop();
-                            myPlasma->init(i);
-                            myPlasma->setArgs(plasma_params);
-                            myPlasma->start();
-                        }
-                        if ((i + 1) % 5 != 0) ImGui::SameLine();
-                    }
+                    CLPlasmaParams p = plasma_params;
+                    if (!plasma_render_tiles) p.tile_count = 0.0f;
+                    myPlasma->setArgs(p);
                 }
-                ImGui::EndMenu();
             }
-            if (ImGui::BeginMenu("Record")) {
-                bool is_recording = (myNvec != NULL);
-                if (!is_recording) {
-                    ImGui::SetNextItemWidth(200.0f);
-                    ImGui::InputText("File", record_path_buf, sizeof(record_path_buf));
-                    if (ImGui::MenuItem("Start Recording")) {
-                        int out_w = 0, out_h = 0;
-                        SDL_GetRenderOutputSize(renderer, &out_w, &out_h);
-                        recorder_start(recorder, out_w, out_h, record_path_buf);
-                        record_time = 0.0f;
-                        record_frame_accum = 0.0f;
-                    }
-                } else {
-                    int mins = static_cast<int>(record_time) / 60;
-                    int secs = static_cast<int>(record_time) % 60;
-                    ImGui::Text("REC  %02d:%02d  (%d frames)", mins, secs, recorder.frame_count);
-                    ImGui::Text("File: %s", recorder.output_path.c_str());
-                    ImGui::Text("Size: %dx%d @ %d fps", recorder.width, recorder.height, recorder.fps);
-                    if (record_max_enabled) {
-                        int remaining = record_max_seconds - static_cast<int>(record_time);
-                        if (remaining < 0) remaining = 0;
-                        ImGui::Text("Auto-stop in: %ds", remaining);
-                    }
-                    if (ImGui::MenuItem("Stop Recording"))
-                        recorder_stop(recorder);
+            if (ImGui::MenuItem("Randomise X/Y")) {
+                randomise_plasma_xy(plasma_params);
+                if (myPlasma) {
+                    CLPlasmaParams p = plasma_params;
+                    if (!plasma_render_tiles) p.tile_count = 0.0f;
+                    myPlasma->setArgs(p);
                 }
-                ImGui::Checkbox("Record GUI", &record_gui);
-
-                ImGui::Separator();
-                ImGui::Checkbox("Max Length", &record_max_enabled);
-                if (record_max_enabled) {
-                    ImGui::SetNextItemWidth(200.0f);
-                    ImGui::SliderInt("Seconds", &record_max_seconds, 1, 300);
-                }
-                ImGui::EndMenu();
             }
             ImGui::Separator();
-            if (myNvec != NULL) {
-                record_time += dt;
-                // Auto-stop recording when max length reached
-                if (record_max_enabled && record_time >= static_cast<float>(record_max_seconds))
-                    recorder_stop(recorder);
+            if (ImGui::Checkbox("Tile Effect", &plasma_render_tiles)) {
+                if (myPlasma) {
+                    CLPlasmaParams p = plasma_params;
+                    if (!plasma_render_tiles) p.tile_count = 0.0f;
+                    myPlasma->setArgs(p);
+                }
             }
-            if (myNvec != NULL) {
-                ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "REC");
-                ImGui::SameLine();
+            if(plasma_render_tiles){
+                if (ImGui::SliderFloat("Tile Size", &plasma_params.tile_count, 10, 100)) {
+                    if (myPlasma) myPlasma->setArgs(plasma_params);
+                }
             }
-            ImGui::Text("%.1f FPS", io.Framerate);
-            ImGui::EndMainMenuBar();
+            ImGui::Separator();
+            bool darken_changed = false;
+            ImGui::Text("Darken Color");
+            darken_changed |= ImGui::SliderFloat("Red", &plasma_params.darken_r, 0.0f, 2.0f);
+            darken_changed |= ImGui::SliderFloat("Green", &plasma_params.darken_g, 0.0f, 2.0f);
+            darken_changed |= ImGui::SliderFloat("Blue", &plasma_params.darken_b, 0.0f, 2.0f);
+            if (darken_changed && myPlasma) myPlasma->setArgs(plasma_params);
+            
+            ImGui::Separator();
+            ImGui::Checkbox("Roll Palette", &state->roll_palette);
+            if (state->roll_palette) ImGui::SliderFloat("Roll Speed", &state->roll_palette_speed, 0.05f, 3.0f);
+
+            if (myPlasma) {
+                ImGui::Separator();
+                ImGui::Text("Plasma Type");
+                for (int i = 0; i < 10; i++) {
+                    char label[32];
+                    std::snprintf(label, sizeof(label), "T%d", i);
+                    if (ImGui::RadioButton(label, myPlasma->iPlasmaIDX == i)) {
+                        myPlasma->stop();
+                        myPlasma->init(i);
+                        myPlasma->setArgs(plasma_params);
+                        myPlasma->start();
+                    }
+                    if ((i + 1) % 5 != 0) ImGui::SameLine();
+                }
+            }
+            ImGui::EndMenu();
         }
-
-        // Render
-        ImGui::Render();
-        SDL_SetRenderScale(renderer, io.DisplayFramebufferScale.x,
-                                     io.DisplayFramebufferScale.y);
-
-        if (bg_video && bg_tex) {
-            bg_video->updateTexture(bg_tex);
+        if (ImGui::BeginMenu("Record")) {
+            bool is_recording = (myNvec != NULL);
+            if (!is_recording) {
+                ImGui::SetNextItemWidth(200.0f);
+                ImGui::InputText("File", state->record_path_buf, sizeof(state->record_path_buf));
+                if (ImGui::MenuItem("Start Recording")) {
+                    SDL_GetWindowSize(window, &cur_w, &cur_h);
+                    cur_w = ((int)cur_w / 16)*16; cur_h = ((int)cur_h / 16)*16;
+                    SDL_SetWindowSize(window, cur_w, cur_h);
+                    cur_rel = (float)cur_w / (float)cur_h;
+                    SDL_SetWindowResizable(window, false);
+                    int out_w = 0, out_h = 0;
+                    SDL_GetRenderOutputSize(renderer, &out_w, &out_h);
+                    recorder_start(state->recorder, out_w, out_h, state->record_path_buf);
+                    state->record_time = 0.0f;
+                }
+            } else {
+                int mins = static_cast<int>(state->record_time) / 60;
+                int secs = static_cast<int>(state->record_time) % 60;
+                ImGui::Text("REC  %02d:%02d  (%d frames)", mins, secs, state->recorder.frame_count);
+                if (state->record_max_enabled) {
+                    int remaining = state->record_max_seconds - static_cast<int>(state->record_time);
+                    ImGui::Text("Auto-stop in: %ds", std::max(0, remaining));
+                }
+                if (ImGui::MenuItem("Stop Recording")) recorder_stop(state->recorder);
+            }
+            ImGui::Checkbox("Record GUI", &state->record_gui);
+            ImGui::Separator();
+            ImGui::Checkbox("Max Length", &state->record_max_enabled);
+            if (state->record_max_enabled) {
+                ImGui::SetNextItemWidth(200.0f);
+                ImGui::SliderInt("Seconds", &state->record_max_seconds, 1, 300);
+            }
+            ImGui::EndMenu();
         }
-
-        // 1) Draw background (custom or plasma)
-        if (bg_tex) {
-            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-            SDL_RenderClear(renderer);
-            SDL_RenderTexture(renderer, bg_tex, nullptr, nullptr);
-        } else if (plasma_tex) {
-            SDL_RenderTexture(renderer, plasma_tex, nullptr, nullptr);
-        } else {
-            SDL_SetRenderDrawColorFloat(renderer, 0.10f, 0.08f, 0.15f, 1.0f);
-            SDL_RenderClear(renderer);
+        if (myNvec != NULL) {
+            state->record_time += dt;
+            if (state->record_max_enabled && state->record_time >= static_cast<float>(state->record_max_seconds))
+                recorder_stop(state->recorder);
+            ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "REC");
+            ImGui::SameLine();
         }
-
-        // 2) Draw all bouncing text instances (each with its own texture & colour)
-        
-        for(auto& mbd : mBdisplay){
-            mbd->update(dt,cur_w, cur_h);
-            mbd->draw(renderer);
-        }
-        
-
-        if (!record_gui){
-            recorder_feed_frame(recorder, renderer);
-        
-            ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
-
-
-        } else {
-
-
-            // 3) ImGui on top of everything
-            ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
-
-            // 4) Capture frame for recording (must happen before Present)
-            recorder_feed_frame(recorder, renderer);
-
-       }
-
-        SDL_RenderPresent(renderer);
+        ImGui::Text("%.1f FPS",  1.0f / delta_time);//(io.Framerate);
+        ImGui::EndMainMenuBar();
     }
 
-    // --- Cleanup ---
-    recorder_stop(recorder);
-    if(bUsePlasma) myPlasma->stop();
-    if (bg_tex) SDL_DestroyTexture(bg_tex);
-    for (auto* et : extra_textures) SDL_DestroyTexture(et);
-    for (auto& e : cli_entries) { if (e.tex) SDL_DestroyTexture(e.tex); }
-    if (plasma_tex) SDL_DestroyTexture(plasma_tex);
+    ImGui::Render();
+    SDL_SetRenderScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
 
-    // Explicitly destroy all decoders before the mixer
-    mBdisplay.clear();
-    bg_video.reset();
+    if (state->bg_video && state->bg_tex) state->bg_video->updateTexture(state->bg_tex);
 
-    ImGui_ImplSDLRenderer3_Shutdown();
-    ImGui_ImplSDL3_Shutdown();
-    ImGui::DestroyContext();
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    TTF_Quit();
-    SDL_Quit();
-
-    if (myMix) {
-        delete myMix;
-        myMix = nullptr;
+    if (state->bg_tex) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+        SDL_RenderTexture(renderer, state->bg_tex, nullptr, nullptr);
+    } else if (state->plasma_tex) {
+        SDL_RenderTexture(renderer, state->plasma_tex, nullptr, nullptr);
+    } else {
+        SDL_SetRenderDrawColorFloat(renderer, 0.10f, 0.08f, 0.15f, 1.0f);
+        SDL_RenderClear(renderer);
     }
 
-    return 0;
+    for(auto& mbd : state->mBdisplay){
+        mbd->update(dt, cur_w, cur_h);
+        mbd->draw(renderer);
+    }
+
+    if (!state->record_gui) {
+        recorder_feed_frame(state->recorder, renderer);
+        ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
+    } else {
+        ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
+        recorder_feed_frame(state->recorder, renderer);
+    }
+
+    SDL_RenderPresent(renderer);
+    return SDL_APP_CONTINUE;
 }
+
+void SDL_AppQuit(void *appstate, SDL_AppResult result)
+{
+    AppState* state = (AppState*)appstate;
+    if (state) {
+        recorder_stop(state->recorder);
+        if (bUsePlasma && myPlasma) myPlasma->stop();
+        if (state->bg_tex) SDL_DestroyTexture(state->bg_tex);
+        for (auto* et : state->extra_textures) SDL_DestroyTexture(et);
+        for (auto& e : state->cli_entries) { if (e.tex) SDL_DestroyTexture(e.tex); }
+        if (state->plasma_tex) SDL_DestroyTexture(state->plasma_tex);
+
+        state->mBdisplay.clear();
+        state->bg_video.reset();
+
+        ImGui_ImplSDLRenderer3_Shutdown();
+        ImGui_ImplSDL3_Shutdown();
+        ImGui::DestroyContext();
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        TTF_Quit();
+        SDL_Quit();
+
+        if (myMix) {
+            delete myMix;
+            myMix = nullptr;
+        }
+        delete state;
+    }
+}
+

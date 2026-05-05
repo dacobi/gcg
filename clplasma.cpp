@@ -110,12 +110,63 @@ void PlasmaOpenCL::resize(int w, int h) {
 
 void PlasmaOpenCL::workerLoop() {
     size_t globalSize[2] = { (size_t)width, (size_t)height };
+    size_t localSize[2] = { 16, 16 };
+    // Ensure globalSize is a multiple of localSize
+    size_t adjGlobalSize[2] = {
+        ((globalSize[0] + localSize[0] - 1) / localSize[0]) * localSize[0],
+        ((globalSize[1] + localSize[1] - 1) / localSize[1]) * localSize[1]
+    };
+
     std::vector<uint32_t> stagingBuffer(width * height);
     Uint64 startTicks = SDL_GetTicks();
+    //Uint64 lastHeartbeat = SDL_GetTicks();
+    cl_event readEvent = nullptr;
+    bool readInProgress = false;
 
     while (running) {
+        //Uint64 frameStart = SDL_GetTicks();
+        
+        //if (frameStart - lastHeartbeat > 5000) {
+         //   SDL_Log("Plasma Worker Heartbeat (Alive)");
+         //   lastHeartbeat = frameStart;
+       // }
+
+        // 1. Check if an existing async read is finished
+        if (readInProgress && readEvent) {
+            cl_int status;
+            clGetEventInfo(readEvent, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &status, NULL);
+            if (status == CL_COMPLETE) {
+                {
+                    std::lock_guard<std::mutex> lock(dataMutex);
+                    backBuffer.swap(stagingBuffer);
+                    frameReady = true;
+                }
+                clReleaseEvent(readEvent);
+                readEvent = nullptr;
+                readInProgress = false;
+                
+                if (stagingBuffer.size() != (size_t)(width * height)) {
+                    stagingBuffer.resize(width * height);
+                }
+            } else {
+                // Read still in progress, yield and wait
+                SDL_Delay(5);
+                continue;
+            }
+        }
+
+        // 2. Throttle: Don't start a new frame until the previous one is consumed
+        {
+            std::unique_lock<std::mutex> lock(dataMutex);
+            if (frameReady) {
+                lock.unlock();
+                SDL_Delay(10);
+                continue;
+            }
+        }
+
         float t = (float)((double)(SDL_GetTicks() - startTicks) / 1000.0);
-        CLPlasmaParams p;
+        CLPlasmaParams p;        
         { std::lock_guard<std::mutex> lock(dataMutex); p = params; }
 
         // Set arguments - Total 24 arguments now
@@ -146,42 +197,35 @@ void PlasmaOpenCL::workerLoop() {
         clSetKernelArg(kernel, 22, sizeof(float), &p.darken_b);
         clSetKernelArg(kernel, 23, sizeof(float), &p.tile_count);
 
-        cl_int err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, globalSize, NULL, 0, NULL, NULL);
+        cl_int err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, adjGlobalSize, localSize, 0, NULL, NULL);
         if (err == CL_SUCCESS) {
-            clFinish(queue);
-            clEnqueueReadBuffer(queue, clMemBuffer, CL_TRUE, 0, width * height * 4, stagingBuffer.data(), 0, NULL, NULL);
-            
-            {   // Scope the lock to the bare minimum
-                std::lock_guard<std::mutex> lock(dataMutex);
-                backBuffer = stagingBuffer;
-                frameReady = true;
+            // Start an asynchronous read
+            err = clEnqueueReadBuffer(queue, clMemBuffer, CL_FALSE, 0, width * height * 4, stagingBuffer.data(), 0, NULL, &readEvent);
+            if (err == CL_SUCCESS) {
+                clFlush(queue);
+                readInProgress = true;
             }
-        }
-        SDL_Delay(1); 
+        } else {
+            SDL_Log("OpenCL Kernel Error: %d", err);
+        }    
     }
 }
 
 void PlasmaOpenCL::updateTexture(SDL_Texture* tex) {
     if (!tex) return;
     
-    std::unique_lock<std::mutex> lock(dataMutex);
-    if (!frameReady || backBuffer.empty()) return;
-
-    void* pixels;
-    int pitch;
-    // SDL3 Lock returns true on success
-    if (SDL_LockTexture(tex, NULL, &pixels, &pitch)) {
-        Uint8* dst = static_cast<Uint8*>(pixels);
-        Uint8* src = reinterpret_cast<Uint8*>(backBuffer.data());
-        size_t bpr = (size_t)width * 4;
-
-        for (int y = 0; y < height; ++y) {
-            std::memcpy(dst + ((size_t)y * pitch), src + (y * bpr), bpr);
-        }
+    std::vector<uint32_t> localBuffer;
+    {
+        std::lock_guard<std::mutex> lock(dataMutex);
+        if (!frameReady || backBuffer.empty()) return;
         
-        SDL_UnlockTexture(tex);
+        localBuffer.swap(backBuffer);
         frameReady = false;
     }
+
+    // SDL_UpdateTexture is often more robust than Lock/Unlock for streaming textures
+    // as it allows the driver to manage the upload timing.
+    SDL_UpdateTexture(tex, NULL, localBuffer.data(), width * 4);
 }
 
 void PlasmaOpenCL::setArgs(const CLPlasmaParams& p) {
