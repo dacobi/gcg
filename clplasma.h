@@ -117,6 +117,7 @@ kernel void plasma_kernel(
     // Call this from the main SDL thread
     void updateTexture(SDL_Texture* tex);
     void setArgs(const CLPlasmaParams& p);
+    CLPlasmaParams getArgs();
     int iPlasmaIDX = 0;
 private:
     void workerLoop();

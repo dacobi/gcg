@@ -1154,8 +1154,9 @@ static SDL_Texture* create_text_texture(SDL_Renderer* renderer,
 
 
 class BDdisplay {
-private:
+public:
     std::vector<Bouncer> bouncers;
+private:
     SDL_FRect boundingBox = {0.0f, 0.0f, 0.0f, 0.0f};   
     float groupVx = 20.0f; // Default horizontal speed
     float groupVy = 20.0f; // Default vertical speed
@@ -1407,6 +1408,8 @@ struct AppState {
     bool cli_plasma_tile = false;
     int cli_win_w = 0;
     int cli_win_h = 0;
+
+    PlasmaOpenCL* selected_plasma = nullptr;
 
     std::vector<std::unique_ptr<BDdisplay>> mBdisplay;
 
@@ -1710,6 +1713,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         myPlasma->init(state->cli_bg_plasma_idx);
         myPlasma->setArgs(plasma_params);
         myPlasma->start();
+        state->selected_plasma = myPlasma;
     }
 
     return SDL_APP_CONTINUE;
@@ -1805,7 +1809,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 ImGui::BulletText("\"%s\"", state->mBdisplay[ti]->getInput().c_str());
                 ImGui::PopID();
             }
-            if (del_text_idx >= 0) state->mBdisplay.erase(state->mBdisplay.begin() + del_text_idx);
+            if (del_text_idx >= 0) {
+                for (auto& b : state->mBdisplay[del_text_idx]->bouncers) {
+                    if (state->selected_plasma == b.plasma) state->selected_plasma = myPlasma;
+                }
+                state->mBdisplay.erase(state->mBdisplay.begin() + del_text_idx);
+            }
             
             ImGui::Separator();
             ImGui::Checkbox("Custom Text", &state->use_custom_text);
@@ -1830,58 +1839,93 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Plasma")) {
-            if (ImGui::MenuItem("Randomise Palette")) {
-                randomise_plasma_palette(plasma_params);
+            if (ImGui::BeginMenu("Select Plasma")) {
                 if (myPlasma) {
-                    CLPlasmaParams p = plasma_params;
-                    if (!plasma_render_tiles) p.tile_count = 0.0f;
-                    myPlasma->setArgs(p);
+                    if (ImGui::MenuItem("Background", NULL, state->selected_plasma == myPlasma))
+                        state->selected_plasma = myPlasma;
                 }
-            }
-            if (ImGui::MenuItem("Randomise X/Y")) {
-                randomise_plasma_xy(plasma_params);
-                if (myPlasma) {
-                    CLPlasmaParams p = plasma_params;
-                    if (!plasma_render_tiles) p.tile_count = 0.0f;
-                    myPlasma->setArgs(p);
+                for (size_t i = 0; i < state->mBdisplay.size(); ++i) {
+                    for (size_t j = 0; j < state->mBdisplay[i]->bouncers.size(); ++j) {
+                        PlasmaOpenCL* p = state->mBdisplay[i]->bouncers[j].plasma;
+                        if (p) {
+                            char label[64];
+                            std::snprintf(label, sizeof(label), "Bouncer %zu:%zu", i, j);
+                            if (ImGui::MenuItem(label, NULL, state->selected_plasma == p))
+                                state->selected_plasma = p;
+                        }
+                    }
                 }
+                ImGui::EndMenu();
             }
             ImGui::Separator();
-            if (ImGui::Checkbox("Tile Effect", &plasma_render_tiles)) {
-                if (myPlasma) {
-                    CLPlasmaParams p = plasma_params;
-                    if (!plasma_render_tiles) p.tile_count = 0.0f;
-                    myPlasma->setArgs(p);
+
+            if (state->selected_plasma) {
+                CLPlasmaParams p = state->selected_plasma->getArgs();
+                bool changed = false;
+
+                if (ImGui::MenuItem("Randomise Palette")) { randomise_plasma_palette(p); changed = true; }
+                if (ImGui::MenuItem("Randomise X/Y")) { randomise_plasma_xy(p); changed = true; }
+                
+                ImGui::Separator();
+                changed |= ImGui::SliderFloat("Drift Amp", &p.drift_amp, 0.0f, 5.0f);
+                changed |= ImGui::SliderFloat("Drift Speed X", &p.drift_speed_x, 0.0f, 2.0f);
+                changed |= ImGui::SliderFloat("Drift Speed Y", &p.drift_speed_y, 0.0f, 2.0f);
+                changed |= ImGui::SliderFloat("Rot Speed", &p.rot_speed, -1.0f, 1.0f);
+                changed |= ImGui::SliderFloat("Scale X", &p.scale_base_x, 0.1f, 30.0f);
+                changed |= ImGui::SliderFloat("Scale Y", &p.scale_base_y, 0.1f, 30.0f);
+                
+                ImGui::Separator();
+                changed |= ImGui::SliderFloat("Phase R", &p.palette_phase_r, 0.0f, 1.0f);
+                changed |= ImGui::SliderFloat("Phase G", &p.palette_phase_g, 0.0f, 1.0f);
+                changed |= ImGui::SliderFloat("Phase B", &p.palette_phase_b, 0.0f, 1.0f);
+
+                ImGui::Separator();
+                changed |= ImGui::SliderFloat("Scale Mod Amp", &p.scale_mod_amp, 0.0f, 5.0f);
+                changed |= ImGui::SliderFloat("Scale Mod Speed X", &p.scale_mod_speed_x, 0.0f, 2.0f);
+                changed |= ImGui::SliderFloat("Scale Mod Speed Y", &p.scale_mod_speed_y, 0.0f, 2.0f);
+                changed |= ImGui::SliderFloat("Warp Base", &p.warp_base, 0.0f, 1.0f);
+                changed |= ImGui::SliderFloat("Warp Amp", &p.warp_amp, 0.0f, 1.0f);
+                changed |= ImGui::SliderFloat("Warp Speed", &p.warp_speed, 0.0f, 2.0f);
+                changed |= ImGui::SliderFloat("Swirl", &p.swirl_dist_mul, 0.0f, 15.0f);
+
+                ImGui::Separator();
+                changed |= ImGui::SliderFloat("Darken R", &p.darken_r, 0.0f, 2.0f);
+                changed |= ImGui::SliderFloat("Darken G", &p.darken_g, 0.0f, 2.0f);
+                changed |= ImGui::SliderFloat("Darken B", &p.darken_b, 0.0f, 2.0f);
+
+                ImGui::Separator();
+                bool tiling = (p.tile_count > 0.0f);
+                if (ImGui::Checkbox("Tiling", &tiling)) {
+                    if (tiling) p.tile_count = 20.0f;
+                    else p.tile_count = 0.0f;
+                    changed = true;
+                }
+                if (tiling) {
+                    changed |= ImGui::SliderFloat("Tile Count", &p.tile_count, 1.0f, 100.0f);
+                }
+
+                if (changed) {
+                    state->selected_plasma->setArgs(p);
+                    if (state->selected_plasma == myPlasma) plasma_params = p;
                 }
             }
-            if(plasma_render_tiles){
-                if (ImGui::SliderFloat("Tile Size", &plasma_params.tile_count, 10, 100)) {
-                    if (myPlasma) myPlasma->setArgs(plasma_params);
-                }
-            }
-            ImGui::Separator();
-            bool darken_changed = false;
-            ImGui::Text("Darken Color");
-            darken_changed |= ImGui::SliderFloat("Red", &plasma_params.darken_r, 0.0f, 2.0f);
-            darken_changed |= ImGui::SliderFloat("Green", &plasma_params.darken_g, 0.0f, 2.0f);
-            darken_changed |= ImGui::SliderFloat("Blue", &plasma_params.darken_b, 0.0f, 2.0f);
-            if (darken_changed && myPlasma) myPlasma->setArgs(plasma_params);
-            
+
             ImGui::Separator();
             ImGui::Checkbox("Roll Palette", &state->roll_palette);
             if (state->roll_palette) ImGui::SliderFloat("Roll Speed", &state->roll_palette_speed, 0.05f, 3.0f);
 
-            if (myPlasma) {
+            if (state->selected_plasma) {
                 ImGui::Separator();
-                ImGui::Text("Plasma Type");
+                ImGui::Text("Plasma Mode");
                 for (int i = 0; i < 10; i++) {
                     char label[32];
                     std::snprintf(label, sizeof(label), "T%d", i);
-                    if (ImGui::RadioButton(label, myPlasma->iPlasmaIDX == i)) {
-                        myPlasma->stop();
-                        myPlasma->init(i);
-                        myPlasma->setArgs(plasma_params);
-                        myPlasma->start();
+                    if (ImGui::RadioButton(label, state->selected_plasma->iPlasmaIDX == i)) {
+                        state->selected_plasma->stop();
+                        CLPlasmaParams current_p = state->selected_plasma->getArgs();
+                        state->selected_plasma->init(i);
+                        state->selected_plasma->setArgs(current_p);
+                        state->selected_plasma->start();
                     }
                     if ((i + 1) % 5 != 0) ImGui::SameLine();
                 }
@@ -1996,4 +2040,5 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         delete state;
     }
 }
+
 

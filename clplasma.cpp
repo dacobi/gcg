@@ -233,6 +233,11 @@ void PlasmaOpenCL::setArgs(const CLPlasmaParams& p) {
     params = p;
 }
 
+CLPlasmaParams PlasmaOpenCL::getArgs() {
+    std::lock_guard<std::mutex> lock(dataMutex);
+    return params;
+}
+
 void PlasmaOpenCL::cleanup() {
     if (clMemBuffer) { clReleaseMemObject(clMemBuffer); clMemBuffer = nullptr; }
     if (kernel) { clReleaseKernel(kernel); kernel = nullptr; }

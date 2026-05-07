@@ -1,4 +1,0 @@
-/home/dacobi/src/gcg.old/CMakeFiles/imgui.dir
-/home/dacobi/src/gcg.old/CMakeFiles/gcg.dir
-/home/dacobi/src/gcg.old/CMakeFiles/edit_cache.dir
-/home/dacobi/src/gcg.old/CMakeFiles/rebuild_cache.dir
