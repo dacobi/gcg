@@ -28,6 +28,7 @@
 #include <atomic>
 #include <chrono>
 #include "clplasma.h"
+#include "clmandelbrot.h"
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlrenderer3.h"
@@ -1410,10 +1411,12 @@ struct AppState {
     int cli_win_h = 0;
 
     PlasmaOpenCL* selected_plasma = nullptr;
+    MandelbrotOpenCL* selected_mandel = nullptr;
 
     std::vector<std::unique_ptr<BDdisplay>> mBdisplay;
 
     SDL_Texture* plasma_tex = nullptr;
+    SDL_Texture* mandel_tex = nullptr;
     std::unique_ptr<NvdecDecode> bg_video;
     SDL_Texture* bg_tex = nullptr;
 
@@ -1461,6 +1464,13 @@ struct AppState {
 
     
 CLPlasmaParams plasma_params;
+CLMandelbrotParams mandel_params;
+
+static void randomise_mandel_palette(CLMandelbrotParams& p) {
+    p.palette_phase_r = rand_range(0.0f, 1.0f);
+    p.palette_phase_g = rand_range(0.0f, 1.0f);
+    p.palette_phase_b = rand_range(0.0f, 1.0f);
+}
 
 static CLPlasmaParams randomise_plasma() {
     CLPlasmaParams p;
@@ -1528,7 +1538,9 @@ static void randomise_plasma_xy(CLPlasmaParams& p) {
 //------------
 static ContentParser mParser;
 static PlasmaOpenCL* myPlasma = nullptr;
+static MandelbrotOpenCL* myMandel = nullptr;
 static bool bUsePlasma = true;
+static bool bUseMandel = false;
 
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
@@ -1545,18 +1557,24 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             state->cli_record_path = argv[++i];
         } else if (std::strcmp(argv[i], "--bg") == 0 && i + 1 < argc) {
             std::string arg = argv[++i];
-            if (arg.size() > 8 && arg.substr(0, 8) == "[plasma:" && arg.back() == ']') {
+            if (arg == "mandelbrot") {
+                bUseMandel = true;
+                bUsePlasma = false;
+            } else if (arg.size() > 8 && arg.substr(0, 8) == "[plasma:" && arg.back() == ']') {
                 std::string idx_str = arg.substr(8, arg.size() - 9);
                 try {
                     state->cli_bg_plasma_idx = std::stoi(idx_str);
                     bUsePlasma = true;
+                    bUseMandel = false;
                 } catch (...) {
                     state->cli_bg_path = arg;
                     bUsePlasma = false;
+                    bUseMandel = false;
                 }
             } else {
                 state->cli_bg_path = arg;
                 bUsePlasma = false;
+                bUseMandel = false;
             }
         } else if (std::strcmp(argv[i], "--record-max") == 0 && i + 1 < argc) {
             state->cli_record_max = std::atoi(argv[++i]);
@@ -1623,8 +1641,16 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     // --- Plasma texture ---
     state->plasma_w = cur_w / 8;
     state->plasma_h = cur_h / 8;
+    SDL_Log("Texture dimensions: %d x %d", state->plasma_w, state->plasma_h);
     if (bUsePlasma) {
         state->plasma_tex = SDL_CreateTexture(
+            renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+            state->plasma_w, state->plasma_h
+        );
+    }
+    if (bUseMandel) {
+        SDL_Log("Creating Mandelbrot texture...");
+        state->mandel_tex = SDL_CreateTexture(
             renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
             state->plasma_w, state->plasma_h
         );
@@ -1715,6 +1741,16 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         myPlasma->start();
         state->selected_plasma = myPlasma;
     }
+    if (bUseMandel) {
+        myMandel = new MandelbrotOpenCL(state->plasma_w, state->plasma_h);
+        if (myMandel->init()) {
+            myMandel->setArgs(mandel_params);
+            myMandel->start();
+            state->selected_mandel = myMandel;
+        } else {
+            SDL_Log("Mandelbrot initialization failed!");
+        }
+    }
 
     return SDL_APP_CONTINUE;
 }
@@ -1792,6 +1828,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     if (bUsePlasma){// && state->event_burst_cooldown == 0) {
         myPlasma->updateTexture(state->plasma_tex);
+    }
+    if (bUseMandel) {
+        myMandel->updateTexture(state->mandel_tex);
     }
 
     ImGui_ImplSDLRenderer3_NewFrame();
@@ -1932,6 +1971,34 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             }
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("Mandelbrot")) {
+            if (myMandel) {
+                CLMandelbrotParams p = myMandel->getArgs();
+                bool changed = false;
+
+                if (ImGui::MenuItem("Randomise Palette")) { randomise_mandel_palette(p); changed = true; }
+                ImGui::Separator();
+
+                changed |= ImGui::InputDouble("X Offset", &p.x_offset, 0.001, 0.01, "%.10f");
+                changed |= ImGui::InputDouble("Y Offset", &p.y_offset, 0.001, 0.01, "%.10f");
+                changed |= ImGui::InputDouble("Zoom", &p.zoom, 0.1, 1.0, "%.10f");
+                changed |= ImGui::SliderInt("Max Iterations", &p.max_iterations, 16, 2048);
+                
+                ImGui::Separator();
+                changed |= ImGui::SliderFloat("Phase R", &p.palette_phase_r, 0.0f, 1.0f);
+                changed |= ImGui::SliderFloat("Phase G", &p.palette_phase_g, 0.0f, 1.0f);
+                changed |= ImGui::SliderFloat("Phase B", &p.palette_phase_b, 0.0f, 1.0f);
+                changed |= ImGui::SliderFloat("Color Speed", &p.color_speed, 0.0f, 10.0f);
+
+                if (changed) {
+                    myMandel->setArgs(p);
+                    mandel_params = p;
+                }
+            } else {
+                ImGui::Text("Mandelbrot not active.");
+            }
+            ImGui::EndMenu();
+        }
         if (ImGui::BeginMenu("Record")) {
             bool is_recording = (myNvec != NULL);
             if (!is_recording) {
@@ -1989,6 +2056,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         SDL_RenderTexture(renderer, state->bg_tex, nullptr, nullptr);
     } else if (state->plasma_tex) {
         SDL_RenderTexture(renderer, state->plasma_tex, nullptr, nullptr);
+    } else if (state->mandel_tex) {
+        static int render_log_count = 0;
+        if (render_log_count++ % 60 == 0) SDL_Log("Rendering mandel_tex...");
+        SDL_RenderTexture(renderer, state->mandel_tex, nullptr, nullptr);
     } else {
         SDL_SetRenderDrawColorFloat(renderer, 0.10f, 0.08f, 0.15f, 1.0f);
         SDL_RenderClear(renderer);
@@ -2017,10 +2088,12 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
     if (state) {
         recorder_stop(state->recorder);
         if (bUsePlasma && myPlasma) myPlasma->stop();
+        if (bUseMandel && myMandel) myMandel->stop();
         if (state->bg_tex) SDL_DestroyTexture(state->bg_tex);
         for (auto* et : state->extra_textures) SDL_DestroyTexture(et);
         for (auto& e : state->cli_entries) { if (e.tex) SDL_DestroyTexture(e.tex); }
         if (state->plasma_tex) SDL_DestroyTexture(state->plasma_tex);
+        if (state->mandel_tex) SDL_DestroyTexture(state->mandel_tex);
 
         state->mBdisplay.clear();
         state->bg_video.reset();
@@ -2037,8 +2110,11 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
             delete myMix;
             myMix = nullptr;
         }
+        if (myPlasma) { delete myPlasma; myPlasma = nullptr; }
+        if (myMandel) { delete myMandel; myMandel = nullptr; }
         delete state;
     }
 }
+
 
 

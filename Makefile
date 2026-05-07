@@ -142,6 +142,30 @@ gcg/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/build
 .PHONY : gcg/fast
 
+clmandelbrot.o: clmandelbrot.cpp.o
+.PHONY : clmandelbrot.o
+
+# target to build an object file
+clmandelbrot.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clmandelbrot.cpp.o
+.PHONY : clmandelbrot.cpp.o
+
+clmandelbrot.i: clmandelbrot.cpp.i
+.PHONY : clmandelbrot.i
+
+# target to preprocess a source file
+clmandelbrot.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clmandelbrot.cpp.i
+.PHONY : clmandelbrot.cpp.i
+
+clmandelbrot.s: clmandelbrot.cpp.s
+.PHONY : clmandelbrot.s
+
+# target to generate assembly for a file
+clmandelbrot.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clmandelbrot.cpp.s
+.PHONY : clmandelbrot.cpp.s
+
 clplasma.o: clplasma.cpp.o
 .PHONY : clplasma.o
 
@@ -368,6 +392,9 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... gcg"
 	@echo "... imgui"
+	@echo "... clmandelbrot.o"
+	@echo "... clmandelbrot.i"
+	@echo "... clmandelbrot.s"
 	@echo "... clplasma.o"
 	@echo "... clplasma.i"
 	@echo "... clplasma.s"
