@@ -1652,7 +1652,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         SDL_Log("Creating Mandelbrot texture...");
         state->mandel_tex = SDL_CreateTexture(
             renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
-            state->plasma_w, state->plasma_h
+            cur_w, cur_h
         );
     }
 
@@ -1742,7 +1742,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         state->selected_plasma = myPlasma;
     }
     if (bUseMandel) {
-        myMandel = new MandelbrotOpenCL(state->plasma_w, state->plasma_h);
+        myMandel = new MandelbrotOpenCL(cur_w, cur_h);
         if (myMandel->init()) {
             myMandel->setArgs(mandel_params);
             myMandel->start();
@@ -2057,8 +2057,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     } else if (state->plasma_tex) {
         SDL_RenderTexture(renderer, state->plasma_tex, nullptr, nullptr);
     } else if (state->mandel_tex) {
-        static int render_log_count = 0;
-        if (render_log_count++ % 60 == 0) SDL_Log("Rendering mandel_tex...");
         SDL_RenderTexture(renderer, state->mandel_tex, nullptr, nullptr);
     } else {
         SDL_SetRenderDrawColorFloat(renderer, 0.10f, 0.08f, 0.15f, 1.0f);
@@ -2115,6 +2113,5 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         delete state;
     }
 }
-
 
 
