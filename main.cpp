@@ -492,7 +492,7 @@ public:
         worker_thread = std::thread(&NvencEncoder::workerFunc, this);
     }
 
-    void pushVideoFrame(const uint8_t* rgba_data) {
+    void pushVideoFrame(const uint8_t* rgba_data, int pitch) {
         auto now = std::chrono::steady_clock::now();
 
         if (!recording_started) {
@@ -528,7 +528,15 @@ public:
             raw->data.resize(width * height * 4);
         }
 
-        std::memcpy(raw->data.data(), rgba_data, width * height * 4);
+        // Safe copy with pitch handling
+        if (pitch == width * 4) {
+            std::memcpy(raw->data.data(), rgba_data, width * height * 4);
+        } else {
+            for (int y = 0; y < height; ++y) {
+                std::memcpy(raw->data.data() + y * width * 4, rgba_data + y * pitch, width * 4);
+            }
+        }
+        
         raw->pts = pts;
 
         {
@@ -977,38 +985,26 @@ static void recorder_feed_frame(Recorder& rec, SDL_Renderer* renderer) {
         return;
     }
 
-    // If the window was resized, scale the frame back to the original
-    // recording dimensions so ffmpeg always receives a consistent size.
-    
     SDL_Surface* final_surf = rgba;
-    /*
     bool need_free_final = false;
     if (rgba->w != rec.width || rgba->h != rec.height) {
         SDL_Surface* scaled = SDL_CreateSurface(rec.width, rec.height, SDL_PIXELFORMAT_RGBA32);
         if (scaled) {
             SDL_BlitSurfaceScaled(rgba, nullptr, scaled, nullptr, SDL_SCALEMODE_LINEAR);
-            SDL_DestroySurface(rgba);
             final_surf = scaled;
             need_free_final = true;
         }
-        // If scaling failed, fall back to writing the mismatched frame
-        // (better than dropping it entirely)
     }
-    */
+    
     // Write raw pixels to ffmpeg pipe
     SDL_LockSurface(final_surf);
-    size_t row_bytes = static_cast<size_t>(rec.width) * 4;
-    auto* pixels = static_cast<const Uint8*>(final_surf->pixels);
-    //for (int y = 0; y < rec.height; ++y) {
-    //    fwrite(pixels + y * final_surf->pitch, 1, row_bytes, rec.pipe);
-    //}
-    myNvec->pushVideoFrame(pixels);
+    myNvec->pushVideoFrame(static_cast<const Uint8*>(final_surf->pixels), final_surf->pitch);
     SDL_UnlockSurface(final_surf);
 
-    //if (need_free_final)
-    //    SDL_DestroySurface(final_surf);
-   // else
-        SDL_DestroySurface(rgba);
+    if (need_free_final)
+        SDL_DestroySurface(final_surf);
+    
+    SDL_DestroySurface(rgba);
 
     rec.frame_count++;
 }
@@ -2163,6 +2159,21 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
 SDL_AppResult SDL_AppIterate(void *appstate)
 {    
     AppState* state = (AppState*)appstate;
+
+    // Ensure scratch_tex is large enough
+    if (state->scratch_tex) {
+        float sw, sh;
+        SDL_GetTextureSize(state->scratch_tex, &sw, &sh);
+        if (cur_w > sw || cur_h > sh) {
+            SDL_DestroyTexture(state->scratch_tex);
+            int new_sw = std::max((int)sw, cur_w);
+            int new_sh = std::max((int)sh, cur_h);
+            state->scratch_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, new_sw, new_sh);
+            if (state->scratch_tex) {
+                SDL_SetTextureScaleMode(state->scratch_tex, SDL_SCALEMODE_LINEAR);
+            }
+        }
+    }
 
     // Process Lua Commands
     {
