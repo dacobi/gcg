@@ -18,8 +18,8 @@ struct CLMandelbrotParams {
     float palette_phase_g = 0.33f;
     float palette_phase_b = 0.66f;
     float color_speed = 1.0f;
-    float transparency = 0.0f;
-};
+    float transparency = 4.0f;
+    };
 
 class MandelbrotOpenCL {
 public:

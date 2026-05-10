@@ -1485,10 +1485,11 @@ struct AppState {
 
 
     struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG };
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE };
         Type type;
         std::string syntax;
         int index;
+        double value;
     };
     std::queue<LuaCommand> lua_commands;
     std::mutex lua_mutex;
@@ -1822,7 +1823,22 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             },
             [state](const std::string& bg) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
-                state->lua_commands.push({AppState::LuaCommand::SET_BG, bg, 0});
+                state->lua_commands.push({AppState::LuaCommand::SET_BG, bg, 0, 0.0});
+            },
+            [state](bool isPlasma, int index) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({isPlasma ? AppState::LuaCommand::SELECT_PLASMA : AppState::LuaCommand::SELECT_FRACTAL, "", index, 0.0});
+            },
+            [state](bool isPlasma, const std::string& name, double value) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({isPlasma ? AppState::LuaCommand::SET_PLASMA_PARAM : AppState::LuaCommand::SET_FRACTAL_PARAM, name, 0, value});
+            },
+            [state](bool isPlasma, bool isXY) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                AppState::LuaCommand::Type t;
+                if (isPlasma) t = isXY ? AppState::LuaCommand::RANDOMIZE_PLASMA_XY : AppState::LuaCommand::RANDOMIZE_PLASMA_PALETTE;
+                else t = AppState::LuaCommand::RANDOMIZE_FRACTAL_PALETTE;
+                state->lua_commands.push({t, "", 0, 0.0});
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);
@@ -1862,11 +1878,12 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
                 if (state->plasma_h < 1) state->plasma_h = 1;
                 state->plasma_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, state->plasma_w, state->plasma_h);
                 myPlasma->resize(state->plasma_w, state->plasma_h);
-                myPlasma->setArgs(plasma_params);                
+                myPlasma->setArgs(plasma_params);
             }
             state->prev_win_w = cur_w;
             state->prev_win_h = cur_h;
         }
+
     }
 
     return SDL_APP_CONTINUE;
@@ -1903,47 +1920,50 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 }
             } else if (cmd.type == AppState::LuaCommand::SET_BG) {
                 std::string arg = cmd.syntax;
+
+                // Clear EVERYTHING first to ensure a clean state
+                if (state->bg_tex) { SDL_DestroyTexture(state->bg_tex); state->bg_tex = nullptr; }
+                state->bg_video.reset();
+                if (state->plasma_tex) { SDL_DestroyTexture(state->plasma_tex); state->plasma_tex = nullptr; }
+                if (state->mandel_tex) { SDL_DestroyTexture(state->mandel_tex); state->mandel_tex = nullptr; }
+                if (myPlasma) { delete myPlasma; myPlasma = nullptr; bUsePlasma = false; }
+                if (myMandel) { delete myMandel; myMandel = nullptr; bUseMandel = false; }
+                state->cli_bg_path = "";
+
                 if (arg.size() > 8 && arg.substr(0, 8) == "[plasma:" && arg.back() == ']') {
                     std::string idx_str = arg.substr(8, arg.size() - 9);
                     try {
                         state->cli_bg_plasma_idx = std::stoi(idx_str);
-                        bUsePlasma = true; bUseMandel = false; state->cli_bg_path = "";
+                        bUsePlasma = true;
                     } catch (...) {}
                 } else if (arg.size() > 9 && arg.substr(0, 9) == "[fractal:" && arg.back() == ']') {
                     std::string idx_str = arg.substr(9, arg.size() - 10);
                     try {
                         state->cli_bg_fractal_idx = std::stoi(idx_str);
-                        bUseMandel = true; bUsePlasma = false; state->cli_bg_path = "";
+                        bUseMandel = true;
                     } catch (...) {}
                 } else {
                     state->cli_bg_path = arg;
-                    bUsePlasma = false; bUseMandel = false;
                 }
-                
-                // Trigger re-initialization (surgical update)
-                // Note: In a real implementation, we'd need to stop/cleanup old background
-                // For gcg, we'll try to match the startup logic
+
                 if (bUsePlasma) {
-                    if (myPlasma) delete myPlasma;
                     myPlasma = new PlasmaOpenCL(state->plasma_w, state->plasma_h);
                     myPlasma->init(state->cli_bg_plasma_idx);
                     myPlasma->setArgs(plasma_params);
                     myPlasma->start();
                     state->selected_plasma = myPlasma;
+                    state->plasma_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, state->plasma_w, state->plasma_h);
                 }
                 if (bUseMandel) {
-                    if (myMandel) delete myMandel;
                     myMandel = new MandelbrotOpenCL(cur_w, cur_h);
                     if (myMandel->init(state->cli_bg_fractal_idx)) {
                         myMandel->setArgs(mandel_params);
                         myMandel->start();
                         state->selected_mandel = myMandel;
                     }
+                    state->mandel_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, cur_w, cur_h);
                 }
                 if (!state->cli_bg_path.empty()) {
-                    if (state->bg_tex) { SDL_DestroyTexture(state->bg_tex); state->bg_tex = nullptr; }
-                    state->bg_video.reset();
-
                     std::string ext = state->cli_bg_path;
                     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                     bool is_video = (ext.find(".mp4") != std::string::npos ||
@@ -1962,6 +1982,103 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         int bw, bh;
                         state->bg_tex = create_png_texture(renderer, state->cli_bg_path.c_str(), &bw, &bh);
                     }
+                }
+            }
+ else if (cmd.type == AppState::LuaCommand::SELECT_PLASMA) {
+                if (cmd.index == -1) {
+                    state->selected_plasma = myPlasma;
+                } else {
+                    int count = 0;
+                    for (auto& bd : state->mBdisplay) {
+                        for (auto& b : bd->bouncers) {
+                            if (b.plasma) {
+                                if (count == cmd.index) { state->selected_plasma = b.plasma; goto found_p; }
+                                count++;
+                            }
+                        }
+                    }
+                    found_p:;
+                }
+            } else if (cmd.type == AppState::LuaCommand::SELECT_FRACTAL) {
+                if (cmd.index == -1) {
+                    state->selected_mandel = myMandel;
+                } else {
+                    int count = 0;
+                    for (auto& bd : state->mBdisplay) {
+                        for (auto& b : bd->bouncers) {
+                            if (b.mandel) {
+                                if (count == cmd.index) { state->selected_mandel = b.mandel; goto found_f; }
+                                count++;
+                            }
+                        }
+                    }
+                    found_f:;
+                }
+            } else if (cmd.type == AppState::LuaCommand::SET_PLASMA_PARAM) {
+                if (state->selected_plasma) {
+                    CLPlasmaParams p = state->selected_plasma->getArgs();
+                    if (cmd.syntax == "drift_amp") p.drift_amp = (float)cmd.value;
+                    else if (cmd.syntax == "drift_speed_x") p.drift_speed_x = (float)cmd.value;
+                    else if (cmd.syntax == "drift_speed_y") p.drift_speed_y = (float)cmd.value;
+                    else if (cmd.syntax == "rot_speed") p.rot_speed = (float)cmd.value;
+                    else if (cmd.syntax == "scale_base_x") p.scale_base_x = (float)cmd.value;
+                    else if (cmd.syntax == "scale_base_y") p.scale_base_y = (float)cmd.value;
+                    else if (cmd.syntax == "palette_phase_r") p.palette_phase_r = (float)cmd.value;
+                    else if (cmd.syntax == "palette_phase_g") p.palette_phase_g = (float)cmd.value;
+                    else if (cmd.syntax == "palette_phase_b") p.palette_phase_b = (float)cmd.value;
+                    else if (cmd.syntax == "scale_mod_amp") p.scale_mod_amp = (float)cmd.value;
+                    else if (cmd.syntax == "scale_mod_speed_x") p.scale_mod_speed_x = (float)cmd.value;
+                    else if (cmd.syntax == "scale_mod_speed_y") p.scale_mod_speed_y = (float)cmd.value;
+                    else if (cmd.syntax == "warp_base") p.warp_base = (float)cmd.value;
+                    else if (cmd.syntax == "warp_amp") p.warp_amp = (float)cmd.value;
+                    else if (cmd.syntax == "warp_speed") p.warp_speed = (float)cmd.value;
+                    else if (cmd.syntax == "swirl") p.swirl_dist_mul = (float)cmd.value;
+                    else if (cmd.syntax == "darken_r") p.darken_r = (float)cmd.value;
+                    else if (cmd.syntax == "darken_g") p.darken_g = (float)cmd.value;
+                    else if (cmd.syntax == "darken_b") p.darken_b = (float)cmd.value;
+                    else if (cmd.syntax == "tile_count") p.tile_count = (float)cmd.value;
+                    else if (cmd.syntax == "roll_palette") state->roll_palette = (cmd.value > 0.5);
+                    else if (cmd.syntax == "roll_speed") state->roll_palette_speed = (float)cmd.value;
+                    state->selected_plasma->setArgs(p);
+                    if (state->selected_plasma == myPlasma) plasma_params = p;
+                }
+            } else if (cmd.type == AppState::LuaCommand::SET_FRACTAL_PARAM) {
+                if (state->selected_mandel) {
+                    CLMandelbrotParams p = state->selected_mandel->getArgs();
+                    if (cmd.syntax == "x_offset") p.x_offset = cmd.value;
+                    else if (cmd.syntax == "y_offset") p.y_offset = cmd.value;
+                    else if (cmd.syntax == "zoom") p.zoom = cmd.value;
+                    else if (cmd.syntax == "max_iterations") p.max_iterations = (int)cmd.value;
+                    else if (cmd.syntax == "palette_phase_r") p.palette_phase_r = (float)cmd.value;
+                    else if (cmd.syntax == "palette_phase_g") p.palette_phase_g = (float)cmd.value;
+                    else if (cmd.syntax == "palette_phase_b") p.palette_phase_b = (float)cmd.value;
+                    else if (cmd.syntax == "color_speed") p.color_speed = (float)cmd.value;
+                    else if (cmd.syntax == "transparency") p.transparency = (float)cmd.value;
+                    else if (cmd.syntax == "roll_palette") state->roll_mandel_palette = (cmd.value > 0.5);
+                    else if (cmd.syntax == "roll_speed") state->roll_mandel_palette_speed = (float)cmd.value;
+                    state->selected_mandel->setArgs(p);
+                    if (state->selected_mandel == myMandel) mandel_params = p;
+                }
+            } else if (cmd.type == AppState::LuaCommand::RANDOMIZE_PLASMA_PALETTE) {
+                if (state->selected_plasma) {
+                    CLPlasmaParams p = state->selected_plasma->getArgs();
+                    randomise_plasma_palette(p);
+                    state->selected_plasma->setArgs(p);
+                    if (state->selected_plasma == myPlasma) plasma_params = p;
+                }
+            } else if (cmd.type == AppState::LuaCommand::RANDOMIZE_PLASMA_XY) {
+                if (state->selected_plasma) {
+                    CLPlasmaParams p = state->selected_plasma->getArgs();
+                    randomise_plasma_xy(p);
+                    state->selected_plasma->setArgs(p);
+                    if (state->selected_plasma == myPlasma) plasma_params = p;
+                }
+            } else if (cmd.type == AppState::LuaCommand::RANDOMIZE_FRACTAL_PALETTE) {
+                if (state->selected_mandel) {
+                    CLMandelbrotParams p = state->selected_mandel->getArgs();
+                    randomise_mandel_palette(p);
+                    state->selected_mandel->setArgs(p);
+                    if (state->selected_mandel == myMandel) mandel_params = p;
                 }
             }
         }
@@ -2274,8 +2391,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         SDL_RenderClear(renderer);
         SDL_RenderTexture(renderer, state->bg_tex, nullptr, nullptr);
     } else if (state->plasma_tex) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
         SDL_RenderTexture(renderer, state->plasma_tex, nullptr, nullptr);
     } else if (state->mandel_tex) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
         SDL_RenderTexture(renderer, state->mandel_tex, nullptr, nullptr);
     } else {
         SDL_SetRenderDrawColorFloat(renderer, 0.10f, 0.08f, 0.15f, 1.0f);

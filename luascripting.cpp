@@ -4,8 +4,8 @@
 
 LuaScripting* LuaScripting::instance = nullptr;
 
-LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc)
-    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc) {
+LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc)
+    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc) {
     instance = this;
 }
 
@@ -38,6 +38,13 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     lua_register(L, "addBouncer", lua_addBouncer);
     lua_register(L, "delBouncer", lua_delBouncer);
     lua_register(L, "setBG", lua_setBG);
+    lua_register(L, "selectPlasma", lua_selectPlasma);
+    lua_register(L, "selectFractal", lua_selectFractal);
+    lua_register(L, "setPlasmaParam", lua_setPlasmaParam);
+    lua_register(L, "setFractalParam", lua_setFractalParam);
+    lua_register(L, "randomizePlasmaPalette", lua_randomizePlasmaPalette);
+    lua_register(L, "randomizePlasmaXY", lua_randomizePlasmaXY);
+    lua_register(L, "randomizeFractalPalette", lua_randomizeFractalPalette);
     lua_register(L, "delay", lua_delay);
 
     if (luaL_dofile(L, filename.c_str()) != LUA_OK) {
@@ -75,6 +82,69 @@ int LuaScripting::lua_setBG(lua_State* L) {
         if (instance && instance->setBGFunc) {
             instance->setBGFunc(bg);
         }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_selectPlasma(lua_State* L) {
+    if (lua_isinteger(L, 1)) {
+        int index = (int)lua_tointeger(L, 1);
+        if (instance && instance->selectFunc) {
+            instance->selectFunc(true, index);
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_selectFractal(lua_State* L) {
+    if (lua_isinteger(L, 1)) {
+        int index = (int)lua_tointeger(L, 1);
+        if (instance && instance->selectFunc) {
+            instance->selectFunc(false, index);
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_setPlasmaParam(lua_State* L) {
+    if (lua_isstring(L, 1) && lua_isnumber(L, 2)) {
+        std::string name = lua_tostring(L, 1);
+        double val = lua_tonumber(L, 2);
+        if (instance && instance->setParamFunc) {
+            instance->setParamFunc(true, name, val);
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_setFractalParam(lua_State* L) {
+    if (lua_isstring(L, 1) && lua_isnumber(L, 2)) {
+        std::string name = lua_tostring(L, 1);
+        double val = lua_tonumber(L, 2);
+        if (instance && instance->setParamFunc) {
+            instance->setParamFunc(false, name, val);
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_randomizePlasmaPalette(lua_State* L) {
+    if (instance && instance->randomizeFunc) {
+        instance->randomizeFunc(true, false);
+    }
+    return 0;
+}
+
+int LuaScripting::lua_randomizePlasmaXY(lua_State* L) {
+    if (instance && instance->randomizeFunc) {
+        instance->randomizeFunc(true, true);
+    }
+    return 0;
+}
+
+int LuaScripting::lua_randomizeFractalPalette(lua_State* L) {
+    if (instance && instance->randomizeFunc) {
+        instance->randomizeFunc(false, false);
     }
     return 0;
 }
