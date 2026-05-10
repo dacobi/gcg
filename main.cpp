@@ -949,6 +949,7 @@ struct ParsedSegment {
     int over_w = 0, over_h = 0;
     int line_breaks = 0;
     bool start_new_group = false;
+    std::string stencil_path;
 };
 
 class ContentParser {
@@ -963,10 +964,11 @@ public:
         int line_breaks = 0;
         bool bIsStatic = false;
         bool next_is_new_group = true; // First segment always starts a group
+        std::string stencil_path = "";
 
         // Scan string for tags
         std::string body = input;
-        std::regex tagRegex(R"(\[(image|video|plasma|fractal|rgb|rect|lf|pos)(?::\s*([^\]]*))?\])", std::regex::icase);
+        std::regex tagRegex(R"(\[(image|video|plasma|fractal|rgb|rect|lf|pos|stencil)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -977,8 +979,9 @@ public:
 
             // Text segment before a tag
             if (matchPos > lastPos) {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path});
                 line_breaks = 0; next_is_new_group = false;
+                stencil_path = "";
             }
 
             std::string tagType = match.str(1);
@@ -1004,6 +1007,8 @@ public:
                     cg = std::stoi(rgbTokens[1]);
                     cb = std::stoi(rgbTokens[2]);
                 }
+            } else if (tagType == "stencil") {
+                stencil_path = tagContent;
             } else if (tagType == "rect") {
                 std::vector<std::string> rectTokens = tokenize(tagContent);
                 if (rectTokens.size() >= 2) {
@@ -1013,17 +1018,17 @@ public:
             } else if (tagType == "lf") {
                 line_breaks++;
             } else if (tagType == "image") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group});
-                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false;
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group, stencil_path});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = "";
             } else if (tagType == "video") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh, line_breaks, next_is_new_group});
-                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false;
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = "";
             } else if (tagType == "plasma") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group});
-                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false;
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = "";
             } else if (tagType == "fractal") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group});
-                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false;
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = "";
             }
 
             lastPos = matchPos + match.length();
@@ -1031,7 +1036,7 @@ public:
 
         // 3. Final trailing text
         if (lastPos < body.length()) {
-            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group});
+            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path});
         }
 
         return results;
@@ -1073,6 +1078,7 @@ struct Bouncer {
     float vx, vy;
     Uint8 r, g, b;   // random tint colour
     SDL_Texture* tex; // which text texture to use (not owned — shared)
+    SDL_Texture* stencil_tex = nullptr;
     int tw, th;       // dimensions of that texture()
     NvdecDecode* decoder = nullptr;
     PlasmaOpenCL* plasma = nullptr;
@@ -1085,7 +1091,8 @@ struct Bouncer {
 // ---------------------------------------------------------------------------
 static SDL_Texture* create_png_texture(SDL_Renderer* renderer,
                                         const char* text,
-                                        int* out_w, int* out_h)
+                                        int* out_w, int* out_h,
+                                        bool isStencil = false)
 {
  
     // White text, semi-transparent — colour modulation will tint per-bouncer
@@ -1096,12 +1103,31 @@ static SDL_Texture* create_png_texture(SDL_Renderer* renderer,
         return nullptr;
     }
 
+    if (isStencil) {
+        SDL_Surface* rgba_surf = SDL_ConvertSurface(text_surf, SDL_PIXELFORMAT_RGBA32);
+        SDL_DestroySurface(text_surf);
+        if (!rgba_surf) return nullptr;
+
+        Uint32* pixels = (Uint32*)rgba_surf->pixels;
+        const SDL_PixelFormatDetails* details = SDL_GetPixelFormatDetails(rgba_surf->format);
+        for (int i = 0; i < rgba_surf->w * rgba_surf->h; ++i) {
+            Uint8 r, g, b, a;
+            SDL_GetRGBA(pixels[i], details, NULL, &r, &g, &b, &a);
+            // Combine original alpha with grayscale brightness
+            Uint8 brightness = (Uint8)(0.299f * r + 0.587f * g + 0.114f * b);
+            Uint8 final_alpha = (Uint8)((float)a * (float)brightness / 255.0f);
+            pixels[i] = SDL_MapRGBA(details, NULL, 255, 255, 255, final_alpha);
+        }
+        text_surf = rgba_surf;
+    }
+
     *out_w = text_surf->w;
     *out_h = text_surf->h;
 
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, text_surf);
     if (texture) {
         SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
     }
 
     SDL_DestroySurface(text_surf);
@@ -1156,6 +1182,7 @@ static SDL_Texture* create_text_texture(SDL_Renderer* renderer,
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, text_surf);
     if (texture) {
         SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
     }
 
     SDL_DestroySurface(text_surf);
@@ -1187,6 +1214,7 @@ public:
             if (b.plasma) delete b.plasma;
             if (b.mandel) delete b.mandel;
             if (b.tex) SDL_DestroyTexture(b.tex);
+            if (b.stencil_tex) SDL_DestroyTexture(b.stencil_tex);
         }
     }
 
@@ -1271,6 +1299,11 @@ public:
         SDL_Texture* tex = NULL;
         Bouncer newB;
 
+        if (pd.stencil_path != "") {
+            int sw, sh;
+            newB.stencil_tex = create_png_texture(renderer, pd.stencil_path.c_str(), &sw, &sh, true);
+        }
+
         if (pd.bIsFile == 1) { // PNG
             tex = create_png_texture(renderer, pd.content.c_str(), &newB.tw, &newB.th);
         } else if (pd.bIsFile == 2) { // Video
@@ -1282,6 +1315,7 @@ public:
                 tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, newB.tw, newB.th);
                 if (tex) {
                     SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+                    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_LINEAR);
                     newB.decoder->updateTexture(tex); // load first frame
                 }
             } catch (const std::exception& e) {
@@ -1298,6 +1332,7 @@ public:
                 tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, newB.tw, newB.th);
                 if (tex) {
                     SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+                    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_LINEAR);
                 }
             } else {
                 delete newB.plasma;
@@ -1314,6 +1349,7 @@ public:
                 tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, newB.tw, newB.th);
                 if (tex) {
                     SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+                    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_LINEAR);
                 }
             } else {
                 delete newB.mandel;
@@ -1376,15 +1412,45 @@ public:
     }
 
 
-    void draw(SDL_Renderer* renderer) {
+    void draw(SDL_Renderer* renderer, SDL_Texture* scratch_tex = nullptr, SDL_BlendMode stencil_blend = SDL_BLENDMODE_NONE) {
         for (auto& b : bouncers) {
             SDL_FRect dst = { b.x, b.y, static_cast<float>(b.tw), static_cast<float>(b.th) };
             
-            // Set tint (SDL3 uses Uint8 0-255)
-            SDL_SetTextureColorMod(b.tex, b.r, b.g, b.b);
-            
-            // SDL3 API change: RenderCopyF -> RenderTexture
-            SDL_RenderTexture(renderer, b.tex, NULL, &dst);
+            if (b.stencil_tex && scratch_tex) {
+                // Stencil logic
+                SDL_Texture* old_target = SDL_GetRenderTarget(renderer);
+                SDL_SetRenderTarget(renderer, scratch_tex);
+                
+                // Clear scratch to transparent
+                SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+                SDL_RenderClear(renderer);
+                
+                // Draw base texture to scratch with BLENDMODE_NONE to keep raw alpha
+                SDL_FRect scratch_dst = { 0, 0, static_cast<float>(b.tw), static_cast<float>(b.th) };
+                SDL_SetTextureBlendMode(b.tex, SDL_BLENDMODE_NONE);
+                SDL_RenderTexture(renderer, b.tex, NULL, &scratch_dst);
+                
+                // Multiply with stencil using custom blend mode
+                SDL_SetTextureBlendMode(b.stencil_tex, stencil_blend);
+                SDL_RenderTexture(renderer, b.stencil_tex, NULL, &scratch_dst);
+                
+                // Restore target and draw scratch to screen
+                SDL_SetRenderTarget(renderer, old_target);
+                SDL_SetTextureColorMod(scratch_tex, b.r, b.g, b.b);
+                SDL_SetTextureBlendMode(scratch_tex, SDL_BLENDMODE_BLEND);
+                
+                SDL_FRect src_rect = { 0, 0, static_cast<float>(b.tw), static_cast<float>(b.th) };
+                SDL_RenderTexture(renderer, scratch_tex, &src_rect, &dst);
+                
+                // Reset texture modes
+                SDL_SetTextureBlendMode(b.tex, SDL_BLENDMODE_BLEND);
+            } else {
+                // Set tint (SDL3 uses Uint8 0-255)
+                SDL_SetTextureColorMod(b.tex, b.r, b.g, b.b);
+                
+                // SDL3 API change: RenderCopyF -> RenderTexture
+                SDL_RenderTexture(renderer, b.tex, NULL, &dst);
+            }
         }
 
         // Reset tint for the shared texture
@@ -1453,6 +1519,8 @@ struct AppState {
     SDL_Texture* mandel_tex = nullptr;
     std::unique_ptr<NvdecDecode> bg_video;
     SDL_Texture* bg_tex = nullptr;
+    SDL_Texture* scratch_tex = nullptr;
+    SDL_BlendMode SDL_BLENDMODE_STENCIL;
 
     std::vector<TextEntry> cli_entries;
     std::vector<Bouncer> bouncers;
@@ -1785,6 +1853,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         int out_w = 0, out_h = 0;
         SDL_GetRenderOutputSize(renderer, &out_w, &out_h);
         recorder_start(state->recorder, out_w, out_h, state->cli_record_path.c_str());
+    }
+
+    state->SDL_BLENDMODE_STENCIL = SDL_ComposeCustomBlendMode(SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_SRC_COLOR, SDL_BLENDOPERATION_ADD, SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_SRC_ALPHA, SDL_BLENDOPERATION_ADD);
+    state->scratch_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, 2048, 2048);
+    if (state->scratch_tex) {
+        SDL_SetTextureScaleMode(state->scratch_tex, SDL_SCALEMODE_LINEAR);
     }
 
     state->last_ticks = SDL_GetPerformanceCounter();
@@ -2405,7 +2479,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     for(auto& mbd : state->mBdisplay){
         mbd->update(dt, cur_w, cur_h);
-        mbd->draw(renderer);
+        mbd->draw(renderer, state->scratch_tex, state->SDL_BLENDMODE_STENCIL);
     }
 
     if (!state->record_gui) {
@@ -2432,6 +2506,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         for (auto& e : state->cli_entries) { if (e.tex) SDL_DestroyTexture(e.tex); }
         if (state->plasma_tex) SDL_DestroyTexture(state->plasma_tex);
         if (state->mandel_tex) SDL_DestroyTexture(state->mandel_tex);
+        if (state->scratch_tex) SDL_DestroyTexture(state->scratch_tex);
 
         state->mBdisplay.clear();
         state->bg_video.reset();
