@@ -453,7 +453,9 @@ public:
         v_enc->pix_fmt = AV_PIX_FMT_NV12;
         v_enc->time_base = {1, (int)target_fps};
         v_enc->framerate = {(int)target_fps, 1};
-        av_opt_set(v_enc->priv_data, "preset", "p4", 0);
+        v_enc->bit_rate = 20000000; // 20 Mbps
+        av_opt_set(v_enc->priv_data, "preset", "p7", 0);
+        av_opt_set(v_enc->priv_data, "tune", "hq", 0);
         v_enc->gop_size = 30; // Add GOP for stability
         if (out_ctx->oformat->flags & AVFMT_GLOBALHEADER) v_enc->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
         avcodec_open2(v_enc, v_codec, nullptr);
@@ -472,7 +474,7 @@ public:
         a_frame_size = a_enc->frame_size;
 
         // Converters
-        sws_ctx = sws_getContext(w, h, AV_PIX_FMT_RGBA, w, h, v_enc->pix_fmt, SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
+        sws_ctx = sws_getContext(w, h, AV_PIX_FMT_RGBA, w, h, v_enc->pix_fmt, SWS_BICUBIC, nullptr, nullptr, nullptr);
         swr_alloc_set_opts2(&swr_ctx, &a_enc->ch_layout, a_enc->sample_fmt, sample_rate,
                             &a_enc->ch_layout, AV_SAMPLE_FMT_S16, sample_rate, 0, nullptr);
         swr_init(swr_ctx);
