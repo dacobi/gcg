@@ -8,6 +8,7 @@
 //   --bg "[fractal:#]" use specific fractal index (#) as background
 //   --record-max N    max recording length in seconds (default 59)
 //   --no-maximize     don't start the window maximized
+//   --geekd           show tech info / status line and record GUI
 #define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -1673,7 +1674,7 @@ struct AppState {
     int cli_bg_plasma_idx = -1;
     int cli_bg_fractal_idx = -1;
     int cli_record_max = -1;
-    bool cli_no_nerds = false;
+    bool cli_geekd = false;
     bool cli_no_maximize = false;
     bool cli_plasma_tile = false;
     int cli_win_w = 0;
@@ -1716,7 +1717,7 @@ struct AppState {
     float record_frame_accum = 0.0f;
     bool record_max_enabled = true;
     int record_max_seconds = 59;
-    bool record_gui = true;
+    bool record_gui = false;
 
     Uint64 last_ticks;
     Uint64 freq;
@@ -1888,8 +1889,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         } else if (std::strcmp(argv[i], "--h") == 0 && i + 1 < argc) {
             state->cli_win_h = std::atoi(argv[++i]);
             state->cli_no_maximize = true;
-        } else if (std::strcmp(argv[i], "--no-nerds") == 0) {
-            state->cli_no_nerds = true;
+        } else if (std::strcmp(argv[i], "--geekd") == 0) {
+            state->cli_geekd = true;
+            state->record_gui = true;
         } else if (std::strcmp(argv[i], "--plasma-tiles") == 0) {
             state->cli_plasma_tile = true;       
         } else {
@@ -2016,7 +2018,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     ImGui_ImplSDLRenderer3_Init(renderer);
 
     if (state->cli_plasma_tile) plasma_render_tiles = true;
-    if (state->cli_no_nerds) state->record_gui = false;
     if (state->cli_record_max > 0) {
         state->record_max_seconds = state->cli_record_max;
         state->record_max_enabled = true;
