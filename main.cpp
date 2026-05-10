@@ -1751,6 +1751,52 @@ struct AppState {
 CLPlasmaParams plasma_params;
 CLMandelbrotParams mandel_params;
 
+static void print_help() {
+    std::printf("SDL3 + Dear ImGui Animated Backgrounds and Text Overlay\n");
+    std::printf("Usage: ./gcg [options] [text...]\n\n");
+    std::printf("CLI Options:\n");
+    std::printf("  --record FILE         start recording frames to FILE on launch\n");
+    std::printf("  --lua FILE            run Lua script on launch\n");
+    std::printf("  --audio FILE          play audio file on loop\n");
+    std::printf("  --bg FILE             use image or video as background\n");
+    std::printf("  --bg \"[plasma:#]\"     use specific plasma index (#) as background\n");
+    std::printf("  --bg \"[fractal:#]\"    use specific fractal index (#) as background\n");
+    std::printf("  --record-max N        max recording length in seconds (default 59)\n");
+    std::printf("  --maximize            start the window maximized\n");
+    std::printf("  --geekd               show tech info / status line and record GUI\n");
+    std::printf("  --w N                 set window width (forces non-maximized)\n");
+    std::printf("  --h N                 set window height (forces non-maximized)\n");
+    std::printf("  --plasma-tiles        render plasma in a tiled grid (for stress testing)\n");
+    std::printf("  --help                show this help message\n\n");
+    
+    std::printf("Lua Scripting Functions:\n");
+    std::printf("  addBouncer(syntax)         Adds a bouncer group (e.g. \"[plasma:1] Hello\")\n");
+    std::printf("  delBouncer(index)          Removes a bouncer group by index\n");
+    std::printf("  setBG(path_or_tag)         Sets background to file, [plasma:#], or [fractal:#]\n");
+    std::printf("  selectPlasma(index)        Selects plasma instance (-1=BG, 0+=bouncer)\n");
+    std::printf("  selectFractal(index)       Selects fractal instance (-1=BG, 0+=bouncer)\n");
+    std::printf("  setPlasmaParam(name, val)  Sets parameter on selected plasma\n");
+    std::printf("  setFractalParam(name, val) Sets parameter on selected fractal\n");
+    std::printf("  randomizePlasmaPalette()   Randomizes selected plasma colors\n");
+    std::printf("  randomizePlasmaXY()        Randomizes selected plasma motion/scale\n");
+    std::printf("  randomizeFractalPalette()  Randomizes selected fractal colors\n");
+    std::printf("  setAudio(path)             Sets and loops background audio file\n");
+    std::printf("  startRecord(path)          Starts video recording to path\n");
+    std::printf("  stopRecord(wait)           Stops recording (wait=1 to wait for max-time)\n");
+    std::printf("  setRecordMax(seconds)      Sets auto-stop duration for recording\n");
+    std::printf("  delay(ms)                  Pauses script for ms milliseconds\n\n");
+
+    std::printf("Overlay Tag Syntax:\n");
+    std::printf("  [pos:x,y,vx,vy]            Position and velocity\n");
+    std::printf("  [rect:w,h]                 Texture dimensions\n");
+    std::printf("  [rgb:r,g,b]                Tint color (0-255)\n");
+    std::printf("  [plasma:idx]               Render plasma #\n");
+    std::printf("  [fractal:idx]              Render fractal #\n");
+    std::printf("  [stencil:file.png]         Apply alpha mask\n");
+    std::printf("  [ttl:ms]                   Self-destruct timer\n");
+    std::printf("  [phys:vx,vy,sx,sy,m,b]     Advanced physics and spawn point\n");
+}
+
 static void randomise_mandel_palette(CLMandelbrotParams& p) {
     p.palette_phase_r = rand_range(0.0f, 1.0f);
     p.palette_phase_g = rand_range(0.0f, 1.0f);
@@ -1881,6 +1927,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             if (state->cli_record_max < 1) state->cli_record_max = 1;
         } else if (std::strcmp(argv[i], "--maximize") == 0) {
             state->cli_maximize = true;
+        } else if (std::strcmp(argv[i], "--help") == 0) {
+            print_help();
+            return SDL_APP_SUCCESS;
         } else if (std::strcmp(argv[i], "--w") == 0 && i + 1 < argc) {
             state->cli_win_w = std::atoi(argv[++i]);
             state->cli_maximize = false;

@@ -19,7 +19,9 @@ delay(3000)
 
 
 addBouncer("[phys: -500,-500,0,0,1,0.95][ttl:5000][stencil:softstar.png][rect: 384, 384][plasma:1]")
+delay(500)
 addBouncer("[phys: 500,-500,600,0,1,0.95][ttl:5000][stencil:softmoon.png][rect: 384, 384][plasma:2]")
+delay(500)
 addBouncer("[phys: -500,500,100,600,1,0.95][ttl:5000][stencil:softstar.png][rect: 384, 384][plasma:5]")
 -- addBouncer("[phys: 500,500,600,600,1,0.95][ttl:5000][stencil:softmoon.png][rect: 384, 384][plasma:7]")
 -- addBouncer("[phys: 50,50,300,300,1,0.95][ttl:5000][stencil:softstar.png][rect: 384, 384][plasma:9]")
