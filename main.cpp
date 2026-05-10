@@ -950,6 +950,7 @@ struct ParsedSegment {
     int line_breaks = 0;
     bool start_new_group = false;
     std::string stencil_path;
+    int ttl_ms = -1;
 };
 
 class ContentParser {
@@ -961,6 +962,7 @@ public:
         int px = 0, py = 0, vx = 0, vy = 0;
         int cr = 255, cg = 255, cb = 255;
         int ow = 0, oh = 0;
+        int ttl = -1;
         int line_breaks = 0;
         bool bIsStatic = false;
         bool next_is_new_group = true; // First segment always starts a group
@@ -968,7 +970,7 @@ public:
 
         // Scan string for tags
         std::string body = input;
-        std::regex tagRegex(R"(\[(image|video|plasma|fractal|rgb|rect|lf|pos|stencil)(?::\s*([^\]]*))?\])", std::regex::icase);
+        std::regex tagRegex(R"(\[(image|video|plasma|fractal|rgb|rect|lf|pos|stencil|ttl)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -979,7 +981,7 @@ public:
 
             // Text segment before a tag
             if (matchPos > lastPos) {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl});
                 line_breaks = 0; next_is_new_group = false;
                 stencil_path = "";
             }
@@ -1009,7 +1011,10 @@ public:
                 }
             } else if (tagType == "stencil") {
                 stencil_path = tagContent;
-            } else if (tagType == "rect") {
+            } else if (tagType == "ttl") {
+                try { ttl = std::stoi(tagContent); } catch(...) { ttl = -1; }
+            } else if (tagType == "rgb") {
+
                 std::vector<std::string> rectTokens = tokenize(tagContent);
                 if (rectTokens.size() >= 2) {
                     ow = std::stoi(rectTokens[0]);
@@ -1018,17 +1023,17 @@ public:
             } else if (tagType == "lf") {
                 line_breaks++;
             } else if (tagType == "image") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group, stencil_path});
-                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = "";
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "video") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path});
-                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = "";
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "plasma") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path});
-                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = "";
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "fractal") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path});
-                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = "";
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             }
 
             lastPos = matchPos + match.length();
@@ -1036,7 +1041,7 @@ public:
 
         // 3. Final trailing text
         if (lastPos < body.length()) {
-            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path});
+            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl});
         }
 
         return results;
@@ -1083,6 +1088,7 @@ struct Bouncer {
     NvdecDecode* decoder = nullptr;
     PlasmaOpenCL* plasma = nullptr;
     MandelbrotOpenCL* mandel = nullptr;
+    float ttl_remaining_ms = -1.0f;
 };
 
 // ------------------------------------------------
@@ -1243,6 +1249,26 @@ public:
     void update(float deltaTime, int windowW, int windowH) {
         if (bouncers.empty()) return;
 
+        float dt_ms = deltaTime * 1000.0f;
+        for (auto it = bouncers.begin(); it != bouncers.end(); ) {
+            if (it->ttl_remaining_ms > 0) {
+                it->ttl_remaining_ms -= dt_ms;
+                if (it->ttl_remaining_ms <= 0) {
+                    // Cleanup resources
+                    if (it->decoder) delete it->decoder;
+                    if (it->plasma) delete it->plasma;
+                    if (it->mandel) delete it->mandel;
+                    if (it->tex) SDL_DestroyTexture(it->tex);
+                    if (it->stencil_tex) SDL_DestroyTexture(it->stencil_tex);
+                    it = bouncers.erase(it);
+                    continue;
+                }
+            }
+            ++it;
+        }
+
+        if (bouncers.empty()) return;
+
         // Update video and plasma frames
         for (auto& b : bouncers) {
             if (b.decoder && b.tex) {
@@ -1374,6 +1400,7 @@ public:
         newB.g = pd.g;
         newB.b = pd.b;
         newB.tex = tex;
+        newB.ttl_remaining_ms = (float)pd.ttl_ms;
         
         if (bouncers.empty()) {
             // Initial spawn point
@@ -2477,9 +2504,14 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         SDL_RenderClear(renderer);
     }
 
-    for(auto& mbd : state->mBdisplay){
-        mbd->update(dt, cur_w, cur_h);
-        mbd->draw(renderer, state->scratch_tex, state->SDL_BLENDMODE_STENCIL);
+    for (auto it = state->mBdisplay.begin(); it != state->mBdisplay.end(); ) {
+        (*it)->update(dt, cur_w, cur_h);
+        if ((*it)->bouncers.empty()) {
+            it = state->mBdisplay.erase(it);
+        } else {
+            (*it)->draw(renderer, state->scratch_tex, state->SDL_BLENDMODE_STENCIL);
+            ++it;
+        }
     }
 
     if (!state->record_gui) {
