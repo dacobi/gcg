@@ -4,8 +4,8 @@
 
 LuaScripting* LuaScripting::instance = nullptr;
 
-LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc)
-    : addBouncerFunc(addFunc), delBouncerFunc(delFunc) {
+LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc)
+    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc) {
     instance = this;
 }
 
@@ -37,6 +37,7 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
 
     lua_register(L, "addBouncer", lua_addBouncer);
     lua_register(L, "delBouncer", lua_delBouncer);
+    lua_register(L, "setBG", lua_setBG);
     lua_register(L, "delay", lua_delay);
 
     if (luaL_dofile(L, filename.c_str()) != LUA_OK) {
@@ -63,6 +64,16 @@ int LuaScripting::lua_delBouncer(lua_State* L) {
         int index = (int)lua_tointeger(L, 1);
         if (instance && instance->delBouncerFunc) {
             instance->delBouncerFunc(index);
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_setBG(lua_State* L) {
+    if (lua_isstring(L, 1)) {
+        std::string bg = lua_tostring(L, 1);
+        if (instance && instance->setBGFunc) {
+            instance->setBGFunc(bg);
         }
     }
     return 0;

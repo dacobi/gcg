@@ -1485,7 +1485,7 @@ struct AppState {
 
 
     struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER };
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG };
         Type type;
         std::string syntax;
         int index;
@@ -1819,6 +1819,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             [state](int index) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({AppState::LuaCommand::DEL_BOUNCER, "", index});
+            },
+            [state](const std::string& bg) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::SET_BG, bg, 0});
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);
@@ -1896,6 +1900,68 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         if (state->selected_mandel == b.mandel) state->selected_mandel = myMandel;
                     }
                     state->mBdisplay.erase(state->mBdisplay.begin() + cmd.index);
+                }
+            } else if (cmd.type == AppState::LuaCommand::SET_BG) {
+                std::string arg = cmd.syntax;
+                if (arg.size() > 8 && arg.substr(0, 8) == "[plasma:" && arg.back() == ']') {
+                    std::string idx_str = arg.substr(8, arg.size() - 9);
+                    try {
+                        state->cli_bg_plasma_idx = std::stoi(idx_str);
+                        bUsePlasma = true; bUseMandel = false; state->cli_bg_path = "";
+                    } catch (...) {}
+                } else if (arg.size() > 9 && arg.substr(0, 9) == "[fractal:" && arg.back() == ']') {
+                    std::string idx_str = arg.substr(9, arg.size() - 10);
+                    try {
+                        state->cli_bg_fractal_idx = std::stoi(idx_str);
+                        bUseMandel = true; bUsePlasma = false; state->cli_bg_path = "";
+                    } catch (...) {}
+                } else {
+                    state->cli_bg_path = arg;
+                    bUsePlasma = false; bUseMandel = false;
+                }
+                
+                // Trigger re-initialization (surgical update)
+                // Note: In a real implementation, we'd need to stop/cleanup old background
+                // For gcg, we'll try to match the startup logic
+                if (bUsePlasma) {
+                    if (myPlasma) delete myPlasma;
+                    myPlasma = new PlasmaOpenCL(state->plasma_w, state->plasma_h);
+                    myPlasma->init(state->cli_bg_plasma_idx);
+                    myPlasma->setArgs(plasma_params);
+                    myPlasma->start();
+                    state->selected_plasma = myPlasma;
+                }
+                if (bUseMandel) {
+                    if (myMandel) delete myMandel;
+                    myMandel = new MandelbrotOpenCL(cur_w, cur_h);
+                    if (myMandel->init(state->cli_bg_fractal_idx)) {
+                        myMandel->setArgs(mandel_params);
+                        myMandel->start();
+                        state->selected_mandel = myMandel;
+                    }
+                }
+                if (!state->cli_bg_path.empty()) {
+                    if (state->bg_tex) { SDL_DestroyTexture(state->bg_tex); state->bg_tex = nullptr; }
+                    state->bg_video.reset();
+
+                    std::string ext = state->cli_bg_path;
+                    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                    bool is_video = (ext.find(".mp4") != std::string::npos ||
+                                     ext.find(".mkv") != std::string::npos ||
+                                     ext.find(".mov") != std::string::npos ||
+                                     ext.find(".avi") != std::string::npos);
+                    if (is_video) {
+                        try {
+                            state->bg_video = std::make_unique<NvdecDecode>(state->cli_bg_path);
+                            state->bg_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
+                                                       state->bg_video->getWidth(), state->bg_video->getHeight());
+                        } catch (const std::exception& e) {
+                            std::printf("BG Video error (Lua): %s\n", e.what());
+                        }
+                    } else {
+                        int bw, bh;
+                        state->bg_tex = create_png_texture(renderer, state->cli_bg_path.c_str(), &bw, &bh);
+                    }
                 }
             }
         }
