@@ -951,6 +951,8 @@ struct ParsedSegment {
     bool start_new_group = false;
     std::string stencil_path;
     int ttl_ms = -1;
+    float phys_vx = 0, phys_vy = 0, phys_sx = 0, phys_sy = 0, mass = 1.0f, bouncy = 1.0f;
+    bool hasPhys = false;
 };
 
 class ContentParser {
@@ -964,13 +966,15 @@ public:
         int ow = 0, oh = 0;
         int ttl = -1;
         int line_breaks = 0;
+        float p_vx = 0, p_vy = 0, p_sx = 0, p_sy = 0, p_mass = 1.0f, p_bouncy = 1.0f;
+        bool hasP = false;
         bool bIsStatic = false;
         bool next_is_new_group = true; // First segment always starts a group
         std::string stencil_path = "";
 
         // Scan string for tags
         std::string body = input;
-        std::regex tagRegex(R"(\[(image|video|plasma|fractal|rgb|rect|lf|pos|stencil|ttl)(?::\s*([^\]]*))?\])", std::regex::icase);
+        std::regex tagRegex(R"(\[(image|video|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -981,7 +985,7 @@ public:
 
             // Text segment before a tag
             if (matchPos > lastPos) {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
                 line_breaks = 0; next_is_new_group = false;
                 stencil_path = "";
             }
@@ -1013,7 +1017,26 @@ public:
                 stencil_path = tagContent;
             } else if (tagType == "ttl") {
                 try { ttl = std::stoi(tagContent); } catch(...) { ttl = -1; }
-            } else if (tagType == "rgb") {
+            } else if (tagType == "phys") {
+                std::vector<std::string> tokens = tokenize(tagContent);
+                if (tokens.size() >= 6) {
+                    try {
+                        p_vx = std::stof(tokens[0]); p_vy = std::stof(tokens[1]);
+                        p_sx = std::stof(tokens[2]); p_sy = std::stof(tokens[3]);
+                        p_mass = std::stof(tokens[4]); p_bouncy = std::stof(tokens[5]);
+                        hasP = true;
+                        vx = (int)p_vx; vy = (int)p_vy;
+                        px = (int)p_sx; py = (int)p_sy;
+                    } catch(...) {}
+                } else if (tokens.size() >= 4) {
+                    try {
+                        p_vx = std::stof(tokens[0]); p_vy = std::stof(tokens[1]);
+                        p_mass = std::stof(tokens[2]); p_bouncy = std::stof(tokens[3]);
+                        hasP = true;
+                        vx = (int)p_vx; vy = (int)p_vy;
+                    } catch(...) {}
+                }
+            } else if (tagType == "rect") {
 
                 std::vector<std::string> rectTokens = tokenize(tagContent);
                 if (rectTokens.size() >= 2) {
@@ -1023,16 +1046,16 @@ public:
             } else if (tagType == "lf") {
                 line_breaks++;
             } else if (tagType == "image") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "video") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "plasma") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "fractal") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             }
 
@@ -1041,7 +1064,7 @@ public:
 
         // 3. Final trailing text
         if (lastPos < body.length()) {
-            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl});
+            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
         }
 
         return results;
@@ -1204,6 +1227,9 @@ private:
     SDL_FRect boundingBox = {0.0f, 0.0f, 0.0f, 0.0f};   
     float groupVx = 20.0f; // Default horizontal speed
     float groupVy = 20.0f; // Default vertical speed
+    float mass = 1.0f;
+    float bounciness = 1.0f;
+    bool hasPhysics = false;
 
     float initialStartX = 0.0f;
     float currentLineY = 0.0f;
@@ -1284,6 +1310,18 @@ public:
 
         if(bAmNotMoving) return;
 
+        if (hasPhysics) {
+            float gravity = 500.0f; // px/s^2
+            float drag = 0.1f;    // base drag coefficient
+            
+            // Deceleration due to drag is inverse to mass: a = F/m
+            float effective_drag = drag / (mass > 0.01f ? mass : 0.01f);
+            
+            groupVy += gravity * deltaTime;
+            groupVx -= groupVx * effective_drag * deltaTime;
+            groupVy -= groupVy * effective_drag * deltaTime;
+        }
+
         // 1. Move all elements by the group velocity
         for (auto& b : bouncers) {
             b.x += groupVx * deltaTime;
@@ -1296,22 +1334,22 @@ public:
         // 3. Check for window collisions using the bounding box
         // Check Left/Right
         if (boundingBox.x < 0) {
-            groupVx = std::abs(groupVx); // Force positive
+            groupVx = std::abs(groupVx) * bounciness; // Force positive
             float offset = -boundingBox.x;
             for (auto& b : bouncers) b.x += offset;
         } else if (boundingBox.x + boundingBox.w > windowW) {
-            groupVx = -std::abs(groupVx); // Force negative
+            groupVx = -std::abs(groupVx) * bounciness; // Force negative
             float offset = (boundingBox.x + boundingBox.w) - windowW;
             for (auto& b : bouncers) b.x -= offset;
         }
 
         // Check Top/Bottom
         if (boundingBox.y < 0) {
-            groupVy = std::abs(groupVy); // Force positive
+            groupVy = std::abs(groupVy) * bounciness; // Force positive
             float offset = -boundingBox.y;
             for (auto& b : bouncers) b.y += offset;
         } else if (boundingBox.y + boundingBox.h > windowH) {
-            groupVy = -std::abs(groupVy); // Force negative
+            groupVy = -std::abs(groupVy) * bounciness; // Force negative
             float offset = (boundingBox.y + boundingBox.h) - windowH;
             for (auto& b : bouncers) b.y -= offset;
         }
@@ -1393,6 +1431,14 @@ public:
         if (pd.over_h > 0) newB.th = pd.over_h;
 
         bAmNotMoving = pd.bIsStatic;
+
+        if (pd.hasPhys) {
+            groupVx = pd.phys_vx;
+            groupVy = pd.phys_vy;
+            mass = pd.mass;
+            bounciness = pd.bouncy;
+            hasPhysics = true;
+        }
 
         newB.vx = pd.velox;
         newB.vy = pd.veloy;
