@@ -4,8 +4,8 @@
 
 LuaScripting* LuaScripting::instance = nullptr;
 
-LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc)
-    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc) {
+LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc)
+    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc) {
     instance = this;
 }
 
@@ -45,6 +45,7 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     lua_register(L, "randomizePlasmaPalette", lua_randomizePlasmaPalette);
     lua_register(L, "randomizePlasmaXY", lua_randomizePlasmaXY);
     lua_register(L, "randomizeFractalPalette", lua_randomizeFractalPalette);
+    lua_register(L, "setAudio", lua_setAudio);
     lua_register(L, "delay", lua_delay);
 
     if (luaL_dofile(L, filename.c_str()) != LUA_OK) {
@@ -145,6 +146,16 @@ int LuaScripting::lua_randomizePlasmaXY(lua_State* L) {
 int LuaScripting::lua_randomizeFractalPalette(lua_State* L) {
     if (instance && instance->randomizeFunc) {
         instance->randomizeFunc(false, false);
+    }
+    return 0;
+}
+
+int LuaScripting::lua_setAudio(lua_State* L) {
+    if (lua_isstring(L, 1)) {
+        std::string path = lua_tostring(L, 1);
+        if (instance && instance->setAudioFunc) {
+            instance->setAudioFunc(path);
+        }
     }
     return 0;
 }

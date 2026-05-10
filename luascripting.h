@@ -22,8 +22,9 @@ public:
     using SelectFunc = std::function<void(bool isPlasma, int index)>;
     using SetParamFunc = std::function<void(bool isPlasma, const std::string& name, double value)>;
     using RandomizeFunc = std::function<void(bool isPlasma, bool isXY)>;
+    using SetAudioFunc = std::function<void(const std::string&)>;
 
-    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc);
+    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
@@ -40,6 +41,7 @@ private:
     static int lua_randomizePlasmaPalette(lua_State* L);
     static int lua_randomizePlasmaXY(lua_State* L);
     static int lua_randomizeFractalPalette(lua_State* L);
+    static int lua_setAudio(lua_State* L);
     static int lua_delay(lua_State* L);
 
     void scriptThreadFunc(std::string filename);
@@ -54,6 +56,7 @@ private:
     SelectFunc selectFunc;
     SetParamFunc setParamFunc;
     RandomizeFunc randomizeFunc;
+    SetAudioFunc setAudioFunc;
 
     static LuaScripting* instance;
 };

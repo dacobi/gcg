@@ -1,7 +1,8 @@
 // SDL3 + Dear ImGui with animated plasma background and transparent text overlay
-// Usage: ./gcg [--record output.mp4] [--lua script.lua] [--bg FILE|"[plasma:#]"|"[fractal:#]"] [--record-max N] [--no-maximize] [text...]
+// Usage: ./gcg [--record output.mp4] [--lua script.lua] [--audio music.mp3] [--bg FILE|"[plasma:#]"|"[fractal:#]"] [--record-max N] [--no-maximize] [text...]
 //   --record FILE     start recording frames to FILE on launch
 //   --lua FILE        run Lua script on launch
+//   --audio FILE      play audio file on loop
 //   --bg FILE         use image or video as background
 //   --bg "[plasma:#]" use specific plasma index (#) as background
 //   --bg "[fractal:#]" use specific fractal index (#) as background
@@ -213,6 +214,102 @@ public:
 
         double total_delay = alsa_delay + buffer_delay;
         return src.start_pts + (double)(src.total_pushed / 2) / sample_rate - total_delay;
+    }
+};// ---------------------------------------------------------------------------
+// Audio Decoder — decode MPEG audio files using FFmpeg and feed to AudioMixer
+// ---------------------------------------------------------------------------
+struct AudioDecoder {
+    AVFormatContext* fmt_ctx = nullptr;
+    AVCodecContext*  dec_ctx = nullptr;
+    int              audio_stream_idx = -1;
+    AVFrame*         frame = nullptr;
+    AVPacket*        pkt = nullptr;
+    SwrContext*      swr_ctx = nullptr;
+    AudioMixer*      mixer = nullptr;
+    std::atomic<bool> quit{false};
+    std::thread      decode_thread;
+    std::string      path;
+
+    AudioDecoder(const std::string& p, AudioMixer* m) : mixer(m), path(p) {
+        if (avformat_open_input(&fmt_ctx, path.c_str(), nullptr, nullptr) < 0)
+            throw std::runtime_error("Could not open audio file");
+        if (avformat_find_stream_info(fmt_ctx, nullptr) < 0)
+            throw std::runtime_error("Could not find stream info");
+
+        for (unsigned int i = 0; i < fmt_ctx->nb_streams; i++) {
+            if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+                audio_stream_idx = i;
+                break;
+            }
+        }
+        if (audio_stream_idx == -1) throw std::runtime_error("No audio stream");
+
+        const AVCodec* codec = avcodec_find_decoder(fmt_ctx->streams[audio_stream_idx]->codecpar->codec_id);
+        dec_ctx = avcodec_alloc_context3(codec);
+        avcodec_parameters_to_context(dec_ctx, fmt_ctx->streams[audio_stream_idx]->codecpar);
+        if (avcodec_open2(dec_ctx, codec, nullptr) < 0)
+            throw std::runtime_error("Could not open decoder");
+
+        frame = av_frame_alloc();
+        pkt = av_packet_alloc();
+
+        swr_ctx = swr_alloc();
+        av_opt_set_chlayout(swr_ctx, "in_chlayout", &dec_ctx->ch_layout, 0);
+        av_opt_set_int(swr_ctx, "in_sample_rate", dec_ctx->sample_rate, 0);
+        av_opt_set_int(swr_ctx, "in_sample_fmt", dec_ctx->sample_fmt, 0);
+        
+        AVChannelLayout out_ch_layout;
+        av_channel_layout_default(&out_ch_layout, 2);
+        av_opt_set_chlayout(swr_ctx, "out_chlayout", &out_ch_layout, 0);
+        av_opt_set_int(swr_ctx, "out_sample_rate", MIXER_SAMPLE_RATE, 0);
+        av_opt_set_int(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_S16, 0);
+        swr_init(swr_ctx);
+
+        decode_thread = std::thread(&AudioDecoder::decodeLoop, this);
+    }
+
+    ~AudioDecoder() {
+        quit = true;
+        if (decode_thread.joinable()) decode_thread.join();
+        if (swr_ctx) swr_free(&swr_ctx);
+        av_frame_free(&frame);
+        av_packet_free(&pkt);
+        avcodec_free_context(&dec_ctx);
+        avformat_close_input(&fmt_ctx);
+    }
+
+    void decodeLoop() {
+        int64_t total_out = 0;
+        while (!quit) {
+            if (av_read_frame(fmt_ctx, pkt) < 0) {
+                av_seek_frame(fmt_ctx, audio_stream_idx, 0, AVSEEK_FLAG_BACKWARD);
+                avcodec_flush_buffers(dec_ctx);
+                continue;
+            }
+
+            if (pkt->stream_index == audio_stream_idx) {
+                if (avcodec_send_packet(dec_ctx, pkt) == 0) {
+                    while (avcodec_receive_frame(dec_ctx, frame) == 0) {
+                        int out_samples = (int)av_rescale_rnd(swr_get_delay(swr_ctx, dec_ctx->sample_rate) + frame->nb_samples, MIXER_SAMPLE_RATE, dec_ctx->sample_rate, AV_ROUND_UP);
+                        std::vector<int16_t> out_buf(out_samples * 2);
+                        uint8_t* out_data[1] = {(uint8_t*)out_buf.data()};
+                        int converted = swr_convert(swr_ctx, out_data, out_samples, (const uint8_t**)frame->data, frame->nb_samples);
+                        
+                        if (mixer && converted > 0) {
+                            double pts = (double)total_out / (MIXER_SAMPLE_RATE * 1.0);
+                            mixer->addAudio(this, out_buf.data(), converted, pts);
+                            total_out += converted;
+                        }
+                        
+                        // Simple throttle to avoid overfilling mixer buffer (keep ~1 sec)
+                        while (!quit && mixer && mixer->getSourcePTS(this) > 1.0) {
+                             std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                        }
+                    }
+                }
+            }
+            av_packet_unref(pkt);
+        }
     }
 };// --- 2. Encoder Class ---
 class NvencEncoder {
@@ -1572,6 +1669,7 @@ struct AppState {
     std::string cli_record_path;
     std::string cli_bg_path;
     std::string cli_lua_path;
+    std::string cli_audio_path;
     int cli_bg_plasma_idx = -1;
     int cli_bg_fractal_idx = -1;
     int cli_record_max = -1;
@@ -1591,6 +1689,7 @@ struct AppState {
     SDL_Texture* plasma_tex = nullptr;
     SDL_Texture* mandel_tex = nullptr;
     std::unique_ptr<NvdecDecode> bg_video;
+    std::unique_ptr<AudioDecoder> loop_audio;
     SDL_Texture* bg_tex = nullptr;
     SDL_Texture* scratch_tex = nullptr;
     SDL_BlendMode SDL_BLENDMODE_STENCIL;
@@ -1626,7 +1725,7 @@ struct AppState {
 
 
     struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE };
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO };
         Type type;
         std::string syntax;
         int index;
@@ -1744,6 +1843,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             state->cli_record_path = argv[++i];
         } else if (std::strcmp(argv[i], "--lua") == 0 && i + 1 < argc) {
             state->cli_lua_path = argv[++i];
+        } else if (std::strcmp(argv[i], "--audio") == 0 && i + 1 < argc) {
+            state->cli_audio_path = argv[++i];
         } else if (std::strcmp(argv[i], "--bg") == 0 && i + 1 < argc) {
             std::string arg = argv[++i];
             if (arg == "mandelbrot") {
@@ -1958,6 +2059,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         }
     }
 
+    if (!state->cli_audio_path.empty()) {
+        try {
+            state->loop_audio = std::make_unique<AudioDecoder>(state->cli_audio_path, myMix);
+        } catch (const std::exception& e) {
+            SDL_Log("Audio error: %s", e.what());
+        }
+    }
+
     if (!state->cli_lua_path.empty()) {
         state->scriptSystem = new LuaScripting(
             [state](const std::string& syntax) {
@@ -1986,6 +2095,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                 if (isPlasma) t = isXY ? AppState::LuaCommand::RANDOMIZE_PLASMA_XY : AppState::LuaCommand::RANDOMIZE_PLASMA_PALETTE;
                 else t = AppState::LuaCommand::RANDOMIZE_FRACTAL_PALETTE;
                 state->lua_commands.push({t, "", 0, 0.0});
+            },
+            [state](const std::string& path) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::SET_AUDIO, path, 0, 0.0});
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);
@@ -2226,6 +2339,16 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     randomise_mandel_palette(p);
                     state->selected_mandel->setArgs(p);
                     if (state->selected_mandel == myMandel) mandel_params = p;
+                }
+            } else if (cmd.type == AppState::LuaCommand::SET_AUDIO) {
+                state->cli_audio_path = cmd.syntax;
+                state->loop_audio.reset();
+                if (!state->cli_audio_path.empty()) {
+                    try {
+                        state->loop_audio = std::make_unique<AudioDecoder>(state->cli_audio_path, myMix);
+                    } catch (const std::exception& e) {
+                        SDL_Log("Audio error (Lua): %s", e.what());
+                    }
                 }
             }
         }
@@ -2588,6 +2711,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
 
         state->mBdisplay.clear();
         state->bg_video.reset();
+        state->loop_audio.reset(); // Destroy audio decoder before mixer
 
         if (state->scriptSystem) {
             delete state->scriptSystem;
