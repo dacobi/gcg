@@ -1728,7 +1728,7 @@ struct AppState {
 
 
     struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO };
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX };
         Type type;
         std::string syntax;
         int index;
@@ -2102,6 +2102,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             [state](const std::string& path) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({AppState::LuaCommand::SET_AUDIO, path, 0, 0.0});
+            },
+            [state](int type, const std::string& path, int val) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                AppState::LuaCommand::Type t;
+                if (type == 0) t = AppState::LuaCommand::START_RECORD;
+                else if (type == 1) t = AppState::LuaCommand::STOP_RECORD;
+                else t = AppState::LuaCommand::SET_RECORD_MAX;
+                state->lua_commands.push({t, path, 0, (double)val});
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);
@@ -2353,6 +2361,21 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         SDL_Log("Audio error (Lua): %s", e.what());
                     }
                 }
+            } else if (cmd.type == AppState::LuaCommand::START_RECORD) {
+                if (myNvec == NULL) {
+                    std::snprintf(state->record_path_buf, sizeof(state->record_path_buf), "%s", cmd.syntax.c_str());
+                    int out_w = 0, out_h = 0;
+                    SDL_GetRenderOutputSize(renderer, &out_w, &out_h);
+                    recorder_start(state->recorder, out_w, out_h, state->record_path_buf);
+                    state->record_time = 0.0f;
+                }
+            } else if (cmd.type == AppState::LuaCommand::STOP_RECORD) {
+                if (myNvec != NULL) {
+                    recorder_stop(state->recorder);
+                }
+            } else if (cmd.type == AppState::LuaCommand::SET_RECORD_MAX) {
+                state->record_max_seconds = (int)cmd.value;
+                state->record_max_enabled = (state->record_max_seconds > 0);
             }
         }
     }

@@ -23,8 +23,9 @@ public:
     using SetParamFunc = std::function<void(bool isPlasma, const std::string& name, double value)>;
     using RandomizeFunc = std::function<void(bool isPlasma, bool isXY)>;
     using SetAudioFunc = std::function<void(const std::string&)>;
+    using RecordFunc = std::function<void(int type, const std::string& path, int val)>;
 
-    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc);
+    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
@@ -42,6 +43,9 @@ private:
     static int lua_randomizePlasmaXY(lua_State* L);
     static int lua_randomizeFractalPalette(lua_State* L);
     static int lua_setAudio(lua_State* L);
+    static int lua_startRecord(lua_State* L);
+    static int lua_stopRecord(lua_State* L);
+    static int lua_setRecordMax(lua_State* L);
     static int lua_delay(lua_State* L);
 
     void scriptThreadFunc(std::string filename);
@@ -57,6 +61,7 @@ private:
     SetParamFunc setParamFunc;
     RandomizeFunc randomizeFunc;
     SetAudioFunc setAudioFunc;
+    RecordFunc recordFunc;
 
     static LuaScripting* instance;
 };

@@ -4,8 +4,8 @@
 
 LuaScripting* LuaScripting::instance = nullptr;
 
-LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc)
-    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc) {
+LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc)
+    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc) {
     instance = this;
 }
 
@@ -46,6 +46,9 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     lua_register(L, "randomizePlasmaXY", lua_randomizePlasmaXY);
     lua_register(L, "randomizeFractalPalette", lua_randomizeFractalPalette);
     lua_register(L, "setAudio", lua_setAudio);
+    lua_register(L, "startRecord", lua_startRecord);
+    lua_register(L, "stopRecord", lua_stopRecord);
+    lua_register(L, "setRecordMax", lua_setRecordMax);
     lua_register(L, "delay", lua_delay);
 
     if (luaL_dofile(L, filename.c_str()) != LUA_OK) {
@@ -155,6 +158,33 @@ int LuaScripting::lua_setAudio(lua_State* L) {
         std::string path = lua_tostring(L, 1);
         if (instance && instance->setAudioFunc) {
             instance->setAudioFunc(path);
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_startRecord(lua_State* L) {
+    if (lua_isstring(L, 1)) {
+        std::string path = lua_tostring(L, 1);
+        if (instance && instance->recordFunc) {
+            instance->recordFunc(0, path, 0);
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_stopRecord(lua_State* L) {
+    if (instance && instance->recordFunc) {
+        instance->recordFunc(1, "", 0);
+    }
+    return 0;
+}
+
+int LuaScripting::lua_setRecordMax(lua_State* L) {
+    if (lua_isinteger(L, 1)) {
+        int seconds = (int)lua_tointeger(L, 1);
+        if (instance && instance->recordFunc) {
+            instance->recordFunc(2, "", seconds);
         }
     }
     return 0;
