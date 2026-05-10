@@ -47,6 +47,7 @@ private:
     static int lua_stopRecord(lua_State* L);
     static int lua_setRecordMax(lua_State* L);
     static int lua_delay(lua_State* L);
+    static void lua_hook(lua_State* L, lua_Debug* ar);
 
     void scriptThreadFunc(std::string filename);
 

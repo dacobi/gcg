@@ -1,5 +1,5 @@
 // SDL3 + Dear ImGui with animated plasma background and transparent text overlay
-// Usage: ./gcg [--record output.mp4] [--lua script.lua] [--audio music.mp3] [--bg FILE|"[plasma:#]"|"[fractal:#]"] [--record-max N] [--no-maximize] [text...]
+// Usage: ./gcg [--record output.mp4] [--lua script.lua] [--audio music.mp3] [--bg FILE|"[plasma:#]"|"[fractal:#]"] [--record-max N] [--maximize] [text...]
 //   --record FILE     start recording frames to FILE on launch
 //   --lua FILE        run Lua script on launch
 //   --audio FILE      play audio file on loop
@@ -7,7 +7,7 @@
 //   --bg "[plasma:#]" use specific plasma index (#) as background
 //   --bg "[fractal:#]" use specific fractal index (#) as background
 //   --record-max N    max recording length in seconds (default 59)
-//   --no-maximize     don't start the window maximized
+//   --maximize        start the window maximized
 //   --geekd           show tech info / status line and record GUI
 #define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL.h>
@@ -1673,7 +1673,7 @@ struct AppState {
     int cli_bg_fractal_idx = -1;
     int cli_record_max = -1;
     bool cli_geekd = false;
-    bool cli_no_maximize = false;
+    bool cli_maximize = false;
     bool cli_plasma_tile = false;
     int cli_win_w = 0;
     int cli_win_h = 0;
@@ -1879,14 +1879,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         } else if (std::strcmp(argv[i], "--record-max") == 0 && i + 1 < argc) {
             state->cli_record_max = std::atoi(argv[++i]);
             if (state->cli_record_max < 1) state->cli_record_max = 1;
-        } else if (std::strcmp(argv[i], "--no-maximize") == 0) {
-            state->cli_no_maximize = true;
+        } else if (std::strcmp(argv[i], "--maximize") == 0) {
+            state->cli_maximize = true;
         } else if (std::strcmp(argv[i], "--w") == 0 && i + 1 < argc) {
             state->cli_win_w = std::atoi(argv[++i]);
-            state->cli_no_maximize = true;
+            state->cli_maximize = false;
         } else if (std::strcmp(argv[i], "--h") == 0 && i + 1 < argc) {
             state->cli_win_h = std::atoi(argv[++i]);
-            state->cli_no_maximize = true;
+            state->cli_maximize = false;
         } else if (std::strcmp(argv[i], "--geekd") == 0) {
             state->cli_geekd = true;
             state->record_gui = true;
@@ -1918,7 +1918,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     cur_rel = (float)cur_w / (float)cur_h;
 
     SDL_WindowFlags win_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-    if (!state->cli_no_maximize)
+    if (state->cli_maximize)
         win_flags |= SDL_WINDOW_MAXIMIZED;
 
     window = SDL_CreateWindow(
@@ -2736,6 +2736,11 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
     AppState* state = (AppState*)appstate;
     if (state) {
+        if (state->scriptSystem) {
+            state->scriptSystem->stop();
+            delete state->scriptSystem;
+            state->scriptSystem = nullptr;
+        }
         recorder_stop(state->recorder);
         if (bUsePlasma && myPlasma) myPlasma->stop();
         if (bUseMandel && myMandel) myMandel->stop();
@@ -2749,11 +2754,6 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         state->mBdisplay.clear();
         state->bg_video.reset();
         state->loop_audio.reset(); // Destroy audio decoder before mixer
-
-        if (state->scriptSystem) {
-            delete state->scriptSystem;
-            state->scriptSystem = nullptr;
-        }
 
         ImGui_ImplSDLRenderer3_Shutdown();
         ImGui_ImplSDL3_Shutdown();

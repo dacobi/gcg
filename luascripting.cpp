@@ -51,13 +51,25 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     lua_register(L, "setRecordMax", lua_setRecordMax);
     lua_register(L, "delay", lua_delay);
 
+    // Set a hook to abort execution if stop() is called
+    lua_sethook(L, lua_hook, LUA_MASKCOUNT, 100);
+
     if (luaL_dofile(L, filename.c_str()) != LUA_OK) {
-        std::cerr << "Lua Error: " << lua_tostring(L, -1) << std::endl;
+        std::string err = lua_tostring(L, -1);
+        if (err != "Script terminated") {
+            std::cerr << "Lua Error: " << err << std::endl;
+        }
     }
 
     lua_close(L);
     L = nullptr;
     running = false;
+}
+
+void LuaScripting::lua_hook(lua_State* L, lua_Debug* ar) {
+    if (instance && !instance->running) {
+        luaL_error(L, "Script terminated");
+    }
 }
 
 int LuaScripting::lua_addBouncer(lua_State* L) {
@@ -193,7 +205,12 @@ int LuaScripting::lua_setRecordMax(lua_State* L) {
 int LuaScripting::lua_delay(lua_State* L) {
     if (lua_isinteger(L, 1)) {
         int ms = (int)lua_tointeger(L, 1);
-        std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+        int remaining = ms;
+        while (remaining > 0 && instance && instance->running) {
+            int chunk = std::min(remaining, 100);
+            std::this_thread::sleep_for(std::chrono::milliseconds(chunk));
+            remaining -= chunk;
+        }
     }
     return 0;
 }
