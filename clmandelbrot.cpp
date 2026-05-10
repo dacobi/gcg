@@ -42,14 +42,14 @@ bool MandelbrotOpenCL::init(int cFractalIDX){
         case 5:
                 return init(fractal5);                
                 break;   
-        
-        /*
-        case 6:
-                return init(kernelSource6);    
+        /*case 6:
+                return init(fractal6);                
                 break;   
+        
+        
         case 7:
                 return init(kernelSource7);    
-                break;
+                break;   
         case 8:
                 return init(kernelSource8);    
                 break;              */

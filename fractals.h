@@ -10,6 +10,7 @@
 // These are raw C string literals you can pass to your OpenCL compiler.
 
 //mandelbrot_kernel
+/*
 static const char* fractal1 = R"(
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
 
@@ -47,7 +48,7 @@ kernel void fractal_kernel(
     pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
 }
 )";
-
+*/
 //julia_kernel
 static const char* fractal2 = R"(
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
@@ -214,6 +215,108 @@ kernel void fractal_kernel(
         G = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_g))) * 255.0) & 0xFFu;
         B = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_b))) * 255.0) & 0xFFu;
     }
+    pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
+}
+)";
+
+//mandelbulb_kernel
+static const char* fractal1 = R"(
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+// Helper for Mandelbulb distance estimation
+double get_mandelbulb_de(double3 p, double* trap) {
+    double3 z = p;
+    double dr = 1.0;
+    double r = 0.0;
+    for (int i = 0; i < 8; i++) {
+        r = length(z);
+        if (r > 2.0) break;
+        if (trap) *trap = min(*trap, r);
+        
+        double theta = acos(z.y / r);
+        double phi = atan2(z.z, z.x);
+        dr = pow(r, 7.0) * 8.0 * dr + 1.0;
+        
+        double zr = pow(r, 8.0);
+        theta *= 8.0;
+        phi *= 8.0;
+        
+        z = zr * (double3)(sin(theta) * cos(phi), cos(theta), sin(theta) * sin(phi));
+        z += p;
+    }
+    return 0.5 * log(r) * r / dr;
+}
+
+kernel void fractal_kernel(
+    global uint* pixels, int w, int h,
+    double x_off, double y_off, double zoom, int max_iter,
+    float p_r, float p_g, float p_b, float c_s)
+{
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+    if (x >= w || y >= h) return;
+
+    double aspect = (double)w / (double)h;
+    double uv_x = ((double)x / (double)w - 0.5) * aspect;
+    double uv_y = (double)y / (double)h - 0.5;
+
+    // Camera setup
+    double dist_cam = 3.2 / (zoom + 0.001);
+    double3 ro = (double3)(
+        dist_cam * cos(x_off) * cos(y_off),
+        dist_cam * sin(y_off),
+        dist_cam * sin(x_off) * cos(y_off)
+    );
+
+    double3 target = (double3)(0.0, 0.0, 0.0);
+    double3 forward = normalize(target - ro);
+    double3 right = normalize(cross((double3)(0.0, 1.0, 0.0), forward));
+    double3 up = cross(forward, right);
+    double3 rd = normalize(forward * 1.5 + right * uv_x + up * uv_y);
+
+    // Ray marching
+    double t = 0.0;
+    double trap = 1e10;
+    bool hit = false;
+    int steps = 0;
+    for (steps = 0; steps < 128; steps++) {
+        double d = get_mandelbulb_de(ro + rd * t, &trap);
+        if (d < 0.0003) { hit = true; break; }
+        t += d;
+        if (t > 8.0) break;
+    }
+
+    uint R=0, G=0, B=0;
+    if (hit) {
+        double3 p = ro + rd * t;
+        // Calculate normal using finite differences
+        double eps = 0.001;
+        double3 n = normalize((double3)(
+            get_mandelbulb_de(p + (double3)(eps, 0, 0), 0) - get_mandelbulb_de(p - (double3)(eps, 0, 0), 0),
+            get_mandelbulb_de(p + (double3)(0, eps, 0), 0) - get_mandelbulb_de(p - (double3)(0, eps, 0), 0),
+            get_mandelbulb_de(p + (double3)(0, 0, eps), 0) - get_mandelbulb_de(p - (double3)(0, 0, eps), 0)
+        ));
+
+        // Fixed light source
+        double3 lightDir = normalize((double3)(1.0, 1.0, -1.0));
+        double diff = max(0.05, dot(n, lightDir));
+        // Fake Ambient Occlusion based on step count
+        double ao = clamp(1.0 - (double)steps / 128.0, 0.0, 1.0);
+        
+        // Color based on orbit trap (min distance to origin)
+        double v = trap * (double)c_s;
+        double3 baseCol = (double3)(
+            (0.5 + 0.5 * cos(6.283185 * (v + (double)p_r))),
+            (0.5 + 0.5 * cos(6.283185 * (v + (double)p_g))),
+            (0.5 + 0.5 * cos(6.283185 * (v + (double)p_b)))
+        );
+
+        double3 finalCol = baseCol * diff * ao;
+        R = (uint)(clamp(finalCol.x, 0.0, 1.0) * 255.0);
+        G = (uint)(clamp(finalCol.y, 0.0, 1.0) * 255.0);
+        B = (uint)(clamp(finalCol.z, 0.0, 1.0) * 255.0);
+    }
+    
     pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
 }
 )";
