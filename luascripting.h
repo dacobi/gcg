@@ -24,8 +24,9 @@ public:
     using RandomizeFunc = std::function<void(bool isPlasma, bool isXY)>;
     using SetAudioFunc = std::function<void(const std::string&)>;
     using RecordFunc = std::function<void(int type, const std::string& path, int val)>;
+    using IsRecordingFunc = std::function<bool()>;
 
-    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc);
+    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
@@ -63,6 +64,7 @@ private:
     RandomizeFunc randomizeFunc;
     SetAudioFunc setAudioFunc;
     RecordFunc recordFunc;
+    IsRecordingFunc isRecFunc;
 
     static LuaScripting* instance;
 };

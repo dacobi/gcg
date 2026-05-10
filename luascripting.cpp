@@ -4,8 +4,8 @@
 
 LuaScripting* LuaScripting::instance = nullptr;
 
-LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc)
-    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc) {
+LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc)
+    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc) {
     instance = this;
 }
 
@@ -186,8 +186,17 @@ int LuaScripting::lua_startRecord(lua_State* L) {
 }
 
 int LuaScripting::lua_stopRecord(lua_State* L) {
-    if (instance && instance->recordFunc) {
-        instance->recordFunc(1, "", 0);
+    bool wait = false;
+    if (lua_isboolean(L, 1)) wait = lua_toboolean(L, 1);
+    else if (lua_isinteger(L, 1)) wait = (lua_tointeger(L, 1) != 0);
+
+    if (wait && instance && instance->isRecFunc) {
+        // Loop while recording is active
+        while (instance->running && instance->isRecFunc()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    } else if (instance && instance->recordFunc) {
+        instance->recordFunc(1, "", 0); // Immediate stop
     }
     return 0;
 }

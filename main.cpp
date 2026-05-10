@@ -2106,6 +2106,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                 else if (type == 1) t = AppState::LuaCommand::STOP_RECORD;
                 else t = AppState::LuaCommand::SET_RECORD_MAX;
                 state->lua_commands.push({t, path, 0, (double)val});
+            },
+            []() {
+                return (myNvec != nullptr);
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);

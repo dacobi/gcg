@@ -67,7 +67,7 @@ def create_faded_image(shape_name):
     draw.polygon(shape_points, fill=255)
     
     # 3. Calculate distance fields and output white pixel arrays
-    FADE_RADIUS = 0
+    FADE_RADIUS = 25
     
     for y in range(height):
         for x in range(width):
