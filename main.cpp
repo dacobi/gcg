@@ -1,8 +1,9 @@
 // SDL3 + Dear ImGui with animated plasma background and transparent text overlay
-// Usage: ./gcg [--record output.mp4] [--bg FILE|"[plasma:#]"] [--record-max N] [--no-maximize] [text...]
+// Usage: ./gcg [--record output.mp4] [--bg FILE|"[plasma:#]"|"[fractal:#]"] [--record-max N] [--no-maximize] [text...]
 //   --record FILE     start recording frames to FILE on launch
 //   --bg FILE         use image or video as background
 //   --bg "[plasma:#]" use specific plasma index (#) as background
+//   --bg "[fractal:#]" use specific fractal index (#) as background
 //   --record-max N    max recording length in seconds (default 59)
 //   --no-maximize     don't start the window maximized
 #define SDL_MAIN_USE_CALLBACKS 1
@@ -941,7 +942,7 @@ struct ParsedSegment {
     bool bIsStatic;
     int r, g, b; 
     std::string content;
-    int bIsFile; // 0: None, 1: PNG, 2: Video, 3: Plasma
+    int bIsFile; // 0: None, 1: PNG, 2: Video, 3: Plasma, 4: Fractal
     std::string fullInput;
     int over_w = 0, over_h = 0;
     int line_breaks = 0;
@@ -963,7 +964,7 @@ public:
 
         // Scan string for tags
         std::string body = input;
-        std::regex tagRegex(R"(\[(image|video|plasma|rgb|rect|lf|pos)(?::\s*([^\]]*))?\])", std::regex::icase);
+        std::regex tagRegex(R"(\[(image|video|plasma|fractal|rgb|rect|lf|pos)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -1018,6 +1019,9 @@ public:
             } else if (tagType == "plasma") {
                 results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false;
+            } else if (tagType == "fractal") {
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false;
             }
 
             lastPos = matchPos + match.length();
@@ -1070,6 +1074,7 @@ struct Bouncer {
     int tw, th;       // dimensions of that texture()
     NvdecDecode* decoder = nullptr;
     PlasmaOpenCL* plasma = nullptr;
+    MandelbrotOpenCL* mandel = nullptr;
 };
 
 // ------------------------------------------------
@@ -1178,6 +1183,7 @@ public:
         for (auto& b : bouncers) {
             if (b.decoder) delete b.decoder;
             if (b.plasma) delete b.plasma;
+            if (b.mandel) delete b.mandel;
             if (b.tex) SDL_DestroyTexture(b.tex);
         }
     }
@@ -1214,6 +1220,9 @@ public:
             }
             if (b.plasma && b.tex) {
                 b.plasma->updateTexture(b.tex);
+            }
+            if (b.mandel && b.tex) {
+                b.mandel->updateTexture(b.tex);
             }
         }
 
@@ -1291,6 +1300,22 @@ public:
             } else {
                 delete newB.plasma;
                 newB.plasma = nullptr;
+                return false;
+            }
+        } else if (pd.bIsFile == 4) { // Fractal
+            int f_idx = pd.content.empty() ? -1 : std::stoi(pd.content);
+            newB.tw = (pd.over_w > 0) ? pd.over_w : 256;
+            newB.th = (pd.over_h > 0) ? pd.over_h : 256;
+            newB.mandel = new MandelbrotOpenCL(newB.tw, newB.th);
+            if (newB.mandel->init(f_idx)) {
+                newB.mandel->start();
+                tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, newB.tw, newB.th);
+                if (tex) {
+                    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+                }
+            } else {
+                delete newB.mandel;
+                newB.mandel = nullptr;
                 return false;
             }
         } else { // Text (pd.bIsFile == 0)
@@ -1406,6 +1431,7 @@ struct AppState {
     std::string cli_record_path;
     std::string cli_bg_path;
     int cli_bg_plasma_idx = -1;
+    int cli_bg_fractal_idx = -1;
     int cli_record_max = -1;
     bool cli_no_nerds = false;
     bool cli_no_maximize = false;
@@ -1569,6 +1595,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                     state->cli_bg_plasma_idx = std::stoi(idx_str);
                     bUsePlasma = true;
                     bUseMandel = false;
+                } catch (...) {
+                    state->cli_bg_path = arg;
+                    bUsePlasma = false;
+                    bUseMandel = false;
+                }
+            } else if (arg.size() > 9 && arg.substr(0, 9) == "[fractal:" && arg.back() == ']') {
+                std::string idx_str = arg.substr(9, arg.size() - 10);
+                try {
+                    state->cli_bg_fractal_idx = std::stoi(idx_str);
+                    bUseMandel = true;
+                    bUsePlasma = false;
                 } catch (...) {
                     state->cli_bg_path = arg;
                     bUsePlasma = false;
@@ -1746,7 +1783,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     }
     if (bUseMandel) {
         myMandel = new MandelbrotOpenCL(cur_w, cur_h);
-        if (myMandel->init()) {
+        if (myMandel->init(state->cli_bg_fractal_idx)) {
             myMandel->setArgs(mandel_params);
             myMandel->start();
             state->selected_mandel = myMandel;
