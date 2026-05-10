@@ -1,6 +1,7 @@
 // SDL3 + Dear ImGui with animated plasma background and transparent text overlay
-// Usage: ./gcg [--record output.mp4] [--bg FILE|"[plasma:#]"|"[fractal:#]"] [--record-max N] [--no-maximize] [text...]
+// Usage: ./gcg [--record output.mp4] [--lua script.lua] [--bg FILE|"[plasma:#]"|"[fractal:#]"] [--record-max N] [--no-maximize] [text...]
 //   --record FILE     start recording frames to FILE on launch
+//   --lua FILE        run Lua script on launch
 //   --bg FILE         use image or video as background
 //   --bg "[plasma:#]" use specific plasma index (#) as background
 //   --bg "[fractal:#]" use specific fractal index (#) as background
@@ -30,6 +31,7 @@
 #include <chrono>
 #include "clplasma.h"
 #include "clmandelbrot.h"
+#include "luascripting.h"
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlrenderer3.h"
@@ -1430,6 +1432,7 @@ struct AppState {
     std::vector<std::string> cli_texts;
     std::string cli_record_path;
     std::string cli_bg_path;
+    std::string cli_lua_path;
     int cli_bg_plasma_idx = -1;
     int cli_bg_fractal_idx = -1;
     int cli_record_max = -1;
@@ -1443,6 +1446,8 @@ struct AppState {
     MandelbrotOpenCL* selected_mandel = nullptr;
 
     std::vector<std::unique_ptr<BDdisplay>> mBdisplay;
+
+    LuaScripting* scriptSystem = nullptr;
 
     SDL_Texture* plasma_tex = nullptr;
     SDL_Texture* mandel_tex = nullptr;
@@ -1478,6 +1483,15 @@ struct AppState {
     Uint64 last_time;
     double frequency;
 
+
+    struct LuaCommand {
+        enum Type { ADD_BOUNCER, DEL_BOUNCER };
+        Type type;
+        std::string syntax;
+        int index;
+    };
+    std::queue<LuaCommand> lua_commands;
+    std::mutex lua_mutex;
 
     int event_burst_cooldown = 0;
 
@@ -1586,6 +1600,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--record") == 0 && i + 1 < argc) {
             state->cli_record_path = argv[++i];
+        } else if (std::strcmp(argv[i], "--lua") == 0 && i + 1 < argc) {
+            state->cli_lua_path = argv[++i];
         } else if (std::strcmp(argv[i], "--bg") == 0 && i + 1 < argc) {
             std::string arg = argv[++i];
             if (arg == "mandelbrot") {
@@ -1794,6 +1810,20 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         }
     }
 
+    if (!state->cli_lua_path.empty()) {
+        state->scriptSystem = new LuaScripting(
+            [state](const std::string& syntax) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::ADD_BOUNCER, syntax, 0});
+            },
+            [state](int index) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::DEL_BOUNCER, "", index});
+            }
+        );
+        state->scriptSystem->runScript(state->cli_lua_path);
+    }
+
     return SDL_APP_CONTINUE;
 }
 
@@ -1841,6 +1871,36 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
 SDL_AppResult SDL_AppIterate(void *appstate)
 {    
     AppState* state = (AppState*)appstate;
+
+    // Process Lua Commands
+    {
+        std::lock_guard<std::mutex> lock(state->lua_mutex);
+        while (!state->lua_commands.empty()) {
+            auto cmd = state->lua_commands.front();
+            state->lua_commands.pop();
+            if (cmd.type == AppState::LuaCommand::ADD_BOUNCER) {
+                auto segments = mParser.parse(cmd.syntax);
+                BDdisplay* currentGroup = nullptr;
+                for (auto& seg : segments) {
+                    if (seg.start_new_group || currentGroup == nullptr) {
+                        auto newBD = std::make_unique<BDdisplay>();
+                        currentGroup = newBD.get();
+                        state->mBdisplay.push_back(std::move(newBD));
+                    }
+                    currentGroup->add(seg);
+                }
+            } else if (cmd.type == AppState::LuaCommand::DEL_BOUNCER) {
+                if (cmd.index >= 0 && cmd.index < (int)state->mBdisplay.size()) {
+                    for (auto& b : state->mBdisplay[cmd.index]->bouncers) {
+                        if (state->selected_plasma == b.plasma) state->selected_plasma = myPlasma;
+                        if (state->selected_mandel == b.mandel) state->selected_mandel = myMandel;
+                    }
+                    state->mBdisplay.erase(state->mBdisplay.begin() + cmd.index);
+                }
+            }
+        }
+    }
+
     ImGuiIO& io = ImGui::GetIO();
 
     Uint64 current_time = SDL_GetPerformanceCounter();
@@ -2188,6 +2248,11 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
 
         state->mBdisplay.clear();
         state->bg_video.reset();
+
+        if (state->scriptSystem) {
+            delete state->scriptSystem;
+            state->scriptSystem = nullptr;
+        }
 
         ImGui_ImplSDLRenderer3_Shutdown();
         ImGui_ImplSDL3_Shutdown();

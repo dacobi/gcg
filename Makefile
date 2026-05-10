@@ -358,6 +358,30 @@ home/dacobi/src/ImGui/imgui_widgets.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/imgui.dir/build.make CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.s
 .PHONY : home/dacobi/src/ImGui/imgui_widgets.cpp.s
 
+luascripting.o: luascripting.cpp.o
+.PHONY : luascripting.o
+
+# target to build an object file
+luascripting.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/luascripting.cpp.o
+.PHONY : luascripting.cpp.o
+
+luascripting.i: luascripting.cpp.i
+.PHONY : luascripting.i
+
+# target to preprocess a source file
+luascripting.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/luascripting.cpp.i
+.PHONY : luascripting.cpp.i
+
+luascripting.s: luascripting.cpp.s
+.PHONY : luascripting.s
+
+# target to generate assembly for a file
+luascripting.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/luascripting.cpp.s
+.PHONY : luascripting.cpp.s
+
 main.o: main.cpp.o
 .PHONY : main.o
 
@@ -419,6 +443,9 @@ help:
 	@echo "... home/dacobi/src/ImGui/imgui_widgets.o"
 	@echo "... home/dacobi/src/ImGui/imgui_widgets.i"
 	@echo "... home/dacobi/src/ImGui/imgui_widgets.s"
+	@echo "... luascripting.o"
+	@echo "... luascripting.i"
+	@echo "... luascripting.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
