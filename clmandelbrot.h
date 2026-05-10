@@ -18,6 +18,7 @@ struct CLMandelbrotParams {
     float palette_phase_g = 0.33f;
     float palette_phase_b = 0.66f;
     float color_speed = 1.0f;
+    float transparency = 0.0f;
 };
 
 class MandelbrotOpenCL {
@@ -28,7 +29,7 @@ public:
 kernel void fractal_kernel(
     global uint* pixels, int w, int h,
     double x_off, double y_off, double zoom, int max_iter,
-    float p_r, float p_g, float p_b, float c_s) 
+    float p_r, float p_g, float p_b, float c_s, float transparency) 
 {
     int x = get_global_id(0);
     int y = get_global_id(1);
@@ -50,15 +51,17 @@ kernel void fractal_kernel(
     }
 
     uint R, G, B;
-    if (iter == max_iter) {
+    uint A = 255u;
+    if (iter == max_iter || iter < (int)transparency) {
         R = 0; G = 0; B = 0;
+        A = 0u;
     } else {
         float v = (float)iter / (float)max_iter * c_s;
         R = (uint)((0.5f + 0.5f * cos(6.28318f * (v + p_r))) * 255.0f);
         G = (uint)((0.5f + 0.5f * cos(6.28318f * (v + p_g))) * 255.0f);
         B = (uint)((0.5f + 0.5f * cos(6.28318f * (v + p_b))) * 255.0f);
     }
-    pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
+    pixels[y * w + x] = (A << 24) | (R << 16) | (G << 8) | B;
 })";
 
     MandelbrotOpenCL(int w, int h);

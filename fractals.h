@@ -17,7 +17,7 @@ static const char* fractal1 = R"(
 kernel void fractal_kernel(
     global uint* pixels, int w, int h,
     double x_off, double y_off, double zoom, int max_iter,
-    float p_r, float p_g, float p_b, float c_s)
+    float p_r, float p_g, float p_b, float c_s, float transparency)
 {
     int x = get_global_id(0);
     int y = get_global_id(1);
@@ -39,13 +39,16 @@ kernel void fractal_kernel(
     }
 
     uint R=0u, G=0u, B=0u;
-    if (iter != max_iter) {
+    uint A=255u;
+    if (iter == max_iter || iter < (int)transparency) {
+        A = 0u;
+    } else {
         double v = (double)iter / (double)max_iter * (double)c_s;
         R = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_r))) * 255.0) & 0xFFu;
         G = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_g))) * 255.0) & 0xFFu;
         B = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_b))) * 255.0) & 0xFFu;
     }
-    pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
+    pixels[y * w + x] = (A << 24) | (R << 16) | (G << 8) | B;
 }
 )";
 */
@@ -57,7 +60,7 @@ static const char* fractal2 = R"(
 kernel void fractal_kernel(
     global uint* pixels, int w, int h,
     double x_off, double y_off, double zoom, int max_iter,
-    float p_r, float p_g, float p_b, float c_s)
+    float p_r, float p_g, float p_b, float c_s, float transparency)
 {
     int x = get_global_id(0);
     int y = get_global_id(1);
@@ -81,13 +84,16 @@ kernel void fractal_kernel(
     }
 
     uint R=0u, G=0u, B=0u;
-    if (iter != max_iter) {
+    uint A=255u;
+    if (iter == max_iter || iter < (int)transparency) {
+        A = 0u;
+    } else {
         double v = (double)iter / (double)max_iter * (double)c_s;
         R = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_r))) * 255.0) & 0xFFu;
         G = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_g))) * 255.0) & 0xFFu;
         B = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_b))) * 255.0) & 0xFFu;
     }
-    pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
+    pixels[y * w + x] = (A << 24) | (R << 16) | (G << 8) | B;
 }
 )";
 
@@ -99,7 +105,7 @@ static const char* fractal3 = R"(
 kernel void fractal_kernel(
     global uint* pixels, int w, int h,
     double x_off, double y_off, double zoom, int max_iter,
-    float p_r, float p_g, float p_b, float c_s)
+    float p_r, float p_g, float p_b, float c_s, float transparency)
 {
     int x = get_global_id(0);
     int y = get_global_id(1);
@@ -123,13 +129,16 @@ kernel void fractal_kernel(
     }
 
     uint R=0u, G=0u, B=0u;
-    if (iter != max_iter) {
+    uint A=255u;
+    if (iter == max_iter || iter < (int)transparency) {
+        A = 0u;
+    } else {
         double v = (double)iter / (double)max_iter * (double)c_s;
         R = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_r))) * 255.0) & 0xFFu;
         G = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_g))) * 255.0) & 0xFFu;
         B = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_b))) * 255.0) & 0xFFu;
     }
-    pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
+    pixels[y * w + x] = (A << 24) | (R << 16) | (G << 8) | B;
 }
 )";
 
@@ -141,7 +150,7 @@ static const char* fractal4 = R"(
 kernel void fractal_kernel(
     global uint* pixels, int w, int h,
     double x_off, double y_off, double zoom, int max_iter,
-    float p_r, float p_g, float p_b, float c_s)
+    float p_r, float p_g, float p_b, float c_s, float transparency)
 {
     int x = get_global_id(0);
     int y = get_global_id(1);
@@ -164,13 +173,16 @@ kernel void fractal_kernel(
     }
 
     uint R=0u, G=0u, B=0u;
-    if (iter != max_iter) {
+    uint A=255u;
+    if (iter == max_iter || iter < (int)transparency) {
+        A = 0u;
+    } else {
         double v = (double)iter / (double)max_iter * (double)c_s;
         R = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_r))) * 255.0) & 0xFFu;
         G = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_g))) * 255.0) & 0xFFu;
         B = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_b))) * 255.0) & 0xFFu;
     }
-    pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
+    pixels[y * w + x] = (A << 24) | (R << 16) | (G << 8) | B;
 }
 )";
 
@@ -182,7 +194,7 @@ static const char* fractal5 = R"(
 kernel void fractal_kernel(
     global uint* pixels, int w, int h,
     double x_off, double y_off, double zoom, int max_iter,
-    float p_r, float p_g, float p_b, float c_s)
+    float p_r, float p_g, float p_b, float c_s, float transparency)
 {
     int x = get_global_id(0);
     int y = get_global_id(1);
@@ -209,13 +221,16 @@ kernel void fractal_kernel(
     }
 
     uint R=0u, G=0u, B=0u;
-    if (iter != max_iter) {
+    uint A=255u;
+    if (iter == max_iter || iter < (int)transparency) {
+        A = 0u;
+    } else {
         double v = (double)iter / (double)max_iter * (double)c_s;
         R = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_r))) * 255.0) & 0xFFu;
         G = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_g))) * 255.0) & 0xFFu;
         B = (uint)((0.5 + 0.5 * cos(6.283185307179586 * (v + (double)p_b))) * 255.0) & 0xFFu;
     }
-    pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
+    pixels[y * w + x] = (A << 24) | (R << 16) | (G << 8) | B;
 }
 )";
 
@@ -250,7 +265,7 @@ double get_mandelbulb_de(double3 p, double* trap) {
 kernel void fractal_kernel(
     global uint* pixels, int w, int h,
     double x_off, double y_off, double zoom, int max_iter,
-    float p_r, float p_g, float p_b, float c_s)
+    float p_r, float p_g, float p_b, float c_s, float transparency)
 {
     int x = get_global_id(0);
     int y = get_global_id(1);
@@ -317,7 +332,8 @@ kernel void fractal_kernel(
         B = (uint)(clamp(finalCol.z, 0.0, 1.0) * 255.0);
     }
     
-    pixels[y * w + x] = (0xFFu << 24) | (R << 16) | (G << 8) | B;
+    uint A = hit ? 255u : 0u;
+    pixels[y * w + x] = (A << 24) | (R << 16) | (G << 8) | B;
 }
 )";
 

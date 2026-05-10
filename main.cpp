@@ -2062,6 +2062,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 changed |= ImGui::SliderFloat("Phase B", &p.palette_phase_b, 0.0f, 1.0f);
                 changed |= ImGui::SliderFloat("Color Speed", &p.color_speed, 0.0f, 10.0f);
 
+                changed |= ImGui::SliderFloat("Trans. Bands", &p.transparency, 0.0f, 50.0f);
+
                 if (changed) {
                     state->selected_mandel->setArgs(p);
                     if (state->selected_mandel == myMandel) mandel_params = p;

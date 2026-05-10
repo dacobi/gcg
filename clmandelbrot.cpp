@@ -184,6 +184,7 @@ void MandelbrotOpenCL::workerLoop() {
         clSetKernelArg(kernel, 8, sizeof(float), &p.palette_phase_g);
         clSetKernelArg(kernel, 9, sizeof(float), &p.palette_phase_b);
         clSetKernelArg(kernel, 10, sizeof(float), &p.color_speed);
+        clSetKernelArg(kernel, 11, sizeof(float), &p.transparency);
 
         cl_int err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, adjGlobalSize, localSize, 0, NULL, NULL);
         if (err == CL_SUCCESS) {
