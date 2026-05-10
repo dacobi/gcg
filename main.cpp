@@ -1462,6 +1462,8 @@ struct AppState {
     float time_acc = 0.0f;
     bool roll_palette = false;
     float roll_palette_speed = 0.5f;
+    bool roll_mandel_palette = false;
+    float roll_mandel_palette_speed = 0.5f;
 
     Recorder recorder;
     char record_path_buf[256];
@@ -1854,16 +1856,25 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     //if (state->event_burst_cooldown > 0) state->event_burst_cooldown--;
 
-    if (state->roll_palette) {
+    if (state->roll_palette && state->selected_plasma) {
         float step = state->roll_palette_speed * dt;
-        plasma_params.palette_phase_r = std::fmod(plasma_params.palette_phase_r + step, 2.0f);
-        plasma_params.palette_phase_g = std::fmod(plasma_params.palette_phase_g + step * 0.7f, 2.0f);
-        plasma_params.palette_phase_b = std::fmod(plasma_params.palette_phase_b + step * 1.3f, 2.0f);
-        if (myPlasma) {
-            CLPlasmaParams p = plasma_params;
-            if (!plasma_render_tiles) p.tile_count = 0.0f;
-            myPlasma->setArgs(p);
-        }
+        CLPlasmaParams p = state->selected_plasma->getArgs();
+        p.palette_phase_r = std::fmod(p.palette_phase_r + step, 2.0f);
+        p.palette_phase_g = std::fmod(p.palette_phase_g + step * 0.7f, 2.0f);
+        p.palette_phase_b = std::fmod(p.palette_phase_b + step * 1.3f, 2.0f);
+        if (!state->cli_plasma_tile) p.tile_count = 0.0f;
+        state->selected_plasma->setArgs(p);
+        if (state->selected_plasma == myPlasma) plasma_params = p;
+    }
+
+    if (state->roll_mandel_palette && state->selected_mandel) {
+        float step = state->roll_mandel_palette_speed * dt;
+        CLMandelbrotParams p = state->selected_mandel->getArgs();
+        p.palette_phase_r = std::fmod(p.palette_phase_r + step, 1.0f);
+        p.palette_phase_g = std::fmod(p.palette_phase_g + step * 0.7f, 1.0f);
+        p.palette_phase_b = std::fmod(p.palette_phase_b + step * 1.3f, 1.0f);
+        state->selected_mandel->setArgs(p);
+        if (state->selected_mandel == myMandel) mandel_params = p;
     }
 
     if (bUsePlasma){// && state->event_burst_cooldown == 0) {
@@ -1891,6 +1902,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             if (del_text_idx >= 0) {
                 for (auto& b : state->mBdisplay[del_text_idx]->bouncers) {
                     if (state->selected_plasma == b.plasma) state->selected_plasma = myPlasma;
+                    if (state->selected_mandel == b.mandel) state->selected_mandel = myMandel;
                 }
                 state->mBdisplay.erase(state->mBdisplay.begin() + del_text_idx);
             }
@@ -2011,9 +2023,29 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             }
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu("Mandelbrot")) {
-            if (myMandel) {
-                CLMandelbrotParams p = myMandel->getArgs();
+        if (ImGui::BeginMenu("Fractal")) {
+            if (ImGui::BeginMenu("Select Fractal")) {
+                if (myMandel) {
+                    if (ImGui::MenuItem("Background", NULL, state->selected_mandel == myMandel))
+                        state->selected_mandel = myMandel;
+                }
+                for (size_t i = 0; i < state->mBdisplay.size(); ++i) {
+                    for (size_t j = 0; j < state->mBdisplay[i]->bouncers.size(); ++j) {
+                        MandelbrotOpenCL* m = state->mBdisplay[i]->bouncers[j].mandel;
+                        if (m) {
+                            char label[64];
+                            std::snprintf(label, sizeof(label), "Bouncer %zu:%zu", i, j);
+                            if (ImGui::MenuItem(label, NULL, state->selected_mandel == m))
+                                state->selected_mandel = m;
+                        }
+                    }
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::Separator();
+
+            if (state->selected_mandel) {
+                CLMandelbrotParams p = state->selected_mandel->getArgs();
                 bool changed = false;
 
                 if (ImGui::MenuItem("Randomise Palette")) { randomise_mandel_palette(p); changed = true; }
@@ -2031,11 +2063,30 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 changed |= ImGui::SliderFloat("Color Speed", &p.color_speed, 0.0f, 10.0f);
 
                 if (changed) {
-                    myMandel->setArgs(p);
-                    mandel_params = p;
+                    state->selected_mandel->setArgs(p);
+                    if (state->selected_mandel == myMandel) mandel_params = p;
+                }
+
+                ImGui::Separator();
+                ImGui::Checkbox("Roll Palette", &state->roll_mandel_palette);
+                if (state->roll_mandel_palette) ImGui::SliderFloat("Roll Speed", &state->roll_mandel_palette_speed, 0.05f, 3.0f);
+
+                ImGui::Separator();
+                ImGui::Text("Fractal Mode");
+                for (int i = 0; i < 6; i++) {
+                    char label[32];
+                    std::snprintf(label, sizeof(label), "F%d", i);
+                    if (ImGui::RadioButton(label, state->selected_mandel->iFractalIDX == i)) {
+                        state->selected_mandel->stop();
+                        CLMandelbrotParams current_p = state->selected_mandel->getArgs();
+                        state->selected_mandel->init(i);
+                        state->selected_mandel->setArgs(current_p);
+                        state->selected_mandel->start();
+                    }
+                    if ((i + 1) % 4 != 0) ImGui::SameLine();
                 }
             } else {
-                ImGui::Text("Mandelbrot not active.");
+                ImGui::Text("No fractal selected.");
             }
             ImGui::EndMenu();
         }
