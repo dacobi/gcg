@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cstring>
 
+#include "randhelp.h"
 
 PlasmaOpenCL::PlasmaOpenCL(int w, int h) : width(w), height(h) {
     backBuffer.resize(w * h, 0xFF000000); // Start with black opaque

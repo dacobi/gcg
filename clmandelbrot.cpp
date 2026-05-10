@@ -1,6 +1,9 @@
 #include "clmandelbrot.h"
+#include "fractals.h"
 #include <iostream>
 #include <vector>
+
+#include "randhelp.h"
 
 MandelbrotOpenCL::MandelbrotOpenCL(int w, int h) : width(w), height(h) {
     backBuffer.resize(w * h, 0xFF000000);
@@ -11,7 +14,53 @@ MandelbrotOpenCL::~MandelbrotOpenCL() {
     cleanup();
 }
 
-bool MandelbrotOpenCL::init() {
+bool MandelbrotOpenCL::init(int cFractalIDX){
+
+
+    if(cFractalIDX == -1){
+        iFractalIDX = rand_int(6);
+    } else {
+        iFractalIDX = cFractalIDX;
+    }
+
+    switch(iFractalIDX){
+        case 0:
+                return init(fractal0);             
+                break;   
+        case 1:
+                return init(fractal1);    
+                break;   
+        case 2:
+                return init(fractal2);                    
+                break;   
+        case 3:
+                return init(fractal3);                    
+                break;   
+        case 4:
+                return init(fractal4);                    
+                break;   
+        case 5:
+                return init(fractal5);                
+                break;   
+        
+        /*
+        case 6:
+                return init(kernelSource6);    
+                break;   
+        case 7:
+                return init(kernelSource7);    
+                break;
+        case 8:
+                return init(kernelSource8);    
+                break;              */
+        default:
+            break;
+    }
+
+    return init(fractal0);
+}
+
+bool MandelbrotOpenCL::init(const char* cKS) {
     SDL_Log("MandelbrotOpenCL::init() starting...");
     cleanup();
     cl_int err;
@@ -27,7 +76,7 @@ bool MandelbrotOpenCL::init() {
     queue = clCreateCommandQueue(context, device, 0, &err);
     if (err != CL_SUCCESS) { SDL_Log("clCreateCommandQueue Error: %d", err); return false; }
 
-    program = clCreateProgramWithSource(context, 1, &kernelSource, NULL, &err);
+    program = clCreateProgramWithSource(context, 1, &cKS, NULL, &err);
     if (err != CL_SUCCESS) { SDL_Log("clCreateProgramWithSource Error: %d", err); return false; }
     
     err = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
@@ -38,7 +87,7 @@ bool MandelbrotOpenCL::init() {
         return false;
     }
 
-    kernel = clCreateKernel(program, "mandelbrot_kernel", &err);
+    kernel = clCreateKernel(program, "fractal_kernel", &err);
     if (err != CL_SUCCESS) {
         SDL_Log("Mandelbrot clCreateKernel Error: %d", err);
         return false;

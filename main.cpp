@@ -45,6 +45,9 @@ extern "C" {
 
 }
 
+#include "randhelp.h"
+
+
 const int MIXER_SAMPLE_RATE = 48000;
 
 // --- 1. Audio Mixer Class ---
@@ -1639,8 +1642,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     std::printf("Active Renderer: %s\n", SDL_GetRendererName(renderer));
 
     // --- Plasma texture ---
-    state->plasma_w = cur_w / 8;
-    state->plasma_h = cur_h / 8;
+    state->plasma_w = cur_w / 2;
+    state->plasma_h = cur_h / 2;
     SDL_Log("Texture dimensions: %d x %d", state->plasma_w, state->plasma_h);
     if (bUsePlasma) {
         state->plasma_tex = SDL_CreateTexture(

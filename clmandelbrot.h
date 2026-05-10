@@ -8,6 +8,7 @@
 #include <atomic>
 #include <mutex>
 
+
 struct CLMandelbrotParams {
     double x_offset = -0.5;
     double y_offset = 0.0;
@@ -21,10 +22,10 @@ struct CLMandelbrotParams {
 
 class MandelbrotOpenCL {
 public:
-    const char* kernelSource = R"(
+    const char* fractal0 = R"(
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
 
-kernel void mandelbrot_kernel(
+kernel void fractal_kernel(
     global uint* pixels, int w, int h,
     double x_off, double y_off, double zoom, int max_iter,
     float p_r, float p_g, float p_b, float c_s) 
@@ -63,7 +64,8 @@ kernel void mandelbrot_kernel(
     MandelbrotOpenCL(int w, int h);
     ~MandelbrotOpenCL();
 
-    bool init();
+    bool init(int cFractalIXD = -1);
+    bool init(const char* cKS);
     void start();
     void stop();
     void resize(int w, int h);
@@ -71,6 +73,7 @@ kernel void mandelbrot_kernel(
     void updateTexture(SDL_Texture* tex);
     void setArgs(const CLMandelbrotParams& p);
     CLMandelbrotParams getArgs();
+    int iFractalIDX = -1;
 
 private:
     void workerLoop();
