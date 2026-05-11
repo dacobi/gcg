@@ -51,7 +51,7 @@ extern "C" {
 }
 
 #include "randhelp.h"
-
+#include <opencv2/opencv.hpp>
 
 const int MIXER_SAMPLE_RATE = 48000;
 
@@ -606,6 +606,7 @@ private:
     std::atomic<bool> seek_req{false};
     std::atomic<double> audio_clock{0.0}; 
     std::chrono::steady_clock::time_point start_t = std::chrono::steady_clock::now();
+    bool bTransparent = false;
 
     double get_pts_seconds(AVFrame* f, int stream_idx) {
         if (stream_idx < 0 || !fmt_ctx || stream_idx >= (int)fmt_ctx->nb_streams) return audio_clock.load();
@@ -781,6 +782,22 @@ private:
                     sws_scale(sws_ctx, raw_frame->data, raw_frame->linesize, 0, height,
                               rgba_f->data, rgba_f->linesize);
 
+                    if (bTransparent) {
+                        cv::Mat mat(height, width, CV_8UC4, rgba_f->data[0], rgba_f->linesize[0]);
+                        cv::Mat gray;
+                        cv::cvtColor(mat, gray, cv::COLOR_RGBA2GRAY);
+                        
+                        // 1. Threshold to handle compression noise in "black" areas
+                        cv::threshold(gray, gray, 20, 255, cv::THRESH_BINARY);
+                        
+                        // 2. Morphological opening to remove small noisy blocks (isolated pixels)
+                        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+                        cv::morphologyEx(gray, gray, cv::MORPH_OPEN, kernel);
+
+                        int from_to[] = { 0, 3 };
+                        cv::mixChannels(&gray, 1, &mat, 1, from_to, 1);
+                    }
+
                     DecodedFrame df;
                     df.frame_rgba = rgba_f;
                     df.pts = get_pts_seconds(raw_frame, video_stream_idx);
@@ -797,7 +814,7 @@ private:
     }
 
 public:
-    NvdecDecode(const std::string& path) {
+    NvdecDecode(const std::string& path, bool transparent = false) : bTransparent(transparent) {
         if (avformat_open_input(&fmt_ctx, path.c_str(), nullptr, nullptr) < 0) {
             throw std::runtime_error("Could not open input file: " + path);
         }
@@ -1070,7 +1087,7 @@ public:
 
         // Scan string for tags
         std::string body = input;
-        std::regex tagRegex(R"(\[(image|video|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys)(?::\s*([^\]]*))?\])", std::regex::icase);
+        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -1146,6 +1163,9 @@ public:
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "video") {
                 results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
+            } else if (tagType == "tvid") {
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 5, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "plasma") {
                 results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
@@ -1466,9 +1486,9 @@ public:
 
         if (pd.bIsFile == 1) { // PNG
             tex = create_png_texture(renderer, pd.content.c_str(), &newB.tw, &newB.th);
-        } else if (pd.bIsFile == 2) { // Video
+        } else if (pd.bIsFile == 2 || pd.bIsFile == 5) { // Video or Tvid
             try {
-                newB.decoder = new NvdecDecode(pd.content);
+                newB.decoder = new NvdecDecode(pd.content, (pd.bIsFile == 5));
                 newB.tw = newB.decoder->getWidth();
                 newB.th = newB.decoder->getHeight();
                 // Create streaming texture for video (RGBA is preferred for SDL_UpdateTexture)
