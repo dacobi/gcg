@@ -1786,6 +1786,17 @@ static void print_help() {
     std::printf("  setRecordMax(seconds)      Sets auto-stop duration for recording\n");
     std::printf("  delay(ms)                  Pauses script for ms milliseconds\n\n");
 
+    std::printf("Supported Plasma Parameters (for setPlasmaParam):\n");
+    std::printf("  drift_amp, drift_speed_x, drift_speed_y, rot_speed,\n");
+    std::printf("  scale_base_x, scale_base_y, scale_mod_amp, scale_mod_speed_x,\n");
+    std::printf("  scale_mod_speed_y, warp_base, warp_amp, warp_speed, swirl,\n");
+    std::printf("  darken_r, darken_g, darken_b, tile_count, roll_palette, roll_speed\n\n");
+
+    std::printf("Supported Fractal Parameters (for setFractalParam):\n");
+    std::printf("  x_offset, y_offset, zoom, max_iterations, color_speed,\n");
+    std::printf("  palette_phase_r, palette_phase_g, palette_phase_b,\n");
+    std::printf("  transparency (bands), roll_palette, roll_speed\n\n");
+
     std::printf("Overlay Tag Syntax:\n");
     std::printf("  [pos:x,y,vx,vy]            Position and velocity\n");
     std::printf("  [rect:w,h]                 Texture dimensions\n");
@@ -1877,6 +1888,13 @@ static bool bUseMandel = false;
 // ---------------------------------------------------------------------------
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--help") == 0) {
+            print_help();
+            return SDL_APP_SUCCESS;
+        }
+    }
+
     AppState* state = new AppState();
     *appstate = state;
 
@@ -1927,9 +1945,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             if (state->cli_record_max < 1) state->cli_record_max = 1;
         } else if (std::strcmp(argv[i], "--maximize") == 0) {
             state->cli_maximize = true;
-        } else if (std::strcmp(argv[i], "--help") == 0) {
-            print_help();
-            return SDL_APP_SUCCESS;
         } else if (std::strcmp(argv[i], "--w") == 0 && i + 1 < argc) {
             state->cli_win_w = std::atoi(argv[++i]);
             state->cli_maximize = false;

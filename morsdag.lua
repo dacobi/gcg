@@ -18,15 +18,17 @@ delay(3000)
 
 
 
-addBouncer("[phys: -500,-500,0,0,1,0.95][ttl:5000][stencil:softstar.png][rect: 384, 384][plasma:1]")
-delay(500)
-addBouncer("[phys: 500,-500,600,0,1,0.95][ttl:5000][stencil:softmoon.png][rect: 384, 384][plasma:2]")
-delay(500)
-addBouncer("[phys: -500,500,100,600,1,0.95][ttl:5000][stencil:softstar.png][rect: 384, 384][plasma:5]")
--- addBouncer("[phys: 500,500,600,600,1,0.95][ttl:5000][stencil:softmoon.png][rect: 384, 384][plasma:7]")
--- addBouncer("[phys: 50,50,300,300,1,0.95][ttl:5000][stencil:softstar.png][rect: 384, 384][plasma:9]")
+addBouncer("[phys: -500,-500,0,0,1,0.95][ttl:7000][stencil:softstar.png][rect: 384, 384][plasma:1]")
+delay(1000)
+addBouncer("[phys: 500,-500,600,0,1,0.95][ttl:7000][stencil:softmoon.png][rect: 384, 384][plasma:2]")
+delay(1000)
+addBouncer("[phys: -500,500,100,600,1,0.95][ttl:7000][stencil:softstar.png][rect: 384, 384][plasma:8]")
+delay(1000)
+addBouncer("[phys: 500,500,600,600,1,0.95][ttl:7000][stencil:softmoon.png][rect: 384, 384][plasma:4]")
+delay(1000)
+addBouncer("[phys: 50,50,300,300,1,0.95][ttl:7000][stencil:softheart.png][rect: 384, 384][plasma:9]")
 
-delay(3000)
+delay(5000)
 
 delBouncer(0);
 addBouncer("[pos: 50,50][rgb: 255,100,100]Kære Mor[rgb: 255,255,255][image: heartemoji.png][lf]Vi ønsker dig en[lf]glædelig Morsdag[rgb: 255,255,255][image: ckitt.png]")
