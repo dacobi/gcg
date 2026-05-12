@@ -1148,6 +1148,7 @@ struct ParsedSegment {
     float phys_vx = 0, phys_vy = 0, phys_sx = 0, phys_sy = 0, mass = 1.0f, bouncy = 1.0f;
     bool hasPhys = false;
     bool noAudio = false;
+    int layer = 1;
 };
 
 class ContentParser {
@@ -1166,10 +1167,11 @@ public:
         bool bIsStatic = false;
         bool next_is_new_group = true; // First segment always starts a group
         std::string stencil_path = "";
+        int layer = 1;
 
         // Scan string for tags
         std::string body = input;
-        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys)(?::\s*([^\]]*))?\])", std::regex::icase);
+        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys|layer)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -1180,7 +1182,7 @@ public:
 
             // Text segment before a tag
             if (matchPos > lastPos) {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
                 line_breaks = 0; next_is_new_group = false;
                 stencil_path = "";
             }
@@ -1212,6 +1214,8 @@ public:
                 stencil_path = tagContent;
             } else if (tagType == "ttl") {
                 try { ttl = std::stoi(tagContent); } catch(...) { ttl = -1; }
+            } else if (tagType == "layer") {
+                try { layer = std::stoi(tagContent); } catch(...) { layer = 1; }
             } else if (tagType == "phys") {
                 std::vector<std::string> tokens = tokenize(tagContent);
                 if (tokens.size() >= 6) {
@@ -1241,7 +1245,7 @@ public:
             } else if (tagType == "lf") {
                 line_breaks++;
             } else if (tagType == "image") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "video") {
                 std::vector<std::string> tokens = tokenize(tagContent);
@@ -1251,7 +1255,7 @@ public:
                     path = tokens[0];
                     noAudio = (tokens[1] == "1");
                 }
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, noAudio});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, noAudio, layer});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "tvid") {
                 std::vector<std::string> tokens = tokenize(tagContent);
@@ -1261,13 +1265,13 @@ public:
                     path = tokens[0];
                     noAudio = (tokens[1] == "1");
                 }
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 5, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, noAudio});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 5, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, noAudio, layer});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "plasma") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "fractal") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             }
 
@@ -1276,7 +1280,7 @@ public:
 
         // 3. Final trailing text
         if (lastPos < body.length()) {
-            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false});
+            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
         }
 
         return results;
@@ -1325,6 +1329,7 @@ struct Bouncer {
     PlasmaOpenCL* plasma = nullptr;
     MandelbrotOpenCL* mandel = nullptr;
     float ttl_remaining_ms = -1.0f;
+    int layer = 1;
 };
 
 // ------------------------------------------------
@@ -1575,6 +1580,7 @@ public:
     bool add(ParsedSegment pd) {
         SDL_Texture* tex = NULL;
         Bouncer newB;
+        newB.layer = pd.layer;
 
         if (pd.stencil_path != "") {
             int sw, sh;
@@ -1698,8 +1704,9 @@ public:
     }
 
 
-    void draw(SDL_Renderer* renderer, SDL_Texture* scratch_tex = nullptr, SDL_BlendMode stencil_blend = SDL_BLENDMODE_NONE) {
+    void draw(SDL_Renderer* renderer, int target_layer, SDL_Texture* scratch_tex = nullptr, SDL_BlendMode stencil_blend = SDL_BLENDMODE_NONE) {
         for (auto& b : bouncers) {
+            if (b.layer != target_layer) continue;
             SDL_FRect dst = { b.x, b.y, static_cast<float>(b.tw), static_cast<float>(b.th) };
             
             if (b.stencil_tex && scratch_tex) {
@@ -2899,8 +2906,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         if ((*it)->bouncers.empty()) {
             it = state->mBdisplay.erase(it);
         } else {
-            (*it)->draw(renderer, state->scratch_tex, state->SDL_BLENDMODE_STENCIL);
             ++it;
+        }
+    }
+
+    for (int l = 2; l >= 0; --l) {
+        for (auto& bd : state->mBdisplay) {
+            bd->draw(renderer, l, state->scratch_tex, state->SDL_BLENDMODE_STENCIL);
         }
     }
 
