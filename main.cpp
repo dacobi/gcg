@@ -659,7 +659,6 @@ private:
 
             if (eof_reached) {
                 if (v_q == 0 && a_q == 0) {
-                    std::printf("MediaDecoder: EOF loop trigger (V=%d, A=%d)\n", v_pkt_count, a_pkt_count);
                     v_pkt_count = 0; a_pkt_count = 0; eof_reached = false;
                     seek_req.store(true);
                     v_seek_ack.store(false); a_seek_ack.store(false);
@@ -995,10 +994,8 @@ public:
             std::lock_guard<std::mutex> lock(texture_mtx);
             if (decoded_queue.empty()) return;
             double target_pts = get_current_audio_time();
-            static int frame_log = 0; if (++frame_log % 60 == 0) std::printf("Sync: target=%.2f queue_front=%.2f queue_size=%zu\n", target_pts, decoded_queue.front().pts, decoded_queue.size());
 
-            while (decoded_queue.size() > 2 && decoded_queue.front().pts < target_pts - 0.5) {
-                old_frames.push_back(decoded_queue.front().frame_rgba);
+            while (decoded_queue.size() > 2 && decoded_queue.front().pts < target_pts - 0.5) {                old_frames.push_back(decoded_queue.front().frame_rgba);
                 decoded_queue.pop();
             }
             while (!decoded_queue.empty()) {
