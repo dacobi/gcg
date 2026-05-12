@@ -44,10 +44,11 @@ extern "C" {
 #include <libavutil/opt.h>
 #include <libavutil/time.h> // Location of av_usleep
 #include <libavutil/imgutils.h>
+#include <libavutil/hwcontext.h>
+#include <libavutil/pixdesc.h>
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
 #include <alsa/asoundlib.h>
-
 }
 
 #include "randhelp.h"
@@ -565,11 +566,13 @@ public:
 
 AudioMixer* myMix = NULL;
 
-class NvdecDecode {
+class MediaDecoder {
 private:
     AVFormatContext* fmt_ctx = nullptr;
     AVCodecContext* v_ctx = nullptr;
     AVCodecContext* a_ctx = nullptr;
+    AVBufferRef*     hw_device_ctx = nullptr;
+    enum AVPixelFormat hw_pix_fmt = AV_PIX_FMT_NONE;
     SwsContext* sws_ctx = nullptr;
     SwrContext* swr_ctx = nullptr;
 
@@ -599,8 +602,8 @@ private:
     std::queue<DecodedFrame> decoded_queue;
     std::vector<AVFrame*> frame_pool;
     
-    const size_t MAX_DECODED_QUEUE = 16;
-    const size_t MAX_PACKET_QUEUE = 128;
+    const size_t MAX_DECODED_QUEUE = 32;
+    const size_t MAX_PACKET_QUEUE = 1024;
 
     std::atomic<bool> quit{false};
     std::atomic<bool> seek_req{false};
@@ -608,40 +611,94 @@ private:
     std::chrono::steady_clock::time_point start_t = std::chrono::steady_clock::now();
     bool bTransparent = false;
 
+    static enum AVPixelFormat get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts) {
+        MediaDecoder* self = (MediaDecoder*)ctx->opaque;
+        for (const enum AVPixelFormat *p = pix_fmts; *p != -1; p++) {
+            if (*p == self->hw_pix_fmt) return *p;
+        }
+        return AV_PIX_FMT_NONE;
+    }
+
+    int init_hw_decoder(AVCodecContext *ctx, enum AVHWDeviceType type) {
+        int err = av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0);
+        if (err < 0) return err;
+        ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+        return 0;
+    }
+
+    std::atomic<double> first_pts{-1.0};
+
     double get_pts_seconds(AVFrame* f, int stream_idx) {
-        if (stream_idx < 0 || !fmt_ctx || stream_idx >= (int)fmt_ctx->nb_streams) return audio_clock.load();
+        if (stream_idx < 0 || !fmt_ctx || stream_idx >= (int)fmt_ctx->nb_streams) return 0.0;
         int64_t pts = f->best_effort_timestamp;
         if (pts == AV_NOPTS_VALUE) pts = f->pts;
-        if (pts == AV_NOPTS_VALUE) return audio_clock.load(); 
-        return pts * av_q2d(fmt_ctx->streams[stream_idx]->time_base);
+        if (pts == AV_NOPTS_VALUE) pts = f->pkt_dts;
+        if (pts == AV_NOPTS_VALUE) return 0.0; 
+        
+        double sec = pts * av_q2d(fmt_ctx->streams[stream_idx]->time_base);
+        if (first_pts.load() < 0) {
+            first_pts.store(sec);
+            std::printf("MediaDecoder: First frame detected (stream %d, type %s) at PTS %.2f\n", 
+                        stream_idx, (stream_idx == video_stream_idx ? "VIDEO" : "AUDIO"), sec);
+        }
+        return std::max(0.0, sec - first_pts.load());
     }
+
+    std::atomic<bool> v_seek_ack{false};
+    std::atomic<bool> a_seek_ack{false};
 
     void demuxWorker() {
         AVPacket* pkt = av_packet_alloc();
+        int v_pkt_count = 0, a_pkt_count = 0;
+        bool eof_reached = false;
+
         while (!quit) {
             size_t v_q, a_q;
             { std::lock_guard<std::mutex> l(video_pkt_mtx); v_q = video_pkt_queue.size(); }
             { std::lock_guard<std::mutex> l(audio_mtx); a_q = audio_pkt_queue.size(); }
 
-            if (v_q > MAX_PACKET_QUEUE || a_q > MAX_PACKET_QUEUE) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(2));
-                if (quit) break;
+            if (eof_reached) {
+                if (v_q == 0 && a_q == 0) {
+                    std::printf("MediaDecoder: EOF loop trigger (V=%d, A=%d)\n", v_pkt_count, a_pkt_count);
+                    v_pkt_count = 0; a_pkt_count = 0; eof_reached = false;
+                    seek_req.store(true);
+                    v_seek_ack.store(false); a_seek_ack.store(false);
+                    int seek_idx = (video_stream_idx != -1) ? video_stream_idx : audio_stream_idx;
+                    if (seek_idx != -1) av_seek_frame(fmt_ctx, seek_idx, 0, AVSEEK_FLAG_BACKWARD);
+                    while (!quit && ((video_stream_idx != -1 && !v_seek_ack.load()) || 
+                                     (audio_stream_idx != -1 && !a_seek_ack.load()))) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    }
+                    seek_req.store(false);
+                } else {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                }
                 continue;
             }
 
-            if (av_read_frame(fmt_ctx, pkt) < 0) {
-                if (quit) break;
-                int seek_idx = (video_stream_idx != -1) ? video_stream_idx : audio_stream_idx;
-                if (seek_idx != -1) av_seek_frame(fmt_ctx, seek_idx, 0, AVSEEK_FLAG_BACKWARD);
-                seek_req.store(true);
+            if (v_q > MAX_PACKET_QUEUE || a_q > MAX_PACKET_QUEUE) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                continue;
+            }
+
+            int ret = av_read_frame(fmt_ctx, pkt);
+            if (ret < 0) {
+                if (ret == AVERROR_EOF) eof_reached = true;
+                else {
+                    char errbuf[256]; av_strerror(ret, errbuf, sizeof(errbuf));
+                    std::printf("MediaDecoder: av_read_frame error: %s\n", errbuf);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
                 continue;
             }
 
             if (pkt->stream_index == video_stream_idx) {
+                v_pkt_count++;
                 AVPacket* v_pkt = av_packet_clone(pkt);
                 std::lock_guard<std::mutex> l(video_pkt_mtx);
                 video_pkt_queue.push(v_pkt);
             } else if (audio_stream_idx != -1 && pkt->stream_index == audio_stream_idx) {
+                a_pkt_count++;
                 AVPacket* a_pkt = av_packet_clone(pkt);
                 std::lock_guard<std::mutex> l(audio_mtx);
                 audio_pkt_queue.push(a_pkt);
@@ -652,169 +709,153 @@ private:
     }
 
     double get_current_audio_time() {
-        if (audio_stream_idx == -1) {
-            auto now = std::chrono::steady_clock::now();
-            return std::chrono::duration<double>(now - start_t).count();
-        }
-        if (!myMix) return audio_clock.load();
+        auto now = std::chrono::steady_clock::now();
+        double wall_time = std::chrono::duration<double>(now - start_t).count();
+        if (audio_stream_idx == -1 || !myMix) return wall_time;
         double pts = myMix->getSourcePTS(this);
-        if (pts == 0.0) return audio_clock.load();
+        if (pts <= 0.0 || std::abs(pts - wall_time) > 1.0) return wall_time;
         return pts;
     }
 
     void audioWorker() {
         while (!quit) {
-            if (seek_req.load()) {
+            if (seek_req.load() && !a_seek_ack.load()) {
                 if (a_ctx) avcodec_flush_buffers(a_ctx);
                 audio_clock.store(0.0);
-                std::lock_guard<std::mutex> l(audio_mtx);
-                while(!audio_pkt_queue.empty()) {
-                    AVPacket* p = audio_pkt_queue.front();
-                    av_packet_free(&p);
-                    audio_pkt_queue.pop();
+                {
+                    std::lock_guard<std::mutex> l(audio_mtx);
+                    while(!audio_pkt_queue.empty()) { av_packet_free(&audio_pkt_queue.front()); audio_pkt_queue.pop(); }
                 }
+                a_seek_ack.store(true);
             }
 
             AVPacket* pkt = nullptr;
             {
                 std::lock_guard<std::mutex> lock(audio_mtx);
-                if (!audio_pkt_queue.empty()) {
-                    pkt = audio_pkt_queue.front();
-                    audio_pkt_queue.pop();
-                }
+                if (!audio_pkt_queue.empty()) pkt = audio_pkt_queue.front();
+            }
+            if (!pkt) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
+
+            int ret = avcodec_send_packet(a_ctx, pkt);
+            if (ret == 0) {
+                { std::lock_guard<std::mutex> lock(audio_mtx); audio_pkt_queue.pop(); }
+            } else if (ret != AVERROR(EAGAIN)) {
+                { std::lock_guard<std::mutex> lock(audio_mtx); audio_pkt_queue.pop(); }
+                av_packet_free(&pkt); continue;
             }
 
-            if (!pkt) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                continue;
-            }
-
-            if (a_ctx && avcodec_send_packet(a_ctx, pkt) == 0) {
-                while (avcodec_receive_frame(a_ctx, audio_frame) == 0 && !quit) {
-                    double pts = get_pts_seconds(audio_frame, audio_stream_idx);
-                    
-                    int out_samples = swr_convert(swr_ctx, &audio_out_buf, 4096,
-                                                  (const uint8_t**)audio_frame->data, 
-                                                  audio_frame->nb_samples);
-                    
-                    if (out_samples > 0) {
-                        if (myMix) {
-                            myMix->addAudio(this, (int16_t*)audio_out_buf, out_samples, pts);
-                            audio_clock.store(pts + (double)out_samples / MIXER_SAMPLE_RATE);
-                        }
-                    }
+            while (avcodec_receive_frame(a_ctx, audio_frame) == 0 && !quit) {
+                double pts = get_pts_seconds(audio_frame, audio_stream_idx);
+                int out_samples = swr_convert(swr_ctx, &audio_out_buf, 4096, (const uint8_t**)audio_frame->data, audio_frame->nb_samples);
+                if (out_samples > 0 && myMix) {
+                    myMix->addAudio(this, (int16_t*)audio_out_buf, out_samples, pts);
+                    audio_clock.store(pts + (double)out_samples / MIXER_SAMPLE_RATE);
                 }
+                av_frame_unref(audio_frame);
             }
-            av_packet_free(&pkt);
+            if (ret == 0) av_packet_free(&pkt); else std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
 
     void videoWorker() {
         AVFrame* raw_frame = av_frame_alloc();
+        AVFrame* sw_frame = av_frame_alloc();
+        enum AVPixelFormat last_fmt = AV_PIX_FMT_NONE;
+        int frames_decoded = 0;
+        int packets_sent = 0;
+
         while (!quit) {
-            if (seek_req.load()) {
+            if (seek_req.load() && !v_seek_ack.load()) {
                 if (v_ctx) avcodec_flush_buffers(v_ctx);
                 {
                     std::lock_guard<std::mutex> l(video_pkt_mtx);
-                    while(!video_pkt_queue.empty()) {
-                        AVPacket* p = video_pkt_queue.front();
-                        av_packet_free(&p);
-                        video_pkt_queue.pop();
-                    }
+                    while(!video_pkt_queue.empty()) { av_packet_free(&video_pkt_queue.front()); video_pkt_queue.pop(); }
                 }
                 {
                     std::lock_guard<std::mutex> l(texture_mtx);
-                    while(!decoded_queue.empty()) {
-                        AVFrame* f = decoded_queue.front().frame_rgba;
-                        { std::lock_guard<std::mutex> pl(pool_mtx); frame_pool.push_back(f); }
-                        decoded_queue.pop();
-                    }
+                    while(!decoded_queue.empty()) { AVFrame* f = decoded_queue.front().frame_rgba; { std::lock_guard<std::mutex> pl(pool_mtx); frame_pool.push_back(f); } decoded_queue.pop(); }
                 }
-                // wait for audio worker to also see seek_req
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                if (audio_stream_idx == -1) start_t = std::chrono::steady_clock::now();
-                seek_req.store(false); 
+                start_t = std::chrono::steady_clock::now();
+                first_pts.store(-1.0);
+                frames_decoded = 0; packets_sent = 0;
+                v_seek_ack.store(true);
             }
 
             size_t q_size;
             { std::lock_guard<std::mutex> l(texture_mtx); q_size = decoded_queue.size(); }
-            if (q_size >= MAX_DECODED_QUEUE) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
-                continue;
-            }
+            if (q_size >= MAX_DECODED_QUEUE) { std::this_thread::sleep_for(std::chrono::milliseconds(5)); continue; }
 
             AVPacket* pkt = nullptr;
-            {
-                std::lock_guard<std::mutex> l(video_pkt_mtx);
-                if (!video_pkt_queue.empty()) {
-                    pkt = video_pkt_queue.front();
-                    video_pkt_queue.pop();
+            { std::lock_guard<std::mutex> l(video_pkt_mtx); if (!video_pkt_queue.empty()) pkt = video_pkt_queue.front(); }
+            if (!pkt) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
+
+            int ret = avcodec_send_packet(v_ctx, pkt);
+            if (ret == 0) {
+                { std::lock_guard<std::mutex> l(video_pkt_mtx); video_pkt_queue.pop(); }
+                packets_sent++;
+            } else if (ret != AVERROR(EAGAIN)) {
+                { std::lock_guard<std::mutex> l(video_pkt_mtx); video_pkt_queue.pop(); }
+                av_packet_free(&pkt); continue;
+            }
+
+            // Safety: If HW decoder is eating packets but not producing frames, fall back to SW
+            if (hw_device_ctx && frames_decoded == 0 && packets_sent > 100) {
+                std::printf("MediaDecoder: HW decoder stalling (VDPAU/CUDA), forcing software fallback...\n");
+                avcodec_flush_buffers(v_ctx);
+                av_buffer_unref(&hw_device_ctx);
+                v_ctx->hw_device_ctx = nullptr;
+                v_ctx->get_format = nullptr;
+                const AVCodec* sw_vcodec = avcodec_find_decoder(fmt_ctx->streams[video_stream_idx]->codecpar->codec_id);
+                avcodec_open2(v_ctx, sw_vcodec, nullptr);
+            }
+
+            while (avcodec_receive_frame(v_ctx, raw_frame) == 0 && !quit) {
+                frames_decoded++;
+                AVFrame* frame_to_use = raw_frame;
+                if (raw_frame->format == hw_pix_fmt && hw_device_ctx) {
+                    av_frame_unref(sw_frame);
+                    if (av_hwframe_transfer_data(sw_frame, raw_frame, 0) != 0) {
+                        av_frame_unref(raw_frame);
+                        continue;
+                    }
+                    av_frame_copy_props(sw_frame, raw_frame);
+                    frame_to_use = sw_frame;
                 }
-            }
 
-            if (!pkt) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                continue;
-            }
-
-            if (v_ctx && avcodec_send_packet(v_ctx, pkt) == 0) {
-                while (avcodec_receive_frame(v_ctx, raw_frame) == 0 && !quit) {
-                    AVFrame* rgba_f = nullptr;
-                    {
-                        std::lock_guard<std::mutex> l(pool_mtx);
-                        if (!frame_pool.empty()) {
-                            rgba_f = frame_pool.back();
-                            frame_pool.pop_back();
-                        }
-                    }
-                    if (!rgba_f) {
-                        rgba_f = av_frame_alloc();
-                        rgba_f->format = AV_PIX_FMT_RGBA;
-                        rgba_f->width = width; rgba_f->height = height;
-                        av_frame_get_buffer(rgba_f, 32);
-                    }
-
-                    if (!sws_ctx) {
-                        sws_ctx = sws_getContext(width, height, (AVPixelFormat)raw_frame->format,
-                                                 width, height, AV_PIX_FMT_RGBA,
-                                                 SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
-                    }
-                    sws_scale(sws_ctx, raw_frame->data, raw_frame->linesize, 0, height,
-                              rgba_f->data, rgba_f->linesize);
-
-                    if (bTransparent) {
-                        cv::Mat mat(height, width, CV_8UC4, rgba_f->data[0], rgba_f->linesize[0]);
-                        cv::Mat gray;
-                        cv::cvtColor(mat, gray, cv::COLOR_RGBA2GRAY);
-                        
-                        // 1. Threshold to handle compression noise in "black" areas
-                        cv::threshold(gray, gray, 20, 255, cv::THRESH_BINARY);
-                        
-                        // 2. Morphological opening to remove small noisy blocks (isolated pixels)
-                        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-                        cv::morphologyEx(gray, gray, cv::MORPH_OPEN, kernel);
-
-                        int from_to[] = { 0, 3 };
-                        cv::mixChannels(&gray, 1, &mat, 1, from_to, 1);
-                    }
-
-                    DecodedFrame df;
-                    df.frame_rgba = rgba_f;
-                    df.pts = get_pts_seconds(raw_frame, video_stream_idx);
-
-                    {
-                        std::lock_guard<std::mutex> l(texture_mtx);
-                        decoded_queue.push(df);
-                    }
+                AVFrame* rgba_f = nullptr;
+                { std::lock_guard<std::mutex> l(pool_mtx); if (!frame_pool.empty()) { rgba_f = frame_pool.back(); frame_pool.pop_back(); } }
+                if (!rgba_f) {
+                    rgba_f = av_frame_alloc(); rgba_f->format = AV_PIX_FMT_RGBA;
+                    rgba_f->width = width; rgba_f->height = height; av_frame_get_buffer(rgba_f, 32);
                 }
+
+                if (!sws_ctx || last_fmt != frame_to_use->format) {
+                    if (sws_ctx) sws_freeContext(sws_ctx);
+                    sws_ctx = sws_getContext(width, height, (AVPixelFormat)frame_to_use->format, width, height, AV_PIX_FMT_RGBA, SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
+                    last_fmt = (AVPixelFormat)frame_to_use->format;
+                }
+                sws_scale(sws_ctx, frame_to_use->data, frame_to_use->linesize, 0, height, rgba_f->data, rgba_f->linesize);
+
+                if (bTransparent) {
+                    cv::Mat mat(height, width, CV_8UC4, rgba_f->data[0], rgba_f->linesize[0]);
+                    cv::Mat gray; cv::cvtColor(mat, gray, cv::COLOR_RGBA2GRAY);
+                    cv::threshold(gray, gray, 20, 255, cv::THRESH_BINARY);
+                    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+                    cv::morphologyEx(gray, gray, cv::MORPH_OPEN, kernel);
+                    int from_to[] = { 0, 3 }; cv::mixChannels(&gray, 1, &mat, 1, from_to, 1);
+                }
+
+                DecodedFrame df; df.frame_rgba = rgba_f; df.pts = get_pts_seconds(frame_to_use, video_stream_idx);
+                { std::lock_guard<std::mutex> l(texture_mtx); decoded_queue.push(df); }
+                av_frame_unref(raw_frame);
             }
-            av_packet_free(&pkt);
+            if (ret == 0) av_packet_free(&pkt); else std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
-        av_frame_free(&raw_frame);
+        av_frame_free(&raw_frame); av_frame_free(&sw_frame);
     }
 
 public:
-    NvdecDecode(const std::string& path, bool transparent = false) : bTransparent(transparent) {
+    MediaDecoder(const std::string& path, bool transparent = false) : bTransparent(transparent) {
         if (avformat_open_input(&fmt_ctx, path.c_str(), nullptr, nullptr) < 0) {
             throw std::runtime_error("Could not open input file: " + path);
         }
@@ -827,9 +868,7 @@ public:
             AVCodecParameters* p = fmt_ctx->streams[i]->codecpar;
             if (p->codec_type == AVMEDIA_TYPE_VIDEO && video_stream_idx == -1) {
                 video_stream_idx = i;
-                if (p->codec_id == AV_CODEC_ID_H264) vcodec = avcodec_find_decoder_by_name("h264_cuvid");
-                else if (p->codec_id == AV_CODEC_ID_HEVC) vcodec = avcodec_find_decoder_by_name("hevc_cuvid");
-                if (!vcodec) vcodec = avcodec_find_decoder(p->codec_id);
+                vcodec = avcodec_find_decoder(p->codec_id);
             } else if (p->codec_type == AVMEDIA_TYPE_AUDIO && audio_stream_idx == -1) {
                 audio_stream_idx = i;
                 acodec = avcodec_find_decoder(p->codec_id);
@@ -840,14 +879,50 @@ public:
             v_ctx = avcodec_alloc_context3(vcodec);
             if (v_ctx) {
                 avcodec_parameters_to_context(v_ctx, fmt_ctx->streams[video_stream_idx]->codecpar);
-                v_ctx->thread_count = 0;
-                v_ctx->flags |= AV_CODEC_FLAG_LOW_DELAY;
-                if (avcodec_open2(v_ctx, vcodec, nullptr) >= 0) {
-                    width = v_ctx->width; height = v_ctx->height;
-                } else {
-                    avcodec_free_context(&v_ctx);
-                    video_stream_idx = -1;
+                v_ctx->opaque = this;
+                v_ctx->get_format = get_hw_format;
+
+                static const enum AVHWDeviceType hw_types[] = {
+                    AV_HWDEVICE_TYPE_VDPAU,
+                    AV_HWDEVICE_TYPE_VAAPI,
+                    AV_HWDEVICE_TYPE_CUDA,
+                    AV_HWDEVICE_TYPE_NONE
+                };
+
+                for (int i = 0; hw_types[i] != AV_HWDEVICE_TYPE_NONE; i++) {
+                    for (int j = 0;; j++) {
+                        const AVCodecHWConfig *config = avcodec_get_hw_config(vcodec, j);
+                        if (!config) break;
+                        if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
+                            config->device_type == hw_types[i]) {
+                            hw_pix_fmt = config->pix_fmt;
+                            if (init_hw_decoder(v_ctx, hw_types[i]) == 0) {
+                                std::printf("MediaDecoder: Using HW acceleration: %s\n", av_hwdevice_get_type_name(hw_types[i]));
+                                break;
+                            }
+                        }
+                    }
+                    if (hw_device_ctx) break;
                 }
+
+                if (!hw_device_ctx) {
+                    std::printf("MediaDecoder: No HW acceleration found, using software decoding.\n");
+                }
+
+                v_ctx->thread_count = 0; 
+                if (avcodec_open2(v_ctx, vcodec, nullptr) < 0) {
+                    if (hw_device_ctx) {
+                         std::printf("MediaDecoder: HW open failed, falling back to software.\n");
+                         av_buffer_unref(&hw_device_ctx);
+                         v_ctx->hw_device_ctx = nullptr;
+                         v_ctx->get_format = nullptr;
+                         avcodec_open2(v_ctx, vcodec, nullptr);
+                    }
+                }
+                if (v_ctx->priv_data && vcodec->id == AV_CODEC_ID_H264) {
+                    av_opt_set(v_ctx->priv_data, "reref_frames", "1", 0);
+                }
+                width = v_ctx->width; height = v_ctx->height;
             }
         }
 
@@ -855,6 +930,7 @@ public:
             a_ctx = avcodec_alloc_context3(acodec);
             if (a_ctx) {
                 avcodec_parameters_to_context(a_ctx, fmt_ctx->streams[audio_stream_idx]->codecpar);
+                a_ctx->thread_count = 0; // Audio is fine with auto
                 if (avcodec_open2(a_ctx, acodec, nullptr) >= 0) {
                     AVChannelLayout out_ch; av_channel_layout_default(&out_ch, 2);
                     swr_alloc_set_opts2(&swr_ctx, &out_ch, AV_SAMPLE_FMT_S16, MIXER_SAMPLE_RATE,
@@ -872,12 +948,12 @@ public:
         if (!v_ctx) throw std::runtime_error("Could not initialize video decoder for: " + path);
 
         start_t = std::chrono::steady_clock::now();
-        demux_thread = std::thread(&NvdecDecode::demuxWorker, this);
-        video_thread = std::thread(&NvdecDecode::videoWorker, this);
-        if (a_ctx) audio_thread = std::thread(&NvdecDecode::audioWorker, this);
+        demux_thread = std::thread(&MediaDecoder::demuxWorker, this);
+        video_thread = std::thread(&MediaDecoder::videoWorker, this);
+        if (a_ctx) audio_thread = std::thread(&MediaDecoder::audioWorker, this);
     }
 
-    ~NvdecDecode() {
+    ~MediaDecoder() {
         quit = true;
         if (demux_thread.joinable()) demux_thread.join();
         if (video_thread.joinable()) video_thread.join();
@@ -885,11 +961,12 @@ public:
 
         if (myMix) myMix->removeSource(this);
 
-        auto clear_q = [](std::queue<AVPacket*>& q) {
+        auto clear_q = [](std::queue<AVPacket*>& q, std::mutex& mtx) {
+            std::lock_guard<std::mutex> l(mtx);
             while(!q.empty()) { av_packet_free(&q.front()); q.pop(); }
         };
-        clear_q(audio_pkt_queue);
-        clear_q(video_pkt_queue);
+        clear_q(audio_pkt_queue, audio_mtx);
+        clear_q(video_pkt_queue, video_pkt_mtx);
 
         {
             std::lock_guard<std::mutex> lock(texture_mtx);
@@ -907,6 +984,7 @@ public:
         av_frame_free(&audio_frame);
         avcodec_free_context(&v_ctx);
         avcodec_free_context(&a_ctx);
+        if (hw_device_ctx) av_buffer_unref(&hw_device_ctx);
         avformat_close_input(&fmt_ctx);
     }
 
@@ -917,6 +995,8 @@ public:
             std::lock_guard<std::mutex> lock(texture_mtx);
             if (decoded_queue.empty()) return;
             double target_pts = get_current_audio_time();
+            static int frame_log = 0; if (++frame_log % 60 == 0) std::printf("Sync: target=%.2f queue_front=%.2f queue_size=%zu\n", target_pts, decoded_queue.front().pts, decoded_queue.size());
+
             while (decoded_queue.size() > 2 && decoded_queue.front().pts < target_pts - 0.5) {
                 old_frames.push_back(decoded_queue.front().frame_rgba);
                 decoded_queue.pop();
@@ -1224,7 +1304,7 @@ struct Bouncer {
     SDL_Texture* tex; // which text texture to use (not owned — shared)
     SDL_Texture* stencil_tex = nullptr;
     int tw, th;       // dimensions of that texture()
-    NvdecDecode* decoder = nullptr;
+    MediaDecoder* decoder = nullptr;
     PlasmaOpenCL* plasma = nullptr;
     MandelbrotOpenCL* mandel = nullptr;
     float ttl_remaining_ms = -1.0f;
@@ -1488,7 +1568,7 @@ public:
             tex = create_png_texture(renderer, pd.content.c_str(), &newB.tw, &newB.th);
         } else if (pd.bIsFile == 2 || pd.bIsFile == 5) { // Video or Tvid
             try {
-                newB.decoder = new NvdecDecode(pd.content, (pd.bIsFile == 5));
+                newB.decoder = new MediaDecoder(pd.content, (pd.bIsFile == 5));
                 newB.tw = newB.decoder->getWidth();
                 newB.th = newB.decoder->getHeight();
                 // Create streaming texture for video (RGBA is preferred for SDL_UpdateTexture)
@@ -1707,7 +1787,7 @@ struct AppState {
 
     SDL_Texture* plasma_tex = nullptr;
     SDL_Texture* mandel_tex = nullptr;
-    std::unique_ptr<NvdecDecode> bg_video;
+    std::unique_ptr<MediaDecoder> bg_video;
     std::unique_ptr<AudioDecoder> loop_audio;
     SDL_Texture* bg_tex = nullptr;
     SDL_Texture* scratch_tex = nullptr;
@@ -2052,7 +2132,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         
         if (is_video) {
             try {
-                state->bg_video = std::make_unique<NvdecDecode>(state->cli_bg_path);
+                state->bg_video = std::make_unique<MediaDecoder>(state->cli_bg_path);
                 state->bg_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, 
                                            state->bg_video->getWidth(), state->bg_video->getHeight());
             } catch (const std::exception& e) {
@@ -2341,7 +2421,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                                      ext.find(".avi") != std::string::npos);
                     if (is_video) {
                         try {
-                            state->bg_video = std::make_unique<NvdecDecode>(state->cli_bg_path);
+                            state->bg_video = std::make_unique<MediaDecoder>(state->cli_bg_path);
                             state->bg_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
                                                        state->bg_video->getWidth(), state->bg_video->getHeight());
                         } catch (const std::exception& e) {
