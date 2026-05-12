@@ -612,6 +612,7 @@ private:
     std::atomic<double> audio_clock{0.0}; 
     std::chrono::steady_clock::time_point start_t = std::chrono::steady_clock::now();
     bool bTransparent = false;
+    bool bNoAudio = false;
 
     static enum AVPixelFormat get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts) {
         MediaDecoder* self = (MediaDecoder*)ctx->opaque;
@@ -856,7 +857,8 @@ private:
     }
 
 public:
-    MediaDecoder(const std::string& path, bool transparent = false) : bTransparent(transparent) {
+    MediaDecoder(const std::string& path, bool transparent = false, bool no_audio = false) 
+        : bTransparent(transparent), bNoAudio(no_audio) {
         if (avformat_open_input(&fmt_ctx, path.c_str(), nullptr, nullptr) < 0) {
             throw std::runtime_error("Could not open input file: " + path);
         }
@@ -870,7 +872,7 @@ public:
             if (p->codec_type == AVMEDIA_TYPE_VIDEO && video_stream_idx == -1) {
                 video_stream_idx = i;
                 vcodec = avcodec_find_decoder(p->codec_id);
-            } else if (p->codec_type == AVMEDIA_TYPE_AUDIO && audio_stream_idx == -1) {
+            } else if (!bNoAudio && p->codec_type == AVMEDIA_TYPE_AUDIO && audio_stream_idx == -1) {
                 audio_stream_idx = i;
                 acodec = avcodec_find_decoder(p->codec_id);
             }
@@ -1136,7 +1138,7 @@ struct ParsedSegment {
     bool bIsStatic;
     int r, g, b; 
     std::string content;
-    int bIsFile; // 0: None, 1: PNG, 2: Video, 3: Plasma, 4: Fractal
+    int bIsFile; // 0: None, 1: PNG, 2: Video, 3: Plasma, 4: Fractal, 5: Tvid
     std::string fullInput;
     int over_w = 0, over_h = 0;
     int line_breaks = 0;
@@ -1145,6 +1147,7 @@ struct ParsedSegment {
     int ttl_ms = -1;
     float phys_vx = 0, phys_vy = 0, phys_sx = 0, phys_sy = 0, mass = 1.0f, bouncy = 1.0f;
     bool hasPhys = false;
+    bool noAudio = false;
 };
 
 class ContentParser {
@@ -1177,7 +1180,7 @@ public:
 
             // Text segment before a tag
             if (matchPos > lastPos) {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false});
                 line_breaks = 0; next_is_new_group = false;
                 stencil_path = "";
             }
@@ -1238,19 +1241,33 @@ public:
             } else if (tagType == "lf") {
                 line_breaks++;
             } else if (tagType == "image") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "video") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
+                std::vector<std::string> tokens = tokenize(tagContent);
+                std::string path = tagContent;
+                bool noAudio = false;
+                if (tokens.size() >= 2) {
+                    path = tokens[0];
+                    noAudio = (tokens[1] == "1");
+                }
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, noAudio});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "tvid") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 5, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
+                std::vector<std::string> tokens = tokenize(tagContent);
+                std::string path = tagContent;
+                bool noAudio = false;
+                if (tokens.size() >= 2) {
+                    path = tokens[0];
+                    noAudio = (tokens[1] == "1");
+                }
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 5, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, noAudio});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "plasma") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "fractal") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             }
 
@@ -1259,7 +1276,7 @@ public:
 
         // 3. Final trailing text
         if (lastPos < body.length()) {
-            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP});
+            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false});
         }
 
         return results;
@@ -1269,12 +1286,13 @@ void processAndPrint(const std::string& input) {
     auto segments = ContentParser::parse(input);
     std::cout << "\nInput: " << input << "\n";
     for (const auto& s : segments) {
-        std::printf("  Pos:(%d,%d) Velo:(%d,%d) Static:%s RGB:(%d,%d,%d) Rect:(%d,%d) | Type:%d | Content: \"%s\"\n",
+        std::printf("  Pos:(%d,%d) Velo:(%d,%d) Static:%s RGB:(%d,%d,%d) Rect:(%d,%d) | Type:%d | Content: \"%s\" Muted: %s\n",
                     s.posx, s.posy, s.velox, s.veloy,
                     s.bIsStatic ? "Y" : "N",
                     s.r, s.g, s.b,
                     s.over_w, s.over_h,
-                    s.bIsFile, s.content.c_str());
+                    s.bIsFile, s.content.c_str(),
+                    s.noAudio ? "Y" : "N");
     }
 }
 
@@ -1567,7 +1585,7 @@ public:
             tex = create_png_texture(renderer, pd.content.c_str(), &newB.tw, &newB.th);
         } else if (pd.bIsFile == 2 || pd.bIsFile == 5) { // Video or Tvid
             try {
-                newB.decoder = new MediaDecoder(pd.content, (pd.bIsFile == 5));
+                newB.decoder = new MediaDecoder(pd.content, (pd.bIsFile == 5), pd.noAudio);
                 newB.tw = newB.decoder->getWidth();
                 newB.th = newB.decoder->getHeight();
                 // Create streaming texture for video (RGBA is preferred for SDL_UpdateTexture)
