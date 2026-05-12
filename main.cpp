@@ -1925,11 +1925,15 @@ static void print_help() {
     std::printf("  [pos:x,y,vx,vy]            Position and velocity\n");
     std::printf("  [rect:w,h]                 Texture dimensions\n");
     std::printf("  [rgb:r,g,b]                Tint color (0-255)\n");
+    std::printf("  [image:file]               Render image file (e.g. .png, .jpg)\n");
+    std::printf("  [video:file,no_audio]      Render video file (optional no_audio=1)\n");
+    std::printf("  [tvid:file,no_audio]       Render video with transparency (optional no_audio=1)\n");
     std::printf("  [plasma:idx]               Render plasma #\n");
     std::printf("  [fractal:idx]              Render fractal #\n");
     std::printf("  [stencil:file.png]         Apply alpha mask\n");
     std::printf("  [ttl:ms]                   Self-destruct timer\n");
     std::printf("  [phys:vx,vy,sx,sy,m,b]     Advanced physics and spawn point\n");
+    std::printf("  [layer:#]                  Rendering layer (0=Foreground, 1=Middle, 2=Background)\n");
 }
 
 static void randomise_mandel_palette(CLMandelbrotParams& p) {
