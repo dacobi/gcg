@@ -66,7 +66,11 @@ bool PlasmaOpenCL::init(const char* cKS) {
     if (err != CL_SUCCESS) return false;
 
     context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
+#if CL_TARGET_OPENCL_VERSION >= 200
+    queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);
+#else
     queue = clCreateCommandQueue(context, device, 0, &err);
+#endif
     program = clCreateProgramWithSource(context, 1, &cKS, NULL, &err);
     
     err = clBuildProgram(program, 1, &device, NULL, NULL, NULL);

@@ -73,7 +73,11 @@ bool MandelbrotOpenCL::init(const char* cKS) {
     context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
     if (err != CL_SUCCESS) { SDL_Log("clCreateContext Error: %d", err); return false; }
 
+#if CL_TARGET_OPENCL_VERSION >= 200
+    queue = clCreateCommandQueueWithProperties(context, device, NULL, &err);
+#else
     queue = clCreateCommandQueue(context, device, 0, &err);
+#endif
     if (err != CL_SUCCESS) { SDL_Log("clCreateCommandQueue Error: %d", err); return false; }
 
     program = clCreateProgramWithSource(context, 1, &cKS, NULL, &err);

@@ -481,7 +481,9 @@ public:
         swr_init(swr_ctx);
 
         avio_open(&out_ctx->pb, path.c_str(), AVIO_FLAG_WRITE);
-        avformat_write_header(out_ctx, nullptr);
+        if (avformat_write_header(out_ctx, nullptr) < 0) {
+            throw std::runtime_error("Could not write header to: " + path);
+        }
 
         // Pre-allocate some buffers
         for (int i = 0; i < 5; ++i) {
