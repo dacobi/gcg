@@ -26,7 +26,7 @@ public:
     void updateTexture(SDL_GPUTexture* tex, int width, int height, SDL_GPUTextureFormat format, const void* pixels, int pitch);
 
     // Bouncer drawing
-    void drawBouncer(SDL_GPUTexture* tex, const SDL_FRect& dst, Uint8 r, Uint8 g, Uint8 b, Uint8 a, SDL_GPUTexture* stencil_tex = nullptr);
+    void drawBouncer(SDL_GPUTexture* tex, const SDL_FRect& dst, Uint8 r, Uint8 g, Uint8 b, Uint8 a, SDL_GPUTexture* stencil_tex = nullptr, bool transparent = false);
 
     // Background drawing
     void drawBackground(SDL_GPUTexture* tex);
@@ -51,6 +51,7 @@ private:
 
     SDL_GPUGraphicsPipeline* pipeline_base = nullptr;
     SDL_GPUGraphicsPipeline* pipeline_stencil = nullptr;
+    SDL_GPUGraphicsPipeline* pipeline_trans = nullptr;
 
     SDL_GPUSampler* sampler = nullptr;
     SDL_GPUTextureFormat swapchain_format = SDL_GPU_TEXTUREFORMAT_INVALID;

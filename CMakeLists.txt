@@ -44,4 +44,4 @@ target_link_libraries(imgui PUBLIC PkgConfig::SDL3 SDL3_shadercross::SDL3_shader
 # --- Our executable ---
 add_executable(gcg main.cpp clplasma.cpp clmandelbrot.cpp luascripting.cpp renderer.cpp)
 target_compile_options(gcg PRIVATE "-g")
-target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA PkgConfig::LUA PkgConfig::OPENCV OpenCL::OpenCL m SDL3_shadercross::SDL3_shadercross-shared)
+target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA PkgConfig::LUA OpenCL::OpenCL m SDL3_shadercross::SDL3_shadercross-shared)

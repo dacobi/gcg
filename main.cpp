@@ -53,7 +53,6 @@ extern "C" {
 }
 
 #include "randhelp.h"
-#include <opencv2/opencv.hpp>
 
 const int MIXER_SAMPLE_RATE = 48000;
 
@@ -839,15 +838,6 @@ private:
                 }
                 sws_scale(sws_ctx, frame_to_use->data, frame_to_use->linesize, 0, height, rgba_f->data, rgba_f->linesize);
 
-                if (bTransparent) {
-                    cv::Mat mat(height, width, CV_8UC4, rgba_f->data[0], rgba_f->linesize[0]);
-                    cv::Mat gray; cv::cvtColor(mat, gray, cv::COLOR_RGBA2GRAY);
-                    cv::threshold(gray, gray, 20, 255, cv::THRESH_BINARY);
-                    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-                    cv::morphologyEx(gray, gray, cv::MORPH_OPEN, kernel);
-                    int from_to[] = { 0, 3 }; cv::mixChannels(&gray, 1, &mat, 1, from_to, 1);
-                }
-
                 DecodedFrame df; df.frame_rgba = rgba_f; df.pts = get_pts_seconds(frame_to_use, video_stream_idx);
                 { std::lock_guard<std::mutex> l(texture_mtx); decoded_queue.push(df); }
                 av_frame_unref(raw_frame);
@@ -1331,6 +1321,7 @@ struct Bouncer {
     MandelbrotOpenCL* mandel = nullptr;
     float ttl_remaining_ms = -1.0f;
     int layer = 1;
+    bool bTransparent = false;
 };
 
 // ------------------------------------------------
@@ -1578,7 +1569,8 @@ public:
             tex = create_png_texture(g_renderer, pd.content.c_str(), &newB.tw, &newB.th);
         } else if (pd.bIsFile == 2 || pd.bIsFile == 5) { // Video or Tvid
             try {
-                newB.decoder = new MediaDecoder(pd.content, (pd.bIsFile == 5), pd.noAudio);
+                newB.bTransparent = (pd.bIsFile == 5);
+                newB.decoder = new MediaDecoder(pd.content, newB.bTransparent, pd.noAudio);
                 newB.tw = newB.decoder->getWidth();
                 newB.th = newB.decoder->getHeight();
                 // Create streaming texture for video (RGBA is preferred for SDL_UpdateTexture)
@@ -1685,11 +1677,10 @@ public:
         for (auto& b : bouncers) {
             if (b.layer != target_layer) continue;
             SDL_FRect dst = { b.x, b.y, static_cast<float>(b.tw), static_cast<float>(b.th) };
-            
-            renderer->drawBouncer(b.tex, dst, b.r, b.g, b.b, 255, b.stencil_tex);
+
+            renderer->drawBouncer(b.tex, dst, b.r, b.g, b.b, 255, b.stencil_tex, b.bTransparent);
         }
     }
-
     const SDL_FRect& getBounds() const {
         return boundingBox;
     }

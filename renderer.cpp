@@ -6,6 +6,7 @@
 #include "vert_spv.h"
 #include "frag_base_spv.h"
 #include "frag_stencil_spv.h"
+#include "frag_trans_spv.h"
 
 static SDL_GPUShader* LoadSPIRVShader(SDL_GPUDevice* device, const unsigned char* bytecode, unsigned int size, SDL_ShaderCross_ShaderStage stage, Uint32 num_samplers, Uint32 num_uniform_buffers) {
     SDL_ShaderCross_SPIRV_Info spirv_info = {};
@@ -77,6 +78,9 @@ bool Renderer::initPipelines() {
     
     SDL_GPUShader* fs_stencil = LoadSPIRVShader(device, frag_stencil_spv, frag_stencil_spv_len, SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT, 2, 0);
     if (!fs_stencil) return false;
+
+    SDL_GPUShader* fs_trans = LoadSPIRVShader(device, frag_trans_spv, frag_trans_spv_len, SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT, 1, 0);
+    if (!fs_trans) return false;
     
     SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {};
     pipeline_info.vertex_shader = vs;
@@ -103,14 +107,19 @@ bool Renderer::initPipelines() {
     pipeline_info.fragment_shader = fs_stencil;
     pipeline_stencil = SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
     if (!pipeline_stencil) std::printf("Failed to create pipeline_stencil: %s\n", SDL_GetError());
+
+    pipeline_info.fragment_shader = fs_trans;
+    pipeline_trans = SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
+    if (!pipeline_trans) std::printf("Failed to create pipeline_trans: %s\n", SDL_GetError());
     
     delete[] pipeline_info.target_info.color_target_descriptions;
     
     SDL_ReleaseGPUShader(device, vs);
     SDL_ReleaseGPUShader(device, fs_base);
     SDL_ReleaseGPUShader(device, fs_stencil);
+    SDL_ReleaseGPUShader(device, fs_trans);
     
-    return pipeline_base && pipeline_stencil;
+    return pipeline_base && pipeline_stencil && pipeline_trans;
 }
 
 void Renderer::shutdown() {
@@ -125,6 +134,10 @@ void Renderer::shutdown() {
     if (pipeline_stencil) {
         SDL_ReleaseGPUGraphicsPipeline(device, pipeline_stencil);
         pipeline_stencil = nullptr;
+    }
+    if (pipeline_trans) {
+        SDL_ReleaseGPUGraphicsPipeline(device, pipeline_trans);
+        pipeline_trans = nullptr;
     }
     if (device) {
         SDL_ShaderCross_Quit();
@@ -479,7 +492,7 @@ void Renderer::drawBackground(SDL_GPUTexture* tex) {
     SDL_DrawGPUPrimitives(current_render_pass, 6, 1, 0, 0);
 }
 
-void Renderer::drawBouncer(SDL_GPUTexture* tex, const SDL_FRect& dst, Uint8 r, Uint8 g, Uint8 b, Uint8 a, SDL_GPUTexture* stencil_tex) {
+void Renderer::drawBouncer(SDL_GPUTexture* tex, const SDL_FRect& dst, Uint8 r, Uint8 g, Uint8 b, Uint8 a, SDL_GPUTexture* stencil_tex, bool transparent) {
     if (!current_render_pass || !tex) return;
     
     int win_w, win_h;
@@ -509,6 +522,12 @@ void Renderer::drawBouncer(SDL_GPUTexture* tex, const SDL_FRect& dst, Uint8 r, U
         binds[1].texture = stencil_tex;
         binds[1].sampler = sampler;
         SDL_BindGPUFragmentSamplers(current_render_pass, 0, binds, 2);
+    } else if (transparent) {
+        SDL_BindGPUGraphicsPipeline(current_render_pass, pipeline_trans);
+        SDL_GPUTextureSamplerBinding binds[1];
+        binds[0].texture = tex;
+        binds[0].sampler = sampler;
+        SDL_BindGPUFragmentSamplers(current_render_pass, 0, binds, 1);
     } else {
         SDL_BindGPUGraphicsPipeline(current_render_pass, pipeline_base);
         SDL_GPUTextureSamplerBinding binds[1];
