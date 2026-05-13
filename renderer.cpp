@@ -139,17 +139,11 @@ void Renderer::shutdown() {
 
 void Renderer::beginFrame() {
     current_cmd_buf = SDL_AcquireGPUCommandBuffer(device);
-    if (!current_cmd_buf) return;
-    
-    if (!SDL_WaitAndAcquireGPUSwapchainTexture(current_cmd_buf, window, &swapchain_texture, nullptr, nullptr)) {
-        SDL_SubmitGPUCommandBuffer(current_cmd_buf);
-        current_cmd_buf = nullptr;
-        return;
-    }
+    swapchain_texture = nullptr;
 }
 
 void Renderer::beginRenderPass() {
-    if (!current_cmd_buf || !swapchain_texture) return;
+    if (!current_cmd_buf) return;
     
     int w, h;
     SDL_GetWindowSize(window, &w, &h);
@@ -187,34 +181,55 @@ void Renderer::endRenderPass() {
     }
 }
 
-void Renderer::blitToSwapchain() {
-    if (current_cmd_buf && color_target && swapchain_texture) {
-        SDL_GPUBlitInfo blit_info = {};
-        
-        blit_info.source.texture = color_target;
-        blit_info.source.w = target_width;
-        blit_info.source.h = target_height;
-        
-        blit_info.destination.texture = swapchain_texture;
-        blit_info.destination.w = target_width;
-        blit_info.destination.h = target_height;
-        
-        blit_info.load_op = SDL_GPU_LOADOP_DONT_CARE;
-        blit_info.clear_color = {0, 0, 0, 1};
-        blit_info.flip_mode = SDL_FLIP_NONE;
-        blit_info.filter = SDL_GPU_FILTER_NEAREST;
-        
-        SDL_BlitGPUTexture(current_cmd_buf, &blit_info);
+void Renderer::beginSwapchainRenderPass() {
+    if (!current_cmd_buf) return;
+    if (!swapchain_texture) {
+        if (!SDL_WaitAndAcquireGPUSwapchainTexture(current_cmd_buf, window, &swapchain_texture, nullptr, nullptr)) {
+            return;
+        }
     }
+    
+    SDL_GPUColorTargetInfo color_target_info = {};
+    color_target_info.texture = swapchain_texture;
+    color_target_info.load_op = SDL_GPU_LOADOP_LOAD;
+    color_target_info.store_op = SDL_GPU_STOREOP_STORE;
+    
+    current_render_pass = SDL_BeginGPURenderPass(current_cmd_buf, &color_target_info, 1, nullptr);
+}
+
+void Renderer::blitToSwapchain() {
+    if (!current_cmd_buf || !color_target) return;
+    if (!swapchain_texture) {
+        if (!SDL_WaitAndAcquireGPUSwapchainTexture(current_cmd_buf, window, &swapchain_texture, nullptr, nullptr)) {
+            return;
+        }
+    }
+    
+    SDL_GPUBlitInfo blit_info = {};
+    
+    blit_info.source.texture = color_target;
+    blit_info.source.w = target_width;
+    blit_info.source.h = target_height;
+    
+    blit_info.destination.texture = swapchain_texture;
+    blit_info.destination.w = target_width;
+    blit_info.destination.h = target_height;
+    
+    blit_info.load_op = SDL_GPU_LOADOP_DONT_CARE;
+    blit_info.clear_color = {0, 0, 0, 1};
+    blit_info.flip_mode = SDL_FLIP_NONE;
+    blit_info.filter = SDL_GPU_FILTER_NEAREST;
+    
+    SDL_BlitGPUTexture(current_cmd_buf, &blit_info);
 }
 
 void Renderer::endFrame() {
     endRenderPass();
-    blitToSwapchain();
     if (current_cmd_buf) {
         SDL_SubmitGPUCommandBuffer(current_cmd_buf);
         current_cmd_buf = nullptr;
     }
+    swapchain_texture = nullptr;
 }
 
 SDL_GPUTexture* Renderer::createAndUploadTexture(int width, int height, SDL_GPUTextureFormat format, const void* pixels, int pitch) {
@@ -367,8 +382,6 @@ void Renderer::updateTexture(SDL_GPUTexture* tex, int width, int height, SDL_GPU
 
 SDL_Surface* Renderer::readPixels() {
     if (!device || !color_target || !current_cmd_buf) return nullptr;
-    
-    blitToSwapchain();
     
     int w = target_width;
     int h = target_height;

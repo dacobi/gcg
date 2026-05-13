@@ -2831,9 +2831,21 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
     }
 
-    ImGui_ImplSDLGPU3_RenderDrawData(ImGui::GetDrawData(), g_renderer->getCommandBuffer(), g_renderer->getRenderPass());
+    if (state->record_gui) {
+        ImGui_ImplSDLGPU3_RenderDrawData(ImGui::GetDrawData(), g_renderer->getCommandBuffer(), g_renderer->getRenderPass());
+    }
 
     g_renderer->endRenderPass();
+
+    g_renderer->blitToSwapchain();
+
+    if (!state->record_gui) {
+        g_renderer->beginSwapchainRenderPass();
+        if (g_renderer->getRenderPass()) {
+            ImGui_ImplSDLGPU3_RenderDrawData(ImGui::GetDrawData(), g_renderer->getCommandBuffer(), g_renderer->getRenderPass());
+            g_renderer->endRenderPass();
+        }
+    }
 
     if (myNvec != NULL) {
         recorder_feed_frame(state->recorder, g_renderer);

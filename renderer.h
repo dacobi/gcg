@@ -13,6 +13,7 @@ public:
 
     void beginFrame();
     void beginRenderPass();
+    void beginSwapchainRenderPass();
     void endRenderPass();
     void blitToSwapchain();
     void endFrame();
