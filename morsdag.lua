@@ -1,7 +1,7 @@
 setAudio("betty.mp4")
 setBG("[plasma:6]")
-setRecordMax(59) -- Auto-stop after 30s
-startRecord("scripted_card.mp4")
+--setRecordMax(59) -- Auto-stop after 30s
+--startRecord("scripted_card.mp4")
 
 addBouncer("[layer:1][pos: 50,50][rgb: 255,100,100]Kære Mor[rgb: 255,255,255][image: heartemoji.png]")
 
@@ -57,5 +57,5 @@ addBouncer("[layer:1][pos: 1350,0]Kærligst[lf][rect:450,500][image: jada.png][l
 addBouncer("[layer:1][pos: 1600,775][image: heartemoji.png]");
 
 
-stopRecord(1)
+--stopRecord(1)
 

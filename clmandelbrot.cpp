@@ -207,8 +207,10 @@ void MandelbrotOpenCL::workerLoop() {
     SDL_Log("Mandelbrot workerLoop exiting");
 }
 
-void MandelbrotOpenCL::updateTexture(SDL_Texture* tex) {
-    if (!tex) return;
+#include "renderer.h"
+
+void MandelbrotOpenCL::updateTexture(Renderer* renderer, SDL_GPUTexture* tex) {
+    if (!tex || !renderer) return;
     std::vector<uint32_t> localBuffer;
     bool updated = false;
     {
@@ -221,7 +223,7 @@ void MandelbrotOpenCL::updateTexture(SDL_Texture* tex) {
     }
     if (updated) {
         // SDL_Log("Mandelbrot: SDL_UpdateTexture called");
-        SDL_UpdateTexture(tex, NULL, localBuffer.data(), width * 4);
+        renderer->updateTexture(tex, width, height, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM, localBuffer.data(), width * 4);
     }
 }
 

@@ -214,29 +214,29 @@ home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/imgui.dir/build.make CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.s
 .PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.s
 
-home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.o: home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o
-.PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.o
+home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.o: home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.cpp.o
+.PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.o
 
 # target to build an object file
-home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/imgui.dir/build.make CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o
-.PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.o
+home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/imgui.dir/build.make CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.cpp.o
+.PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.cpp.o
 
-home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.i: home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.i
-.PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.i
+home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.i: home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.cpp.i
+.PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.i
 
 # target to preprocess a source file
-home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/imgui.dir/build.make CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.i
-.PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.i
+home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/imgui.dir/build.make CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.cpp.i
+.PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.cpp.i
 
-home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.s: home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.s
-.PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.s
+home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.s: home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.cpp.s
+.PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.s
 
 # target to generate assembly for a file
-home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/imgui.dir/build.make CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.s
-.PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.cpp.s
+home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/imgui.dir/build.make CMakeFiles/imgui.dir/home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.cpp.s
+.PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.cpp.s
 
 home/dacobi/src/ImGui/imgui.o: home/dacobi/src/ImGui/imgui.cpp.o
 .PHONY : home/dacobi/src/ImGui/imgui.o
@@ -406,6 +406,30 @@ main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/main.cpp.s
 .PHONY : main.cpp.s
 
+renderer.o: renderer.cpp.o
+.PHONY : renderer.o
+
+# target to build an object file
+renderer.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/renderer.cpp.o
+.PHONY : renderer.cpp.o
+
+renderer.i: renderer.cpp.i
+.PHONY : renderer.i
+
+# target to preprocess a source file
+renderer.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/renderer.cpp.i
+.PHONY : renderer.cpp.i
+
+renderer.s: renderer.cpp.s
+.PHONY : renderer.s
+
+# target to generate assembly for a file
+renderer.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/renderer.cpp.s
+.PHONY : renderer.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -425,9 +449,9 @@ help:
 	@echo "... home/dacobi/src/ImGui/backends/imgui_impl_sdl3.o"
 	@echo "... home/dacobi/src/ImGui/backends/imgui_impl_sdl3.i"
 	@echo "... home/dacobi/src/ImGui/backends/imgui_impl_sdl3.s"
-	@echo "... home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.o"
-	@echo "... home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.i"
-	@echo "... home/dacobi/src/ImGui/backends/imgui_impl_sdlrenderer3.s"
+	@echo "... home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.o"
+	@echo "... home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.i"
+	@echo "... home/dacobi/src/ImGui/backends/imgui_impl_sdlgpu3.s"
 	@echo "... home/dacobi/src/ImGui/imgui.o"
 	@echo "... home/dacobi/src/ImGui/imgui.i"
 	@echo "... home/dacobi/src/ImGui/imgui.s"
@@ -449,6 +473,9 @@ help:
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
+	@echo "... renderer.o"
+	@echo "... renderer.i"
+	@echo "... renderer.s"
 .PHONY : help
 
 

@@ -74,7 +74,7 @@ kernel void fractal_kernel(
     void stop();
     void resize(int w, int h);
     
-    void updateTexture(SDL_Texture* tex);
+    void updateTexture(class Renderer* renderer, SDL_GPUTexture* tex);
     void setArgs(const CLMandelbrotParams& p);
     CLMandelbrotParams getArgs();
     int iFractalIDX = -1;

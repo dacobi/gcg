@@ -216,8 +216,10 @@ void PlasmaOpenCL::workerLoop() {
     }
 }
 
-void PlasmaOpenCL::updateTexture(SDL_Texture* tex) {
-    if (!tex) return;
+#include "renderer.h"
+
+void PlasmaOpenCL::updateTexture(Renderer* renderer, SDL_GPUTexture* tex) {
+    if (!tex || !renderer) return;
     
     std::vector<uint32_t> localBuffer;
     {
@@ -228,9 +230,7 @@ void PlasmaOpenCL::updateTexture(SDL_Texture* tex) {
         frameReady = false;
     }
 
-    // SDL_UpdateTexture is often more robust than Lock/Unlock for streaming textures
-    // as it allows the driver to manage the upload timing.
-    SDL_UpdateTexture(tex, NULL, localBuffer.data(), width * 4);
+    renderer->updateTexture(tex, width, height, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM, localBuffer.data(), width * 4);
 }
 
 void PlasmaOpenCL::setArgs(const CLPlasmaParams& p) {

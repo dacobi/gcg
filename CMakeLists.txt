@@ -14,7 +14,7 @@ add_library(imgui STATIC
     ${IMGUI_DIR}/imgui_tables.cpp
     ${IMGUI_DIR}/imgui_widgets.cpp
     ${IMGUI_DIR}/backends/imgui_impl_sdl3.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_sdlrenderer3.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_sdlgpu3.cpp
 )
 target_include_directories(imgui PUBLIC
     ${IMGUI_DIR}
@@ -37,10 +37,11 @@ pkg_check_modules(LUA REQUIRED IMPORTED_TARGET lua5.4)
 pkg_check_modules(OPENCV REQUIRED IMPORTED_TARGET opencv4)
 find_package(OpenCL REQUIRED)
 
+find_package(SDL3_shadercross REQUIRED)
 
-target_link_libraries(imgui PUBLIC PkgConfig::SDL3)
+target_link_libraries(imgui PUBLIC PkgConfig::SDL3 SDL3_shadercross::SDL3_shadercross-shared)
 #target_compile_options(gcg PRIVATE -g -O2)
 # --- Our executable ---
-add_executable(gcg main.cpp clplasma.cpp clmandelbrot.cpp luascripting.cpp)
+add_executable(gcg main.cpp clplasma.cpp clmandelbrot.cpp luascripting.cpp renderer.cpp)
 target_compile_options(gcg PRIVATE "-g")
-target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA PkgConfig::LUA PkgConfig::OPENCV OpenCL::OpenCL m)
+target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA PkgConfig::LUA PkgConfig::OPENCV OpenCL::OpenCL m SDL3_shadercross::SDL3_shadercross-shared)

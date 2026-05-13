@@ -36,7 +36,8 @@
 #include "luascripting.h"
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
-#include "imgui_impl_sdlrenderer3.h"
+#include "imgui_impl_sdlgpu3.h"
+#include "renderer.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -991,7 +992,7 @@ public:
         avformat_close_input(&fmt_ctx);
     }
 
-    void updateTexture(SDL_Texture* tex) {
+    void updateTexture(Renderer* renderer, SDL_GPUTexture* tex) {
         AVFrame* best_frame = nullptr;
         std::vector<AVFrame*> old_frames;
         {
@@ -1011,7 +1012,7 @@ public:
             }
         }
         if (best_frame) {
-            SDL_UpdateTexture(tex, nullptr, best_frame->data[0], best_frame->linesize[0]);
+            renderer->updateTexture(tex, width, height, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, best_frame->data[0], best_frame->linesize[0]);
             old_frames.push_back(best_frame);
         }
         if (!old_frames.empty()) {
@@ -1028,7 +1029,7 @@ bool  plasma_render_tiles = false;
 float cur_rel;
 int cur_w, cur_h;
 SDL_Window* window;
-SDL_Renderer* renderer;
+Renderer* g_renderer;
 
 // ---------------------------------------------------------------------------
 // FFmpeg recording — pipe raw RGBA frames to ffmpeg, produce mp4
@@ -1065,13 +1066,13 @@ static bool recorder_start(Recorder& rec, int w, int h, const char* path, int fp
     return true;
 }
 
-static void recorder_feed_frame(Recorder& rec, SDL_Renderer* renderer) {
+static void recorder_feed_frame(Recorder& rec, Renderer* renderer) {
     if (myNvec == NULL) return;
 
     // Read back the rendered frame
-    SDL_Surface* surf = SDL_RenderReadPixels(renderer, nullptr);
+    SDL_Surface* surf = renderer->readPixels();
     if (!surf) {
-        std::printf("SDL_RenderReadPixels failed: %s\n", SDL_GetError());
+        std::printf("readPixels failed\n");
         return;
     }
 
@@ -1124,7 +1125,7 @@ static void recorder_stop(Recorder& rec) {
 // ---------------------------------------------------------------------------
 struct TextEntry {
     std::string   label;   // the original text string
-    SDL_Texture*  tex;
+    SDL_GPUTexture* tex;
     int           w, h;
     bool           bNoColor = false;
 };
@@ -1322,8 +1323,8 @@ struct Bouncer {
     float x, y;
     float vx, vy;
     Uint8 r, g, b;   // random tint colour
-    SDL_Texture* tex; // which text texture to use (not owned — shared)
-    SDL_Texture* stencil_tex = nullptr;
+    SDL_GPUTexture* tex; // which text texture to use (not owned — shared)
+    SDL_GPUTexture* stencil_tex = nullptr;
     int tw, th;       // dimensions of that texture()
     MediaDecoder* decoder = nullptr;
     PlasmaOpenCL* plasma = nullptr;
@@ -1336,25 +1337,22 @@ struct Bouncer {
 // Single text texture — just the rendered text, no tiling
 // Returns the texture; writes dimensions into *out_w / *out_h.
 // ---------------------------------------------------------------------------
-static SDL_Texture* create_png_texture(SDL_Renderer* renderer,
+static SDL_GPUTexture* create_png_texture(Renderer* renderer,
                                         const char* text,
                                         int* out_w, int* out_h,
                                         bool isStencil = false)
 {
- 
-    // White text, semi-transparent — colour modulation will tint per-bouncer
-    SDL_Color fg = {255, 255, 255, 200};
     SDL_Surface* text_surf = IMG_Load(text);
     if (!text_surf) {
         std::printf("IMG_Load error: %s\n", SDL_GetError());
         return nullptr;
     }
 
-    if (isStencil) {
-        SDL_Surface* rgba_surf = SDL_ConvertSurface(text_surf, SDL_PIXELFORMAT_RGBA32);
-        SDL_DestroySurface(text_surf);
-        if (!rgba_surf) return nullptr;
+    SDL_Surface* rgba_surf = SDL_ConvertSurface(text_surf, SDL_PIXELFORMAT_RGBA32);
+    SDL_DestroySurface(text_surf);
+    if (!rgba_surf) return nullptr;
 
+    if (isStencil) {
         Uint32* pixels = (Uint32*)rgba_surf->pixels;
         const SDL_PixelFormatDetails* details = SDL_GetPixelFormatDetails(rgba_surf->format);
         for (int i = 0; i < rgba_surf->w * rgba_surf->h; ++i) {
@@ -1365,30 +1363,19 @@ static SDL_Texture* create_png_texture(SDL_Renderer* renderer,
             Uint8 final_alpha = (Uint8)((float)a * (float)brightness / 255.0f);
             pixels[i] = SDL_MapRGBA(details, NULL, 255, 255, 255, final_alpha);
         }
-        text_surf = rgba_surf;
     }
 
-    *out_w = text_surf->w;
-    *out_h = text_surf->h;
+    *out_w = rgba_surf->w;
+    *out_h = rgba_surf->h;
 
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, text_surf);
-    if (texture) {
-        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-        SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
-    }
+    SDL_GPUTexture* texture = renderer->createAndUploadTexture(*out_w, *out_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, rgba_surf->pixels, rgba_surf->pitch);
 
-    SDL_DestroySurface(text_surf);
+    SDL_DestroySurface(rgba_surf);
     
     return texture;
 }
 
-
-
-// ---------------------------------------------------------------------------
-// Single text texture — just the rendered text, no tiling
-// Returns the texture; writes dimensions into *out_w / *out_h.
-// ---------------------------------------------------------------------------
-static SDL_Texture* create_text_texture(SDL_Renderer* renderer,
+static SDL_GPUTexture* create_text_texture(Renderer* renderer,
                                         const char* text,
                                         int* out_w, int* out_h)
 {
@@ -1414,7 +1401,6 @@ static SDL_Texture* create_text_texture(SDL_Renderer* renderer,
         return nullptr;
     }
 
-    // White text, semi-transparent — colour modulation will tint per-bouncer
     SDL_Color fg = {255, 255, 255, 200};
     SDL_Surface* text_surf = TTF_RenderText_Blended(font, text, 0, fg);
     if (!text_surf) {
@@ -1423,17 +1409,18 @@ static SDL_Texture* create_text_texture(SDL_Renderer* renderer,
         return nullptr;
     }
 
-    *out_w = text_surf->w;
-    *out_h = text_surf->h;
-
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, text_surf);
-    if (texture) {
-        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-        SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
-    }
-
+    SDL_Surface* rgba_surf = SDL_ConvertSurface(text_surf, SDL_PIXELFORMAT_RGBA32);
     SDL_DestroySurface(text_surf);
     TTF_CloseFont(font);
+
+    if (!rgba_surf) return nullptr;
+
+    *out_w = rgba_surf->w;
+    *out_h = rgba_surf->h;
+
+    SDL_GPUTexture* texture = renderer->createAndUploadTexture(*out_w, *out_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, rgba_surf->pixels, rgba_surf->pitch);
+
+    SDL_DestroySurface(rgba_surf);
     return texture;
 }
 
@@ -1463,8 +1450,8 @@ public:
             if (b.decoder) delete b.decoder;
             if (b.plasma) delete b.plasma;
             if (b.mandel) delete b.mandel;
-            if (b.tex) SDL_DestroyTexture(b.tex);
-            if (b.stencil_tex) SDL_DestroyTexture(b.stencil_tex);
+            if (b.tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), b.tex);
+            if (b.stencil_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), b.stencil_tex);
         }
     }
 
@@ -1502,8 +1489,8 @@ public:
                     if (it->decoder) delete it->decoder;
                     if (it->plasma) delete it->plasma;
                     if (it->mandel) delete it->mandel;
-                    if (it->tex) SDL_DestroyTexture(it->tex);
-                    if (it->stencil_tex) SDL_DestroyTexture(it->stencil_tex);
+                    if (it->tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), it->tex);
+                    if (it->stencil_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), it->stencil_tex);
                     it = bouncers.erase(it);
                     continue;
                 }
@@ -1516,13 +1503,13 @@ public:
         // Update video and plasma frames
         for (auto& b : bouncers) {
             if (b.decoder && b.tex) {
-                b.decoder->updateTexture(b.tex);
+                b.decoder->updateTexture(g_renderer, b.tex);
             }
             if (b.plasma && b.tex) {
-                b.plasma->updateTexture(b.tex);
+                b.plasma->updateTexture(g_renderer, b.tex);
             }
             if (b.mandel && b.tex) {
-                b.mandel->updateTexture(b.tex);
+                b.mandel->updateTexture(g_renderer, b.tex);
             }
         }
 
@@ -1578,28 +1565,26 @@ public:
 
 
     bool add(ParsedSegment pd) {
-        SDL_Texture* tex = NULL;
+        SDL_GPUTexture* tex = NULL;
         Bouncer newB;
         newB.layer = pd.layer;
 
         if (pd.stencil_path != "") {
             int sw, sh;
-            newB.stencil_tex = create_png_texture(renderer, pd.stencil_path.c_str(), &sw, &sh, true);
+            newB.stencil_tex = create_png_texture(g_renderer, pd.stencil_path.c_str(), &sw, &sh, true);
         }
 
         if (pd.bIsFile == 1) { // PNG
-            tex = create_png_texture(renderer, pd.content.c_str(), &newB.tw, &newB.th);
+            tex = create_png_texture(g_renderer, pd.content.c_str(), &newB.tw, &newB.th);
         } else if (pd.bIsFile == 2 || pd.bIsFile == 5) { // Video or Tvid
             try {
                 newB.decoder = new MediaDecoder(pd.content, (pd.bIsFile == 5), pd.noAudio);
                 newB.tw = newB.decoder->getWidth();
                 newB.th = newB.decoder->getHeight();
                 // Create streaming texture for video (RGBA is preferred for SDL_UpdateTexture)
-                tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, newB.tw, newB.th);
+                tex = g_renderer->createTexture(newB.tw, newB.th, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
                 if (tex) {
-                    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-                    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_LINEAR);
-                    newB.decoder->updateTexture(tex); // load first frame
+                    newB.decoder->updateTexture(g_renderer, tex); // load first frame
                 }
             } catch (const std::exception& e) {
                 std::printf("Video load error: %s\n", e.what());
@@ -1612,11 +1597,7 @@ public:
             newB.plasma = new PlasmaOpenCL(newB.tw, newB.th);
             if (newB.plasma->init(p_idx)) {
                 newB.plasma->start();
-                tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, newB.tw, newB.th);
-                if (tex) {
-                    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-                    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_LINEAR);
-                }
+                tex = g_renderer->createTexture(newB.tw, newB.th, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
             } else {
                 delete newB.plasma;
                 newB.plasma = nullptr;
@@ -1629,18 +1610,14 @@ public:
             newB.mandel = new MandelbrotOpenCL(newB.tw, newB.th);
             if (newB.mandel->init(f_idx)) {
                 newB.mandel->start();
-                tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, newB.tw, newB.th);
-                if (tex) {
-                    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-                    SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_LINEAR);
-                }
+                tex = g_renderer->createTexture(newB.tw, newB.th, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
             } else {
                 delete newB.mandel;
                 newB.mandel = nullptr;
                 return false;
             }
         } else { // Text (pd.bIsFile == 0)
-            tex = create_text_texture(renderer, pd.content.c_str(), &newB.tw, &newB.th);
+            tex = create_text_texture(g_renderer, pd.content.c_str(), &newB.tw, &newB.th);
         }
 
         if(tex == NULL) return false;
@@ -1704,51 +1681,12 @@ public:
     }
 
 
-    void draw(SDL_Renderer* renderer, int target_layer, SDL_Texture* scratch_tex = nullptr, SDL_BlendMode stencil_blend = SDL_BLENDMODE_NONE) {
+    void draw(Renderer* renderer, int target_layer) {
         for (auto& b : bouncers) {
             if (b.layer != target_layer) continue;
             SDL_FRect dst = { b.x, b.y, static_cast<float>(b.tw), static_cast<float>(b.th) };
             
-            if (b.stencil_tex && scratch_tex) {
-                // Stencil logic
-                SDL_Texture* old_target = SDL_GetRenderTarget(renderer);
-                SDL_SetRenderTarget(renderer, scratch_tex);
-                
-                // Clear scratch to transparent
-                SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-                SDL_RenderClear(renderer);
-                
-                // Draw base texture to scratch with BLENDMODE_NONE to keep raw alpha
-                SDL_FRect scratch_dst = { 0, 0, static_cast<float>(b.tw), static_cast<float>(b.th) };
-                SDL_SetTextureBlendMode(b.tex, SDL_BLENDMODE_NONE);
-                SDL_RenderTexture(renderer, b.tex, NULL, &scratch_dst);
-                
-                // Multiply with stencil using custom blend mode
-                SDL_SetTextureBlendMode(b.stencil_tex, stencil_blend);
-                SDL_RenderTexture(renderer, b.stencil_tex, NULL, &scratch_dst);
-                
-                // Restore target and draw scratch to screen
-                SDL_SetRenderTarget(renderer, old_target);
-                SDL_SetTextureColorMod(scratch_tex, b.r, b.g, b.b);
-                SDL_SetTextureBlendMode(scratch_tex, SDL_BLENDMODE_BLEND);
-                
-                SDL_FRect src_rect = { 0, 0, static_cast<float>(b.tw), static_cast<float>(b.th) };
-                SDL_RenderTexture(renderer, scratch_tex, &src_rect, &dst);
-                
-                // Reset texture modes
-                SDL_SetTextureBlendMode(b.tex, SDL_BLENDMODE_BLEND);
-            } else {
-                // Set tint (SDL3 uses Uint8 0-255)
-                SDL_SetTextureColorMod(b.tex, b.r, b.g, b.b);
-                
-                // SDL3 API change: RenderCopyF -> RenderTexture
-                SDL_RenderTexture(renderer, b.tex, NULL, &dst);
-            }
-        }
-
-        // Reset tint for the shared texture
-        if (!bouncers.empty()) {
-            SDL_SetTextureColorMod(bouncers[0].tex, 255, 255, 255);
+            renderer->drawBouncer(b.tex, dst, b.r, b.g, b.b, 255, b.stencil_tex);
         }
     }
 
@@ -1760,7 +1698,7 @@ public:
 
 
 // Spawn a new bouncer with random position & velocity
-static Bouncer make_bouncer(int win_w, int win_h, SDL_Texture* tex, int tw, int th, bool bNoColor=false) {
+static Bouncer make_bouncer(int win_w, int win_h, SDL_GPUTexture* tex, int tw, int th, bool bNoColor=false) {
     Bouncer b;
     float max_x = static_cast<float>(win_w - tw);
     float max_y = static_cast<float>(win_h - th);
@@ -1809,12 +1747,12 @@ struct AppState {
 
     LuaScripting* scriptSystem = nullptr;
 
-    SDL_Texture* plasma_tex = nullptr;
-    SDL_Texture* mandel_tex = nullptr;
+    SDL_GPUTexture* plasma_tex = nullptr;
+    SDL_GPUTexture* mandel_tex = nullptr;
     std::unique_ptr<MediaDecoder> bg_video;
     std::unique_ptr<AudioDecoder> loop_audio;
-    SDL_Texture* bg_tex = nullptr;
-    SDL_Texture* scratch_tex = nullptr;
+    SDL_GPUTexture* bg_tex = nullptr;
+    SDL_GPUTexture* scratch_tex = nullptr;
     SDL_BlendMode SDL_BLENDMODE_STENCIL;
 
     std::vector<TextEntry> cli_entries;
@@ -1822,7 +1760,7 @@ struct AppState {
 
     bool use_custom_text = false;
     char custom_text_buf[256];
-    std::vector<SDL_Texture*> extra_textures;
+    std::vector<SDL_GPUTexture*> extra_textures;
 
     int plasma_w, plasma_h;
     int prev_win_w, prev_win_h;
@@ -2095,7 +2033,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         std::printf("Will record to: %s\n", state->cli_record_path.c_str());
 
     // --- SDL init ---
-    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+    
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "1");
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -2123,30 +2061,23 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         return SDL_APP_FAILURE;
     }
 
-    renderer = SDL_CreateRenderer(window, nullptr);
-    SDL_SetRenderVSync(renderer, 1);
-    if (!renderer) {
-        std::printf("SDL_CreateRenderer error: %s\n", SDL_GetError());
+    g_renderer = new Renderer();
+    if (!g_renderer->init(window)) {
+        std::printf("Failed to init Renderer\n");
         return SDL_APP_FAILURE;
     }
-    std::printf("Active Renderer: %s\n", SDL_GetRendererName(renderer));
+    std::printf("Active Renderer: SDL3 GPU API\n");
 
     // --- Plasma texture ---
     state->plasma_w = cur_w / 2;
     state->plasma_h = cur_h / 2;
     SDL_Log("Texture dimensions: %d x %d", state->plasma_w, state->plasma_h);
     if (bUsePlasma) {
-        state->plasma_tex = SDL_CreateTexture(
-            renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
-            state->plasma_w, state->plasma_h
-        );
+        state->plasma_tex = g_renderer->createTexture(state->plasma_w, state->plasma_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
     }
     if (bUseMandel) {
         SDL_Log("Creating Mandelbrot texture...");
-        state->mandel_tex = SDL_CreateTexture(
-            renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
-            cur_w, cur_h
-        );
+        state->mandel_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
     }
 
     // --- Custom Background layer ---
@@ -2161,14 +2092,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         if (is_video) {
             try {
                 state->bg_video = std::make_unique<MediaDecoder>(state->cli_bg_path);
-                state->bg_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, 
-                                           state->bg_video->getWidth(), state->bg_video->getHeight());
-            } catch (const std::exception& e) {
+                state->bg_tex = g_renderer->createTexture(
+                    state->bg_video->getWidth(), state->bg_video->getHeight(), SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);            } catch (const std::exception& e) {
                 std::printf("BG Video error: %s\n", e.what());
             }
         } else {
             int bw, bh;
-            state->bg_tex = create_png_texture(renderer, state->cli_bg_path.c_str(), &bw, &bh);
+            state->bg_tex = create_png_texture(g_renderer, state->cli_bg_path.c_str(), &bw, &bh);
         }
     }
 
@@ -2204,8 +2134,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     style.FontScaleDpi = scale;
     style.Colors[ImGuiCol_WindowBg].w = 0.80f;
 
-    ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
-    ImGui_ImplSDLRenderer3_Init(renderer);
+    ImGui_ImplSDL3_InitForOther(window);
+    
+    ImGui_ImplSDLGPU3_InitInfo init_info = {};
+    init_info.Device = g_renderer->getDevice();
+    init_info.ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(g_renderer->getDevice(), window);
+    init_info.MSAASamples = SDL_GPU_SAMPLECOUNT_1;
+    ImGui_ImplSDLGPU3_Init(&init_info);
 
     if (state->cli_plasma_tile) plasma_render_tiles = true;
     if (state->cli_record_max > 0) {
@@ -2216,15 +2151,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     if (!state->cli_record_path.empty()) {
         std::snprintf(state->record_path_buf, sizeof(state->record_path_buf), "%s", state->cli_record_path.c_str());
         int out_w = 0, out_h = 0;
-        SDL_GetRenderOutputSize(renderer, &out_w, &out_h);
+        SDL_GetWindowSize(window, &out_w, &out_h);
         recorder_start(state->recorder, out_w, out_h, state->cli_record_path.c_str());
     }
 
     state->SDL_BLENDMODE_STENCIL = SDL_ComposeCustomBlendMode(SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_SRC_COLOR, SDL_BLENDOPERATION_ADD, SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_SRC_ALPHA, SDL_BLENDOPERATION_ADD);
-    state->scratch_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, 2048, 2048);
-    if (state->scratch_tex) {
-        SDL_SetTextureScaleMode(state->scratch_tex, SDL_SCALEMODE_LINEAR);
-    }
+    // scratch_tex removed
 
     state->last_ticks = SDL_GetPerformanceCounter();
     state->freq       = SDL_GetPerformanceFrequency();
@@ -2333,12 +2265,12 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
 
         if (cur_w != state->prev_win_w || cur_h != state->prev_win_h) {
             if (bUsePlasma && state->plasma_tex) {
-                SDL_DestroyTexture(state->plasma_tex);
+                SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->plasma_tex);
                 state->plasma_w = cur_w / 8;
                 state->plasma_h = cur_h / 8;
                 if (state->plasma_w < 1) state->plasma_w = 1;
                 if (state->plasma_h < 1) state->plasma_h = 1;
-                state->plasma_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, state->plasma_w, state->plasma_h);
+                state->plasma_tex = g_renderer->createTexture(state->plasma_w, state->plasma_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
                 myPlasma->resize(state->plasma_w, state->plasma_h);
                 myPlasma->setArgs(plasma_params);
             }
@@ -2354,21 +2286,6 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
 SDL_AppResult SDL_AppIterate(void *appstate)
 {    
     AppState* state = (AppState*)appstate;
-
-    // Ensure scratch_tex is large enough
-    if (state->scratch_tex) {
-        float sw, sh;
-        SDL_GetTextureSize(state->scratch_tex, &sw, &sh);
-        if (cur_w > sw || cur_h > sh) {
-            SDL_DestroyTexture(state->scratch_tex);
-            int new_sw = std::max((int)sw, cur_w);
-            int new_sh = std::max((int)sh, cur_h);
-            state->scratch_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, new_sw, new_sh);
-            if (state->scratch_tex) {
-                SDL_SetTextureScaleMode(state->scratch_tex, SDL_SCALEMODE_LINEAR);
-            }
-        }
-    }
 
     // Process Lua Commands
     {
@@ -2399,10 +2316,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 std::string arg = cmd.syntax;
 
                 // Clear EVERYTHING first to ensure a clean state
-                if (state->bg_tex) { SDL_DestroyTexture(state->bg_tex); state->bg_tex = nullptr; }
+                if (state->bg_tex) { SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->bg_tex); state->bg_tex = nullptr; }
                 state->bg_video.reset();
-                if (state->plasma_tex) { SDL_DestroyTexture(state->plasma_tex); state->plasma_tex = nullptr; }
-                if (state->mandel_tex) { SDL_DestroyTexture(state->mandel_tex); state->mandel_tex = nullptr; }
+                if (state->plasma_tex) { SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->plasma_tex); state->plasma_tex = nullptr; }
+                if (state->mandel_tex) { SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->mandel_tex); state->mandel_tex = nullptr; }
                 if (myPlasma) { delete myPlasma; myPlasma = nullptr; bUsePlasma = false; }
                 if (myMandel) { delete myMandel; myMandel = nullptr; bUseMandel = false; }
                 state->cli_bg_path = "";
@@ -2429,7 +2346,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     myPlasma->setArgs(plasma_params);
                     myPlasma->start();
                     state->selected_plasma = myPlasma;
-                    state->plasma_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, state->plasma_w, state->plasma_h);
+                    state->plasma_tex = g_renderer->createTexture(state->plasma_w, state->plasma_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
                 }
                 if (bUseMandel) {
                     myMandel = new MandelbrotOpenCL(cur_w, cur_h);
@@ -2438,7 +2355,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         myMandel->start();
                         state->selected_mandel = myMandel;
                     }
-                    state->mandel_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, cur_w, cur_h);
+                    state->mandel_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
                 }
                 if (!state->cli_bg_path.empty()) {
                     std::string ext = state->cli_bg_path;
@@ -2450,14 +2367,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     if (is_video) {
                         try {
                             state->bg_video = std::make_unique<MediaDecoder>(state->cli_bg_path);
-                            state->bg_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
-                                                       state->bg_video->getWidth(), state->bg_video->getHeight());
-                        } catch (const std::exception& e) {
+                            state->bg_tex = g_renderer->createTexture(
+                                state->bg_video->getWidth(), state->bg_video->getHeight(), SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);                        } catch (const std::exception& e) {
                             std::printf("BG Video error (Lua): %s\n", e.what());
                         }
                     } else {
                         int bw, bh;
-                        state->bg_tex = create_png_texture(renderer, state->cli_bg_path.c_str(), &bw, &bh);
+                        state->bg_tex = create_png_texture(g_renderer, state->cli_bg_path.c_str(), &bw, &bh);
                     }
                 }
             }
@@ -2571,7 +2487,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 if (myNvec == NULL) {
                     std::snprintf(state->record_path_buf, sizeof(state->record_path_buf), "%s", cmd.syntax.c_str());
                     int out_w = 0, out_h = 0;
-                    SDL_GetRenderOutputSize(renderer, &out_w, &out_h);
+                    SDL_GetWindowSize(window, &out_w, &out_h);
                     recorder_start(state->recorder, out_w, out_h, state->record_path_buf);
                     state->record_time = 0.0f;
                 }
@@ -2623,13 +2539,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     }
 
     if (bUsePlasma){// && state->event_burst_cooldown == 0) {
-        myPlasma->updateTexture(state->plasma_tex);
+        myPlasma->updateTexture(g_renderer, state->plasma_tex);
     }
     if (bUseMandel) {
-        myMandel->updateTexture(state->mandel_tex);
+        myMandel->updateTexture(g_renderer, state->mandel_tex);
     }
 
-    ImGui_ImplSDLRenderer3_NewFrame();
+    ImGui_ImplSDLGPU3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
@@ -2849,7 +2765,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     cur_rel = (float)cur_w / (float)cur_h;
                     SDL_SetWindowResizable(window, false);
                     int out_w = 0, out_h = 0;
-                    SDL_GetRenderOutputSize(renderer, &out_w, &out_h);
+                    SDL_GetWindowSize(window, &out_w, &out_h);
                     recorder_start(state->recorder, out_w, out_h, state->record_path_buf);
                     state->record_time = 0.0f;
                 }
@@ -2883,27 +2799,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         ImGui::EndMainMenuBar();
     }
 
-    ImGui::Render();
-    SDL_SetRenderScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
-
-    if (state->bg_video && state->bg_tex) state->bg_video->updateTexture(state->bg_tex);
-
-    if (state->bg_tex) {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-        SDL_RenderTexture(renderer, state->bg_tex, nullptr, nullptr);
-    } else if (state->plasma_tex) {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-        SDL_RenderTexture(renderer, state->plasma_tex, nullptr, nullptr);
-    } else if (state->mandel_tex) {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-        SDL_RenderTexture(renderer, state->mandel_tex, nullptr, nullptr);
-    } else {
-        SDL_SetRenderDrawColorFloat(renderer, 0.10f, 0.08f, 0.15f, 1.0f);
-        SDL_RenderClear(renderer);
-    }
+    if (state->bg_video && state->bg_tex) state->bg_video->updateTexture(g_renderer, state->bg_tex);
 
     for (auto it = state->mBdisplay.begin(); it != state->mBdisplay.end(); ) {
         (*it)->update(dt, cur_w, cur_h);
@@ -2914,21 +2810,37 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
     }
 
+    g_renderer->beginFrame();
+
+    ImGui::Render();
+    ImGui_ImplSDLGPU3_PrepareDrawData(ImGui::GetDrawData(), g_renderer->getCommandBuffer());
+
+    g_renderer->beginRenderPass();
+    
+    if (state->bg_tex) {
+        g_renderer->drawBackground(state->bg_tex);
+    } else if (state->plasma_tex) {
+        g_renderer->drawBackground(state->plasma_tex);
+    } else if (state->mandel_tex) {
+        g_renderer->drawBackground(state->mandel_tex);
+    }
+
     for (int l = 2; l >= 0; --l) {
         for (auto& bd : state->mBdisplay) {
-            bd->draw(renderer, l, state->scratch_tex, state->SDL_BLENDMODE_STENCIL);
+            bd->draw(g_renderer, l);
         }
     }
 
-    if (!state->record_gui) {
-        recorder_feed_frame(state->recorder, renderer);
-        ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
-    } else {
-        ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
-        recorder_feed_frame(state->recorder, renderer);
+    ImGui_ImplSDLGPU3_RenderDrawData(ImGui::GetDrawData(), g_renderer->getCommandBuffer(), g_renderer->getRenderPass());
+
+    g_renderer->endRenderPass();
+
+    if (myNvec != NULL) {
+        recorder_feed_frame(state->recorder, g_renderer);
     }
 
-    SDL_RenderPresent(renderer);
+    g_renderer->endFrame();
+
     return SDL_APP_CONTINUE;
 }
 
@@ -2944,21 +2856,27 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         recorder_stop(state->recorder);
         if (bUsePlasma && myPlasma) myPlasma->stop();
         if (bUseMandel && myMandel) myMandel->stop();
-        if (state->bg_tex) SDL_DestroyTexture(state->bg_tex);
-        for (auto* et : state->extra_textures) SDL_DestroyTexture(et);
-        for (auto& e : state->cli_entries) { if (e.tex) SDL_DestroyTexture(e.tex); }
-        if (state->plasma_tex) SDL_DestroyTexture(state->plasma_tex);
-        if (state->mandel_tex) SDL_DestroyTexture(state->mandel_tex);
-        if (state->scratch_tex) SDL_DestroyTexture(state->scratch_tex);
+        if (state->bg_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->bg_tex);
+        for (auto* et : state->extra_textures) SDL_ReleaseGPUTexture(g_renderer->getDevice(), et);
+        for (auto& e : state->cli_entries) { if (e.tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), e.tex); }
+        if (state->plasma_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->plasma_tex);
+        if (state->mandel_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->mandel_tex);
+        if (state->scratch_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->scratch_tex);
 
         state->mBdisplay.clear();
         state->bg_video.reset();
         state->loop_audio.reset(); // Destroy audio decoder before mixer
 
-        ImGui_ImplSDLRenderer3_Shutdown();
+        ImGui_ImplSDLGPU3_Shutdown();
         ImGui_ImplSDL3_Shutdown();
         ImGui::DestroyContext();
-        SDL_DestroyRenderer(renderer);
+        
+        if (g_renderer) {
+            g_renderer->shutdown();
+            delete g_renderer;
+            g_renderer = nullptr;
+        }
+
         SDL_DestroyWindow(window);
         TTF_Quit();
         SDL_Quit();
