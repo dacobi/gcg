@@ -14,6 +14,7 @@ public:
     void beginFrame();
     void beginRenderPass();
     void endRenderPass();
+    void blitToSwapchain();
     void endFrame();
 
     SDL_GPUDevice* getDevice() const { return device; }
@@ -42,6 +43,10 @@ private:
     SDL_GPUCommandBuffer* current_cmd_buf = nullptr;
     SDL_GPUTexture* swapchain_texture = nullptr;
     SDL_GPURenderPass* current_render_pass = nullptr;
+
+    SDL_GPUTexture* color_target = nullptr;
+    int target_width = 0;
+    int target_height = 0;
 
     SDL_GPUGraphicsPipeline* pipeline_base = nullptr;
     SDL_GPUGraphicsPipeline* pipeline_stencil = nullptr;

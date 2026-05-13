@@ -151,13 +151,33 @@ void Renderer::beginFrame() {
 void Renderer::beginRenderPass() {
     if (!current_cmd_buf || !swapchain_texture) return;
     
-    SDL_GPUColorTargetInfo color_target = {};
-    color_target.texture = swapchain_texture;
-    color_target.clear_color = {0.10f, 0.08f, 0.15f, 1.0f};
-    color_target.load_op = SDL_GPU_LOADOP_CLEAR;
-    color_target.store_op = SDL_GPU_STOREOP_STORE;
+    int w, h;
+    SDL_GetWindowSize(window, &w, &h);
+    if (w != target_width || h != target_height || !color_target) {
+        if (color_target) {
+            SDL_ReleaseGPUTexture(device, color_target);
+        }
+        SDL_GPUTextureCreateInfo tex_info = {};
+        tex_info.type = SDL_GPU_TEXTURETYPE_2D;
+        tex_info.format = swapchain_format;
+        tex_info.width = w;
+        tex_info.height = h;
+        tex_info.layer_count_or_depth = 1;
+        tex_info.num_levels = 1;
+        tex_info.sample_count = SDL_GPU_SAMPLECOUNT_1;
+        tex_info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        color_target = SDL_CreateGPUTexture(device, &tex_info);
+        target_width = w;
+        target_height = h;
+    }
     
-    current_render_pass = SDL_BeginGPURenderPass(current_cmd_buf, &color_target, 1, nullptr);
+    SDL_GPUColorTargetInfo color_target_info = {};
+    color_target_info.texture = color_target;
+    color_target_info.clear_color = {0.10f, 0.08f, 0.15f, 1.0f};
+    color_target_info.load_op = SDL_GPU_LOADOP_CLEAR;
+    color_target_info.store_op = SDL_GPU_STOREOP_STORE;
+    
+    current_render_pass = SDL_BeginGPURenderPass(current_cmd_buf, &color_target_info, 1, nullptr);
 }
 
 void Renderer::endRenderPass() {
@@ -167,8 +187,30 @@ void Renderer::endRenderPass() {
     }
 }
 
+void Renderer::blitToSwapchain() {
+    if (current_cmd_buf && color_target && swapchain_texture) {
+        SDL_GPUBlitInfo blit_info = {};
+        
+        blit_info.source.texture = color_target;
+        blit_info.source.w = target_width;
+        blit_info.source.h = target_height;
+        
+        blit_info.destination.texture = swapchain_texture;
+        blit_info.destination.w = target_width;
+        blit_info.destination.h = target_height;
+        
+        blit_info.load_op = SDL_GPU_LOADOP_DONT_CARE;
+        blit_info.clear_color = {0, 0, 0, 1};
+        blit_info.flip_mode = SDL_FLIP_NONE;
+        blit_info.filter = SDL_GPU_FILTER_NEAREST;
+        
+        SDL_BlitGPUTexture(current_cmd_buf, &blit_info);
+    }
+}
+
 void Renderer::endFrame() {
     endRenderPass();
+    blitToSwapchain();
     if (current_cmd_buf) {
         SDL_SubmitGPUCommandBuffer(current_cmd_buf);
         current_cmd_buf = nullptr;
@@ -324,10 +366,12 @@ void Renderer::updateTexture(SDL_GPUTexture* tex, int width, int height, SDL_GPU
 }
 
 SDL_Surface* Renderer::readPixels() {
-    if (!device || !swapchain_texture) return nullptr;
+    if (!device || !color_target || !current_cmd_buf) return nullptr;
     
-    int w, h;
-    SDL_GetWindowSize(window, &w, &h);
+    blitToSwapchain();
+    
+    int w = target_width;
+    int h = target_height;
     
     SDL_GPUTransferBufferCreateInfo tb_info = {};
     tb_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
@@ -336,11 +380,10 @@ SDL_Surface* Renderer::readPixels() {
     SDL_GPUTransferBuffer* tb = SDL_CreateGPUTransferBuffer(device, &tb_info);
     if (!tb) return nullptr;
     
-    SDL_GPUCommandBuffer* cmd = SDL_AcquireGPUCommandBuffer(device);
-    SDL_GPUCopyPass* copy_pass = SDL_BeginGPUCopyPass(cmd);
+    SDL_GPUCopyPass* copy_pass = SDL_BeginGPUCopyPass(current_cmd_buf);
     
     SDL_GPUTextureRegion src = {};
-    src.texture = swapchain_texture;
+    src.texture = color_target;
     src.w = w;
     src.h = h;
     src.d = 1;
@@ -351,7 +394,10 @@ SDL_Surface* Renderer::readPixels() {
     
     SDL_DownloadFromGPUTexture(copy_pass, &src, &dst);
     SDL_EndGPUCopyPass(copy_pass);
-    SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmd);
+    
+    SDL_GPUFence* fence = SDL_SubmitGPUCommandBufferAndAcquireFence(current_cmd_buf);
+    current_cmd_buf = nullptr; // prevent endFrame from submitting again
+    
     SDL_WaitForGPUFences(device, true, &fence, 1);
     SDL_ReleaseGPUFence(device, fence);
     
