@@ -430,6 +430,30 @@ renderer.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/renderer.cpp.s
 .PHONY : renderer.cpp.s
 
+shplasma.o: shplasma.cpp.o
+.PHONY : shplasma.o
+
+# target to build an object file
+shplasma.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/shplasma.cpp.o
+.PHONY : shplasma.cpp.o
+
+shplasma.i: shplasma.cpp.i
+.PHONY : shplasma.i
+
+# target to preprocess a source file
+shplasma.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/shplasma.cpp.i
+.PHONY : shplasma.cpp.i
+
+shplasma.s: shplasma.cpp.s
+.PHONY : shplasma.s
+
+# target to generate assembly for a file
+shplasma.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/shplasma.cpp.s
+.PHONY : shplasma.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -476,6 +500,9 @@ help:
 	@echo "... renderer.o"
 	@echo "... renderer.i"
 	@echo "... renderer.s"
+	@echo "... shplasma.o"
+	@echo "... shplasma.i"
+	@echo "... shplasma.s"
 .PHONY : help
 
 

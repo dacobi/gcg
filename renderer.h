@@ -22,7 +22,7 @@ public:
 
     // Helper for creating and uploading textures
     SDL_GPUTexture* createAndUploadTexture(int width, int height, SDL_GPUTextureFormat format, const void* pixels, int pitch);
-    SDL_GPUTexture* createTexture(int width, int height, SDL_GPUTextureFormat format);
+    SDL_GPUTexture* createTexture(int width, int height, SDL_GPUTextureFormat format, SDL_GPUTextureUsageFlags usage = SDL_GPU_TEXTUREUSAGE_SAMPLER);
     void updateTexture(SDL_GPUTexture* tex, int width, int height, SDL_GPUTextureFormat format, const void* pixels, int pitch);
 
     // Bouncer drawing

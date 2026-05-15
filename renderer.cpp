@@ -319,7 +319,7 @@ SDL_GPUTexture* Renderer::createAndUploadTexture(int width, int height, SDL_GPUT
     return tex;
 }
 
-SDL_GPUTexture* Renderer::createTexture(int width, int height, SDL_GPUTextureFormat format) {
+SDL_GPUTexture* Renderer::createTexture(int width, int height, SDL_GPUTextureFormat format, SDL_GPUTextureUsageFlags usage) {
     if (!device) return nullptr;
     
     SDL_GPUTextureCreateInfo tex_info = {};
@@ -330,7 +330,7 @@ SDL_GPUTexture* Renderer::createTexture(int width, int height, SDL_GPUTextureFor
     tex_info.layer_count_or_depth = 1;
     tex_info.num_levels = 1;
     tex_info.sample_count = SDL_GPU_SAMPLECOUNT_1;
-    tex_info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+    tex_info.usage = usage;
     
     SDL_GPUTexture* tex = SDL_CreateGPUTexture(device, &tex_info);
     if (!tex) {

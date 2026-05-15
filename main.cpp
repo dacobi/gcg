@@ -39,6 +39,8 @@
 #include "imgui_impl_sdlgpu3.h"
 #include "renderer.h"
 
+#include "shplasma.h"
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -1317,7 +1319,7 @@ struct Bouncer {
     SDL_GPUTexture* stencil_tex = nullptr;
     int tw, th;       // dimensions of that texture()
     MediaDecoder* decoder = nullptr;
-    PlasmaOpenCL* plasma = nullptr;
+    PlasmaShader* plasma = nullptr;
     MandelbrotOpenCL* mandel = nullptr;
     float ttl_remaining_ms = -1.0f;
     int layer = 1;
@@ -1586,10 +1588,9 @@ public:
             int p_idx = pd.content.empty() ? -1 : std::stoi(pd.content);
             newB.tw = (pd.over_w > 0) ? pd.over_w : 256;
             newB.th = (pd.over_h > 0) ? pd.over_h : 256;
-            newB.plasma = new PlasmaOpenCL(newB.tw, newB.th);
-            if (newB.plasma->init(p_idx)) {
-                newB.plasma->start();
-                tex = g_renderer->createTexture(newB.tw, newB.th, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
+            newB.plasma = new PlasmaShader(newB.tw, newB.th);
+            if (newB.plasma->init(SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, p_idx)) {
+                tex = g_renderer->createTexture(newB.tw, newB.th, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET);
             } else {
                 delete newB.plasma;
                 newB.plasma = nullptr;
@@ -1731,7 +1732,7 @@ struct AppState {
     int cli_win_w = 0;
     int cli_win_h = 0;
 
-    PlasmaOpenCL* selected_plasma = nullptr;
+    PlasmaShader* selected_plasma = nullptr;
     MandelbrotOpenCL* selected_mandel = nullptr;
 
     std::vector<std::unique_ptr<BDdisplay>> mBdisplay;
@@ -1936,7 +1937,7 @@ static void randomise_plasma_xy(CLPlasmaParams& p) {
 
 //------------
 static ContentParser mParser;
-static PlasmaOpenCL* myPlasma = nullptr;
+static PlasmaShader* myPlasma = nullptr;
 static MandelbrotOpenCL* myMandel = nullptr;
 static bool bUsePlasma = true;
 static bool bUseMandel = false;
@@ -2064,7 +2065,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     state->plasma_h = cur_h / 2;
     SDL_Log("Texture dimensions: %d x %d", state->plasma_w, state->plasma_h);
     if (bUsePlasma) {
-        state->plasma_tex = g_renderer->createTexture(state->plasma_w, state->plasma_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
+        state->plasma_tex = g_renderer->createTexture(state->plasma_w, state->plasma_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET);
     }
     if (bUseMandel) {
         SDL_Log("Creating Mandelbrot texture...");
@@ -2156,10 +2157,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     state->frequency = (double)SDL_GetPerformanceFrequency();
 
     if (bUsePlasma) {
-        myPlasma = new PlasmaOpenCL(state->plasma_w, state->plasma_h);
-        myPlasma->init(state->cli_bg_plasma_idx);
+        myPlasma = new PlasmaShader(state->plasma_w, state->plasma_h);
+        myPlasma->init(SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM, state->cli_bg_plasma_idx);
         myPlasma->setArgs(plasma_params);
-        myPlasma->start();
         state->selected_plasma = myPlasma;
     }
     if (bUseMandel) {
@@ -2261,7 +2261,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
                 state->plasma_h = cur_h / 8;
                 if (state->plasma_w < 1) state->plasma_w = 1;
                 if (state->plasma_h < 1) state->plasma_h = 1;
-                state->plasma_tex = g_renderer->createTexture(state->plasma_w, state->plasma_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
+                state->plasma_tex = g_renderer->createTexture(state->plasma_w, state->plasma_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET);
                 myPlasma->resize(state->plasma_w, state->plasma_h);
                 myPlasma->setArgs(plasma_params);
             }
@@ -2332,12 +2332,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 }
 
                 if (bUsePlasma) {
-                    myPlasma = new PlasmaOpenCL(state->plasma_w, state->plasma_h);
-                    myPlasma->init(state->cli_bg_plasma_idx);
+                    myPlasma = new PlasmaShader(state->plasma_w, state->plasma_h);
+                    myPlasma->init(SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM, state->cli_bg_plasma_idx);
                     myPlasma->setArgs(plasma_params);
-                    myPlasma->start();
                     state->selected_plasma = myPlasma;
-                    state->plasma_tex = g_renderer->createTexture(state->plasma_w, state->plasma_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
+                    state->plasma_tex = g_renderer->createTexture(state->plasma_w, state->plasma_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COLOR_TARGET);
                 }
                 if (bUseMandel) {
                     myMandel = new MandelbrotOpenCL(cur_w, cur_h);
@@ -2529,13 +2528,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         if (state->selected_mandel == myMandel) mandel_params = p;
     }
 
-    if (bUsePlasma){// && state->event_burst_cooldown == 0) {
-        myPlasma->updateTexture(g_renderer, state->plasma_tex);
-    }
-    if (bUseMandel) {
-        myMandel->updateTexture(g_renderer, state->mandel_tex);
-    }
-
     ImGui_ImplSDLGPU3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
@@ -2589,7 +2581,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 }
                 for (size_t i = 0; i < state->mBdisplay.size(); ++i) {
                     for (size_t j = 0; j < state->mBdisplay[i]->bouncers.size(); ++j) {
-                        PlasmaOpenCL* p = state->mBdisplay[i]->bouncers[j].plasma;
+                        PlasmaShader* p = state->mBdisplay[i]->bouncers[j].plasma;
                         if (p) {
                             char label[64];
                             std::snprintf(label, sizeof(label), "Bouncer %zu:%zu", i, j);
@@ -2664,11 +2656,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     char label[32];
                     std::snprintf(label, sizeof(label), "T%d", i);
                     if (ImGui::RadioButton(label, state->selected_plasma->iPlasmaIDX == i)) {
-                        state->selected_plasma->stop();
                         CLPlasmaParams current_p = state->selected_plasma->getArgs();
-                        state->selected_plasma->init(i);
+                        state->selected_plasma->init(state->selected_plasma->getTargetFormat(), i);
                         state->selected_plasma->setArgs(current_p);
-                        state->selected_plasma->start();
                     }
                     if ((i + 1) % 5 != 0) ImGui::SameLine();
                 }
@@ -2801,6 +2791,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
     }
 
+    if (bUsePlasma) {
+        myPlasma->updateTexture(g_renderer, state->plasma_tex);
+    }
+    if (bUseMandel) {
+        myMandel->updateTexture(g_renderer, state->mandel_tex);
+    }
+
     g_renderer->beginFrame();
 
     ImGui::Render();
@@ -2857,7 +2854,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
             state->scriptSystem = nullptr;
         }
         recorder_stop(state->recorder);
-        if (bUsePlasma && myPlasma) myPlasma->stop();
+        if (bUsePlasma && myPlasma) { /* myPlasma->stop(); */ }
         if (bUseMandel && myMandel) myMandel->stop();
         if (state->bg_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->bg_tex);
         for (auto* et : state->extra_textures) SDL_ReleaseGPUTexture(g_renderer->getDevice(), et);
@@ -2874,6 +2871,13 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         ImGui_ImplSDL3_Shutdown();
         ImGui::DestroyContext();
         
+        if (myMix) {
+            delete myMix;
+            myMix = nullptr;
+        }
+        if (myPlasma) { delete myPlasma; myPlasma = nullptr; }
+        if (myMandel) { delete myMandel; myMandel = nullptr; }
+
         if (g_renderer) {
             g_renderer->shutdown();
             delete g_renderer;
@@ -2884,12 +2888,6 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         TTF_Quit();
         SDL_Quit();
 
-        if (myMix) {
-            delete myMix;
-            myMix = nullptr;
-        }
-        if (myPlasma) { delete myPlasma; myPlasma = nullptr; }
-        if (myMandel) { delete myMandel; myMandel = nullptr; }
         delete state;
     }
 }
