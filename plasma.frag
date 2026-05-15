@@ -248,20 +248,24 @@ void main() {
         float rx = cx * rot_cos - cy * rot_sin + 0.5 + drift_x;
         float ry = cx * rot_sin + cy * rot_cos + 0.5 + drift_y;
         
-        float jitter = fract(sin(dot(vec2(rx, ry), vec2(12.9898, 78.233)) + t) * 43758.5453) * 0.05;
-        float wx = rx + jitter;
-        float wy = ry + jitter;
+        // Zoom in by reducing the scale multipliers
+        float sX = ((s_bx == 0.0) ? 10.0 : s_bx) * 0.3;
+        float sY = ((s_by == 0.0) ? 10.0 : s_by) * 0.3;
         
-        float v1 = 1.0 - abs(sin(wx * s_bx * 2.0 + t * 3.0));
-        float v2 = 1.0 - abs(sin(wy * s_by * 2.0 - t * 2.5));
-        float v3 = 1.0 - abs(sin((wx + wy) * s_bx + t * 4.0));
-        float v = (v1 + v2 + v3) / 3.0;
+        // Generate pseudo-random noise to create jagged edges
+        float noise = fract(sin(dot(vec2(fx, fy), vec2(12.9898, 78.233))) * 43758.5453);
         
-        float electric_v = pow(max(0.0, v - 0.2), 3.0) * 3.0;
+        float v = 0.0;
+        // Slow down time multipliers and add noise to the phase
+        v += sin(rx * sX + t * 0.5 + noise * 0.4);
+        v += sin(ry * sY - t * 0.4 + noise * 0.4);
+        v += sin(sqrt((rx - 0.5) * (rx - 0.5) + (ry - 0.5) * (ry - 0.5)) * sX * 2.0 - t * 0.7 + noise * 0.4);
+        v += sin(sqrt(rx * rx + ry * ry) * sY * 1.5 + t * 0.6 + noise * 0.4);
+        v /= 4.0;
         
-        R = min(1.0, (0.5 + 0.5 * sin(electric_v * 15.0 + p_r * 6.28)) * electric_v * d_r);
-        G = min(1.0, (0.5 + 0.5 * sin(electric_v * 20.0 + p_g * 6.28)) * electric_v * d_g);
-        B = min(1.0, (0.5 + 0.5 * sin(electric_v * 25.0 + p_b * 6.28)) * electric_v * d_b);
+        R = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_r * 6.28318)) * d_r;
+        G = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_g * 6.28318)) * d_g;
+        B = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_b * 6.28318)) * d_b;
     }
 
     outFragColor = vec4(R, G, B, 1.0) * inColor;

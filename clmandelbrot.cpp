@@ -204,6 +204,13 @@ void MandelbrotOpenCL::workerLoop() {
             SDL_Delay(100);
         }
     }
+
+    if (readInProgress && readEvent) {
+        clWaitForEvents(1, &readEvent);
+        clReleaseEvent(readEvent);
+    }
+    clFinish(queue);
+
     SDL_Log("Mandelbrot workerLoop exiting");
 }
 

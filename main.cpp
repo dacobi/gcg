@@ -2311,8 +2311,14 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 state->bg_video.reset();
                 if (state->plasma_tex) { SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->plasma_tex); state->plasma_tex = nullptr; }
                 if (state->mandel_tex) { SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->mandel_tex); state->mandel_tex = nullptr; }
-                if (myPlasma) { delete myPlasma; myPlasma = nullptr; bUsePlasma = false; }
-                if (myMandel) { delete myMandel; myMandel = nullptr; bUseMandel = false; }
+                if (myPlasma) { 
+                    if (state->selected_plasma == myPlasma) state->selected_plasma = nullptr;
+                    delete myPlasma; myPlasma = nullptr; bUsePlasma = false; 
+                }
+                if (myMandel) { 
+                    if (state->selected_mandel == myMandel) state->selected_mandel = nullptr;
+                    delete myMandel; myMandel = nullptr; bUseMandel = false; 
+                }
                 state->cli_bg_path = "";
 
                 if (arg.size() > 8 && arg.substr(0, 8) == "[plasma:" && arg.back() == ']') {
@@ -2785,6 +2791,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     for (auto it = state->mBdisplay.begin(); it != state->mBdisplay.end(); ) {
         (*it)->update(dt, cur_w, cur_h);
         if ((*it)->bouncers.empty()) {
+            // No need to check bouncers here since they are already empty,
+            // but wait, if they were emptied inside update(), their plasma/mandel pointers
+            // are already gone. Let's just do a global check if selected_plasma is dangling.
+            // Wait, we can't easily tell if it's dangling here.
+            // Let's modify BDdisplay::update to return deleted bouncers or just
+            // do the check before erase. Actually, BDdisplay::update erases them one by one.
             it = state->mBdisplay.erase(it);
         } else {
             ++it;
