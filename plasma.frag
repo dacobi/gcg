@@ -238,6 +238,30 @@ void main() {
         R = (0.5 + 0.5 * cos(6.28318 * d_r * (v + p_r)));
         G = (0.5 + 0.5 * cos(6.28318 * d_g * (v + p_g)));
         B = (0.5 + 0.5 * cos(6.28318 * d_b * (v + p_b)));
+    } else if (idx == 9) {
+        float drift_x = d_amp * sin(t * d_sx);
+        float drift_y = d_amp * cos(t * d_sy);
+        float rot_sin = sin(t * r_s);
+        float rot_cos = cos(t * r_s);
+        float cx = fx - 0.5;
+        float cy = fy - 0.5;
+        float rx = cx * rot_cos - cy * rot_sin + 0.5 + drift_x;
+        float ry = cx * rot_sin + cy * rot_cos + 0.5 + drift_y;
+        
+        float jitter = fract(sin(dot(vec2(rx, ry), vec2(12.9898, 78.233)) + t) * 43758.5453) * 0.05;
+        float wx = rx + jitter;
+        float wy = ry + jitter;
+        
+        float v1 = 1.0 - abs(sin(wx * s_bx * 2.0 + t * 3.0));
+        float v2 = 1.0 - abs(sin(wy * s_by * 2.0 - t * 2.5));
+        float v3 = 1.0 - abs(sin((wx + wy) * s_bx + t * 4.0));
+        float v = (v1 + v2 + v3) / 3.0;
+        
+        float electric_v = pow(max(0.0, v - 0.2), 3.0) * 3.0;
+        
+        R = min(1.0, (0.5 + 0.5 * sin(electric_v * 15.0 + p_r * 6.28)) * electric_v * d_r);
+        G = min(1.0, (0.5 + 0.5 * sin(electric_v * 20.0 + p_g * 6.28)) * electric_v * d_g);
+        B = min(1.0, (0.5 + 0.5 * sin(electric_v * 25.0 + p_b * 6.28)) * electric_v * d_b);
     }
 
     outFragColor = vec4(R, G, B, 1.0) * inColor;

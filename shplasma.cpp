@@ -22,7 +22,7 @@ bool PlasmaShader::init(SDL_GPUTextureFormat format, int cPlasmaIDX) {
     targetFormat = format;
 
     if (cPlasmaIDX == -1) {
-        iPlasmaIDX = rand_int(9); // 0 to 8
+        iPlasmaIDX = rand_int(10); // 0 to 9
     } else {
         iPlasmaIDX = cPlasmaIDX;
     }
