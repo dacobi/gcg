@@ -10,6 +10,7 @@ layout(set=3, binding=0) uniform PlasmaParams {
     vec4 s_msy_w_b_w_a_w_s;
     vec4 s_dm_d_r_d_g_d_b;
     vec4 t_c_w_h_iPlasmaIDX;
+    vec4 noise_smooth_rough_pad2;
 } params;
 
 void main() {
@@ -43,8 +44,12 @@ void main() {
     float h = params.t_c_w_h_iPlasmaIDX.z;
     int idx = int(params.t_c_w_h_iPlasmaIDX.w);
 
-    float fx = inUV.x;
-    float fy = inUV.y;
+    float noise_smooth_amp = params.noise_smooth_rough_pad2.x;
+    float noise_rough_amp = params.noise_smooth_rough_pad2.y;
+    float zoom = params.noise_smooth_rough_pad2.z;
+
+    float fx = (inUV.x - 0.5) / zoom + 0.5;
+    float fy = (inUV.y - 0.5) / zoom + 0.5;
     
     float R = 0.0, G = 0.0, B = 0.0;
 
@@ -257,10 +262,134 @@ void main() {
         
         float v = 0.0;
         // Slow down time multipliers and add noise to the phase
-        v += sin(rx * sX + t * 0.5 + noise * 0.4);
-        v += sin(ry * sY - t * 0.4 + noise * 0.4);
-        v += sin(sqrt((rx - 0.5) * (rx - 0.5) + (ry - 0.5) * (ry - 0.5)) * sX * 2.0 - t * 0.7 + noise * 0.4);
-        v += sin(sqrt(rx * rx + ry * ry) * sY * 1.5 + t * 0.6 + noise * 0.4);
+        v += sin(rx * sX + t * 0.5 + noise * noise_rough_amp);
+        v += sin(ry * sY - t * 0.4 + noise * noise_rough_amp);
+        v += sin(sqrt((rx - 0.5) * (rx - 0.5) + (ry - 0.5) * (ry - 0.5)) * sX * 2.0 - t * 0.7 + noise * noise_rough_amp);
+        v += sin(sqrt(rx * rx + ry * ry) * sY * 1.5 + t * 0.6 + noise * noise_rough_amp);
+        v /= 4.0;
+        
+        R = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_r * 6.28318)) * d_r;
+        G = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_g * 6.28318)) * d_g;
+        B = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_b * 6.28318)) * d_b;
+    } else if (idx == 10) {
+        float drift_x = d_amp * sin(t * d_sx);
+        float drift_y = d_amp * cos(t * d_sy);
+        float rot_sin = sin(t * r_s);
+        float rot_cos = cos(t * r_s);
+        float cx = fx - 0.5;
+        float cy = fy - 0.5;
+        float rx = cx * rot_cos - cy * rot_sin + 0.5 + drift_x;
+        float ry = cx * rot_sin + cy * rot_cos + 0.5 + drift_y;
+        
+        // Zoom in by reducing the scale multipliers
+        float sX = ((s_bx == 0.0) ? 10.0 : s_bx) * 0.3;
+        float sY = ((s_by == 0.0) ? 10.0 : s_by) * 0.3;
+        
+        // Generate pseudo-random noise that moves with the plasma coordinate space
+        float noise = fract(sin(dot(vec2(rx, ry), vec2(12.9898, 78.233))) * 43758.5453);
+        
+        float v = 0.0;
+        // Slow down time multipliers and add noise to the phase
+        v += sin(rx * sX + t * 0.5 + noise * noise_rough_amp);
+        v += sin(ry * sY - t * 0.4 + noise * noise_rough_amp);
+        v += sin(sqrt((rx - 0.5) * (rx - 0.5) + (ry - 0.5) * (ry - 0.5)) * sX * 2.0 - t * 0.7 + noise * noise_rough_amp);
+        v += sin(sqrt(rx * rx + ry * ry) * sY * 1.5 + t * 0.6 + noise * noise_rough_amp);
+        v /= 4.0;
+        
+        R = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_r * 6.28318)) * d_r;
+        G = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_g * 6.28318)) * d_g;
+        B = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_b * 6.28318)) * d_b;
+    } else if (idx == 11) {
+        float drift_x = d_amp * sin(t * d_sx);
+        float drift_y = d_amp * cos(t * d_sy);
+        float rot_sin = sin(t * r_s);
+        float rot_cos = cos(t * r_s);
+        float cx = fx - 0.5;
+        float cy = fy - 0.5;
+        float rx = cx * rot_cos - cy * rot_sin + 0.5 + drift_x;
+        float ry = cx * rot_sin + cy * rot_cos + 0.5 + drift_y;
+        
+        float sX = ((s_bx == 0.0) ? 10.0 : s_bx) * 0.3;
+        float sY = ((s_by == 0.0) ? 10.0 : s_by) * 0.3;
+        
+        // Generate smooth, undulating noise (not pixelated)
+        float smooth_noise = sin(rx * 40.0 + t * 2.0) * cos(ry * 40.0 - t * 1.5);
+        smooth_noise += sin(rx * 80.0 - t * 3.0) * cos(ry * 80.0 + t * 2.5) * 0.5;
+        
+        float v = 0.0;
+        // Add the smooth noise to the phase of the main waveforms
+        v += sin(rx * sX + t * 0.5 + smooth_noise * noise_smooth_amp);
+        v += sin(ry * sY - t * 0.4 + smooth_noise * noise_smooth_amp);
+        v += sin(sqrt((rx - 0.5) * (rx - 0.5) + (ry - 0.5) * (ry - 0.5)) * sX * 2.0 - t * 0.7 + smooth_noise * noise_smooth_amp);
+        v += sin(sqrt(rx * rx + ry * ry) * sY * 1.5 + t * 0.6 + smooth_noise * noise_smooth_amp);
+        v /= 4.0;
+        
+        R = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_r * 6.28318)) * d_r;
+        G = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_g * 6.28318)) * d_g;
+        B = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_b * 6.28318)) * d_b;
+    } else if (idx == 12) {
+        float drift_x = d_amp * sin(t * d_sx);
+        float drift_y = d_amp * cos(t * d_sy);
+        float rot_sin = sin(t * r_s);
+        float rot_cos = cos(t * r_s);
+        float cx = fx - 0.5;
+        float cy = fy - 0.5;
+        float rx = cx * rot_cos - cy * rot_sin + 0.5 + drift_x;
+        float ry = cx * rot_sin + cy * rot_cos + 0.5 + drift_y;
+        
+        float sX = ((s_bx == 0.0) ? 10.0 : s_bx) * 0.3;
+        float sY = ((s_by == 0.0) ? 10.0 : s_by) * 0.3;
+        
+        // Combine smooth, undulating noise with a little bit of high-frequency pixelated noise
+        float smooth_noise = sin(rx * 40.0 + t * 2.0) * cos(ry * 40.0 - t * 1.5);
+        smooth_noise += sin(rx * 80.0 - t * 3.0) * cos(ry * 80.0 + t * 2.5) * 0.5;
+        
+        float pixel_noise = fract(sin(dot(vec2(rx, ry), vec2(12.9898, 78.233))) * 43758.5453);
+        
+        float combined_noise = smooth_noise * noise_smooth_amp + pixel_noise * noise_rough_amp;
+        
+        float v = 0.0;
+        // Add the combined noise to the phase of the main waveforms
+        v += sin(rx * sX + t * 0.5 + combined_noise);
+        v += sin(ry * sY - t * 0.4 + combined_noise);
+        v += sin(sqrt((rx - 0.5) * (rx - 0.5) + (ry - 0.5) * (ry - 0.5)) * sX * 2.0 - t * 0.7 + combined_noise);
+        v += sin(sqrt(rx * rx + ry * ry) * sY * 1.5 + t * 0.6 + combined_noise);
+        v /= 4.0;
+        
+        R = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_r * 6.28318)) * d_r;
+        G = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_g * 6.28318)) * d_g;
+        B = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_b * 6.28318)) * d_b;
+    } else if (idx == 13) {
+        float drift_x = d_amp * sin(t * d_sx);
+        float drift_y = d_amp * cos(t * d_sy);
+        float rot_sin = sin(t * r_s);
+        float rot_cos = cos(t * r_s);
+        float cx = fx - 0.5;
+        float cy = fy - 0.5;
+        float rx = cx * rot_cos - cy * rot_sin + 0.5 + drift_x;
+        float ry = cx * rot_sin + cy * rot_cos + 0.5 + drift_y;
+        
+        float dist = sqrt((rx - 0.5) * (rx - 0.5) + (ry - 0.5) * (ry - 0.5));
+        float warp_str = w_b + w_a * sin(t * w_s);
+        float swirl_angle = dist * s_dm * warp_str;
+        float sw_sin = sin(swirl_angle);
+        float sw_cos = cos(swirl_angle);
+        float wx = (rx - 0.5) * sw_cos - (ry - 0.5) * sw_sin + 0.5;
+        float wy = (rx - 0.5) * sw_sin + (ry - 0.5) * sw_cos + 0.5;
+        
+        float sX = ((s_bx == 0.0) ? 10.0 : s_bx) * 0.3;
+        float sY = ((s_by == 0.0) ? 10.0 : s_by) * 0.3;
+        
+        float smooth_noise = sin(wx * 40.0 + t * 2.0) * cos(wy * 40.0 - t * 1.5);
+        smooth_noise += sin(wx * 80.0 - t * 3.0) * cos(wy * 80.0 + t * 2.5) * 0.5;
+        float pixel_noise = fract(sin(dot(vec2(wx, wy), vec2(12.9898, 78.233))) * 43758.5453);
+        float combined_noise = smooth_noise * noise_smooth_amp + pixel_noise * noise_rough_amp;
+        
+        float v = 0.0;
+        v += sin(wx * sX + t * 0.5 + combined_noise);
+        v += sin(wy * sY - t * 0.4 + combined_noise);
+        v += sin(sqrt((wx - 0.5) * (wx - 0.5) + (wy - 0.5) * (wy - 0.5)) * sX * 2.0 - t * 0.7 + combined_noise);
+        v += sin(sqrt(wx * wx + wy * wy) * sY * 1.5 + t * 0.6 + combined_noise);
         v /= 4.0;
         
         R = (0.5 + 0.5 * sin(3.14159 * v * 3.0 + p_r * 6.28318)) * d_r;

@@ -22,7 +22,7 @@ bool PlasmaShader::init(SDL_GPUTextureFormat format, int cPlasmaIDX) {
     targetFormat = format;
 
     if (cPlasmaIDX == -1) {
-        iPlasmaIDX = rand_int(10); // 0 to 9
+        iPlasmaIDX = rand_int(14); // 0 to 13
     } else {
         iPlasmaIDX = cPlasmaIDX;
     }
@@ -79,7 +79,7 @@ void PlasmaShader::resize(int w, int h) {
 }
 
 struct PlasmaUniforms {
-    float data[24]; // 6 * vec4
+    float data[28]; // 7 * vec4
 };
 
 void PlasmaShader::updateTexture(Renderer* renderer, SDL_GPUTexture* tex) {
@@ -128,6 +128,11 @@ void PlasmaShader::updateTexture(Renderer* renderer, SDL_GPUTexture* tex) {
     uniforms.data[21] = (float)width;
     uniforms.data[22] = (float)height;
     uniforms.data[23] = (float)iPlasmaIDX;
+    // vec4 6
+    uniforms.data[24] = p.noise_smooth;
+    uniforms.data[25] = p.noise_rough;
+    uniforms.data[26] = p.zoom;
+    uniforms.data[27] = 0.0f;
 
     SDL_GPUColorTargetInfo target_info = {};
     target_info.texture = tex;

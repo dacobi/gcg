@@ -33,6 +33,9 @@ struct CLPlasmaParams {
     float darken_g = 1.0f;
     float darken_b = 1.0f;
     float tile_count = 0.0f; // 0.0 = disabled
+    float noise_smooth = 0.6f;
+    float noise_rough = 0.15f;
+    float zoom = 1.0f;
 };
 
 

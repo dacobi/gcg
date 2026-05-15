@@ -2614,6 +2614,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 changed |= ImGui::SliderFloat("Rot Speed", &p.rot_speed, -1.0f, 1.0f);
                 changed |= ImGui::SliderFloat("Scale X", &p.scale_base_x, 0.1f, 30.0f);
                 changed |= ImGui::SliderFloat("Scale Y", &p.scale_base_y, 0.1f, 30.0f);
+                changed |= ImGui::SliderFloat("Zoom", &p.zoom, 0.1f, 10.0f);
                 
                 ImGui::Separator();
                 changed |= ImGui::SliderFloat("Phase R", &p.palette_phase_r, 0.0f, 1.0f);
@@ -2628,6 +2629,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 changed |= ImGui::SliderFloat("Warp Amp", &p.warp_amp, 0.0f, 1.0f);
                 changed |= ImGui::SliderFloat("Warp Speed", &p.warp_speed, 0.0f, 2.0f);
                 changed |= ImGui::SliderFloat("Swirl", &p.swirl_dist_mul, 0.0f, 15.0f);
+                changed |= ImGui::SliderFloat("Smooth Noise", &p.noise_smooth, 0.0f, 2.0f);
+                changed |= ImGui::SliderFloat("Rough Noise", &p.noise_rough, 0.0f, 1.0f);
 
                 ImGui::Separator();
                 changed |= ImGui::SliderFloat("Darken R", &p.darken_r, 0.0f, 2.0f);
@@ -2658,7 +2661,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             if (state->selected_plasma) {
                 ImGui::Separator();
                 int current_idx = state->selected_plasma->iPlasmaIDX;
-                if (ImGui::SliderInt("Plasma Type", &current_idx, 0, 9)) {
+                if (ImGui::SliderInt("Plasma Type", &current_idx, 0, 13)) {
                     CLPlasmaParams current_p = state->selected_plasma->getArgs();
                     state->selected_plasma->init(state->selected_plasma->getTargetFormat(), current_idx);
                     state->selected_plasma->setArgs(current_p);
