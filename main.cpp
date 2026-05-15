@@ -2657,16 +2657,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
             if (state->selected_plasma) {
                 ImGui::Separator();
-                ImGui::Text("Plasma Mode");
-                for (int i = 0; i < 10; i++) {
-                    char label[32];
-                    std::snprintf(label, sizeof(label), "T%d", i);
-                    if (ImGui::RadioButton(label, state->selected_plasma->iPlasmaIDX == i)) {
-                        CLPlasmaParams current_p = state->selected_plasma->getArgs();
-                        state->selected_plasma->init(state->selected_plasma->getTargetFormat(), i);
-                        state->selected_plasma->setArgs(current_p);
-                    }
-                    if ((i + 1) % 5 != 0) ImGui::SameLine();
+                int current_idx = state->selected_plasma->iPlasmaIDX;
+                if (ImGui::SliderInt("Plasma Type", &current_idx, 0, 9)) {
+                    CLPlasmaParams current_p = state->selected_plasma->getArgs();
+                    state->selected_plasma->init(state->selected_plasma->getTargetFormat(), current_idx);
+                    state->selected_plasma->setArgs(current_p);
                 }
             }
             ImGui::EndMenu();
