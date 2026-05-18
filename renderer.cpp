@@ -8,6 +8,10 @@
 #include "frag_stencil_spv.h"
 #include "frag_trans_spv.h"
 
+#include "vert_3d_spv.h"
+#include "frag_3d_spv.h"
+#include "object3d.h"
+
 static SDL_GPUShader* LoadSPIRVShader(SDL_GPUDevice* device, const unsigned char* bytecode, unsigned int size, SDL_ShaderCross_ShaderStage stage, Uint32 num_samplers, Uint32 num_uniform_buffers) {
     SDL_ShaderCross_SPIRV_Info spirv_info = {};
     spirv_info.bytecode = bytecode;
@@ -81,6 +85,12 @@ bool Renderer::initPipelines() {
 
     SDL_GPUShader* fs_trans = LoadSPIRVShader(device, frag_trans_spv, frag_trans_spv_len, SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT, 1, 0);
     if (!fs_trans) return false;
+
+    SDL_GPUShader* vs_3d = LoadSPIRVShader(device, vert_3d_spv, vert_3d_spv_len, SDL_SHADERCROSS_SHADERSTAGE_VERTEX, 0, 1);
+    if (!vs_3d) return false;
+
+    SDL_GPUShader* fs_3d = LoadSPIRVShader(device, frag_3d_spv, frag_3d_spv_len, SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT, 0, 1);
+    if (!fs_3d) return false;
     
     SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {};
     pipeline_info.vertex_shader = vs;
@@ -111,6 +121,46 @@ bool Renderer::initPipelines() {
     pipeline_info.fragment_shader = fs_trans;
     pipeline_trans = SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
     if (!pipeline_trans) std::printf("Failed to create pipeline_trans: %s\n", SDL_GetError());
+
+    // 3D Pipeline
+    SDL_GPUGraphicsPipelineCreateInfo pipeline_3d_info = {};
+    pipeline_3d_info.vertex_shader = vs_3d;
+    pipeline_3d_info.fragment_shader = fs_3d;
+    pipeline_3d_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+    
+    pipeline_3d_info.target_info.num_color_targets = 1;
+    pipeline_3d_info.target_info.color_target_descriptions = pipeline_info.target_info.color_target_descriptions; // reuse color target desc
+    
+    pipeline_3d_info.depth_stencil_state.enable_depth_test = true;
+    pipeline_3d_info.depth_stencil_state.enable_depth_write = true;
+    pipeline_3d_info.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
+    pipeline_3d_info.target_info.has_depth_stencil_target = true;
+    pipeline_3d_info.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D24_UNORM;
+
+    SDL_GPUVertexBufferDescription vertex_buffers[1];
+    vertex_buffers[0].slot = 0;
+    vertex_buffers[0].pitch = sizeof(Vertex3D);
+    vertex_buffers[0].input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
+    vertex_buffers[0].instance_step_rate = 0;
+
+    SDL_GPUVertexAttribute vertex_attributes[2];
+    vertex_attributes[0].location = 0;
+    vertex_attributes[0].buffer_slot = 0;
+    vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+    vertex_attributes[0].offset = 0;
+    
+    vertex_attributes[1].location = 1;
+    vertex_attributes[1].buffer_slot = 0;
+    vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
+    vertex_attributes[1].offset = sizeof(float) * 3;
+
+    pipeline_3d_info.vertex_input_state.num_vertex_buffers = 1;
+    pipeline_3d_info.vertex_input_state.vertex_buffer_descriptions = vertex_buffers;
+    pipeline_3d_info.vertex_input_state.num_vertex_attributes = 2;
+    pipeline_3d_info.vertex_input_state.vertex_attributes = vertex_attributes;
+
+    pipeline_3d = SDL_CreateGPUGraphicsPipeline(device, &pipeline_3d_info);
+    if (!pipeline_3d) std::printf("Failed to create pipeline_3d: %s\n", SDL_GetError());
     
     delete[] pipeline_info.target_info.color_target_descriptions;
     
@@ -118,8 +168,10 @@ bool Renderer::initPipelines() {
     SDL_ReleaseGPUShader(device, fs_base);
     SDL_ReleaseGPUShader(device, fs_stencil);
     SDL_ReleaseGPUShader(device, fs_trans);
+    SDL_ReleaseGPUShader(device, vs_3d);
+    SDL_ReleaseGPUShader(device, fs_3d);
     
-    return pipeline_base && pipeline_stencil && pipeline_trans;
+    return pipeline_base && pipeline_stencil && pipeline_trans && pipeline_3d;
 }
 
 void Renderer::shutdown() {
@@ -138,6 +190,18 @@ void Renderer::shutdown() {
     if (pipeline_trans) {
         SDL_ReleaseGPUGraphicsPipeline(device, pipeline_trans);
         pipeline_trans = nullptr;
+    }
+    if (pipeline_3d) {
+        SDL_ReleaseGPUGraphicsPipeline(device, pipeline_3d);
+        pipeline_3d = nullptr;
+    }
+    if (depth_texture) {
+        SDL_ReleaseGPUTexture(device, depth_texture);
+        depth_texture = nullptr;
+    }
+    if (color_target) {
+        SDL_ReleaseGPUTexture(device, color_target);
+        color_target = nullptr;
     }
     if (device) {
         SDL_ShaderCross_Quit();
@@ -459,6 +523,43 @@ static void make_ortho(float* m, float left, float right, float bottom, float to
     m[1] = 0.0f; m[5] = 2.0f / (top - bottom); m[9] = 0.0f; m[13] = -(top + bottom) / (top - bottom);
     m[2] = 0.0f; m[6] = 0.0f; m[10] = -2.0f / (far_val - near_val); m[14] = -(far_val + near_val) / (far_val - near_val);
     m[3] = 0.0f; m[7] = 0.0f; m[11] = 0.0f; m[15] = 1.0f;
+}
+
+void Renderer::drawObject3D(Object3D* obj, const Light3D& light, const float* viewMatrix, const float* projMatrix) {
+    if (!current_render_pass || !obj || !obj->vertexBuffer || !obj->indexBuffer) return;
+
+    int win_w, win_h;
+    SDL_GetWindowSize(window, &win_w, &win_h);
+
+    SDL_GPUViewport viewport = { 0.0f, 0.0f, (float)win_w, (float)win_h, 0.0f, 1.0f };
+    SDL_SetGPUViewport(current_render_pass, &viewport);
+    
+    SDL_BindGPUGraphicsPipeline(current_render_pass, pipeline_3d);
+
+    SDL_GPUBufferBinding vertexBinding = {};
+    vertexBinding.buffer = obj->vertexBuffer;
+    vertexBinding.offset = 0;
+    SDL_BindGPUVertexBuffers(current_render_pass, 0, &vertexBinding, 1);
+    
+    SDL_GPUBufferBinding indexBinding = {};
+    indexBinding.buffer = obj->indexBuffer;
+    indexBinding.offset = 0;
+    SDL_BindGPUIndexBuffer(current_render_pass, &indexBinding, SDL_GPU_INDEXELEMENTSIZE_32BIT);
+    
+    struct TransformData {
+        float model[16];
+        float view[16];
+        float projection[16];
+    } transforms;
+    
+    std::memcpy(transforms.model, obj->modelMatrix.GetArray(), sizeof(float) * 16);
+    std::memcpy(transforms.view, viewMatrix, sizeof(float) * 16);
+    std::memcpy(transforms.projection, projMatrix, sizeof(float) * 16);
+    
+    SDL_PushGPUVertexUniformData(current_cmd_buf, 0, &transforms, sizeof(TransformData));
+    SDL_PushGPUFragmentUniformData(current_cmd_buf, 0, &light, sizeof(Light3D));
+    
+    SDL_DrawGPUIndexedPrimitives(current_render_pass, obj->indexCount, 1, 0, 0, 0);
 }
 
 void Renderer::drawBackground(SDL_GPUTexture* tex) {

@@ -41,6 +41,10 @@
 
 #include "shplasma.h"
 
+#include "usd_manager.h"
+#include "object3d.h"
+#include <pxr/base/gf/rotation.h>
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -1757,6 +1761,9 @@ struct AppState {
     int plasma_w, plasma_h;
     int prev_win_w, prev_win_h;
 
+    class USDManager* usdManager = nullptr;
+    std::vector<class Object3D*> usdObjects;
+
     float time_acc = 0.0f;
     bool roll_palette = false;
     float roll_palette_speed = 0.5f;
@@ -2059,6 +2066,21 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         return SDL_APP_FAILURE;
     }
     std::printf("Active Renderer: SDL3 GPU API\n");
+
+    state->usdManager = new USDManager();
+    if (state->usdManager->loadStage("test.usda")) {
+        std::vector<USDMeshData> meshes = state->usdManager->extractMeshes();
+        for (const auto& meshData : meshes) {
+            Object3D* obj = new Object3D();
+            if (obj->init(g_renderer->getDevice(), meshData.vertices, meshData.indices)) {
+                state->usdObjects.push_back(obj);
+            } else {
+                delete obj;
+            }
+        }
+    } else {
+        std::printf("Failed to load test.usda\n");
+    }
 
     // --- Plasma texture ---
     state->plasma_w = cur_w / 2;
@@ -2823,6 +2845,43 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         g_renderer->drawBackground(state->mandel_tex);
     }
 
+    if (!state->usdObjects.empty()) {
+        Light3D light = {};
+        light.position[0] = std::sin(state->time_acc) * 5.0f;
+        light.position[1] = 5.0f;
+        light.position[2] = std::cos(state->time_acc) * 5.0f;
+        light.color[0] = 1.0f; light.color[1] = 1.0f; light.color[2] = 1.0f;
+        light.intensity = 1.0f;
+
+        float viewMatrix[16] = {
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, -5, 1 // Translate back by 5 units
+        };
+
+        int w, h;
+        SDL_GetWindowSize(window, &w, &h);
+        float aspect = (float)w / (float)h;
+        float fov = 45.0f * (M_PI / 180.0f);
+        float f = 1.0f / std::tan(fov / 2.0f);
+        float near_z = 0.1f;
+        float far_z = 100.0f;
+
+        float projMatrix[16] = {
+            f / aspect, 0, 0, 0,
+            0, f, 0, 0,
+            0, 0, far_z / (near_z - far_z), -1,
+            0, 0, (near_z * far_z) / (near_z - far_z), 0
+        };
+
+        for (auto obj : state->usdObjects) {
+            // Spin the object
+            obj->modelMatrix.SetRotate(pxr::GfRotation(pxr::GfVec3d(0, 1, 0), state->time_acc * 50.0));
+            g_renderer->drawObject3D(obj, light, viewMatrix, projMatrix);
+        }
+    }
+
     for (int l = 2; l >= 0; --l) {
         for (auto& bd : state->mBdisplay) {
             bd->draw(g_renderer, l);
@@ -2876,6 +2935,16 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         state->mBdisplay.clear();
         state->bg_video.reset();
         state->loop_audio.reset(); // Destroy audio decoder before mixer
+
+        for (auto obj : state->usdObjects) {
+            obj->destroy(g_renderer->getDevice());
+            delete obj;
+        }
+        state->usdObjects.clear();
+        if (state->usdManager) {
+            delete state->usdManager;
+            state->usdManager = nullptr;
+        }
 
         ImGui_ImplSDLGPU3_Shutdown();
         ImGui_ImplSDL3_Shutdown();

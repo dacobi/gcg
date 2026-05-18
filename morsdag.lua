@@ -18,15 +18,15 @@ delay(3000)
 
 
 
-addBouncer("[layer:2][phys: -500,-500,0,0,1,0.95][ttl:7000][stencil:softstar.png][rect: 384, 384][plasma:1]")
+addBouncer("[layer:2][phys: -500,-500,0,0,1,0.95][ttl:7000][stencil:softstar.png][rect: 384, 384][plasma:-1]")
 delay(1000)
-addBouncer("[layer:2][phys: 500,-500,600,0,1,0.95][ttl:7000][stencil:softmoon.png][rect: 384, 384][plasma:2]")
+addBouncer("[layer:2][phys: 500,-500,600,0,1,0.95][ttl:7000][stencil:softmoon.png][rect: 384, 384][plasma:-1]")
 delay(1000)
-addBouncer("[layer:2][phys: -500,500,100,600,1,0.95][ttl:7000][stencil:softstar.png][rect: 384, 384][plasma:8]")
+addBouncer("[layer:2][phys: -500,500,100,600,1,0.95][ttl:7000][stencil:softstar.png][rect: 384, 384][plasma:-1]")
 delay(1000)
-addBouncer("[layer:2][phys: 500,500,600,600,1,0.95][ttl:7000][stencil:softmoon.png][rect: 384, 384][plasma:4]")
+addBouncer("[layer:2][phys: 500,500,600,600,1,0.95][ttl:7000][stencil:softmoon.png][rect: 384, 384][plasma:-1]")
 delay(1000)
-addBouncer("[layer:2][phys: 50,50,300,300,1,0.95][ttl:7000][stencil:softheart.png][rect: 384, 384][plasma:9]")
+addBouncer("[layer:2][phys: 50,50,300,300,1,0.95][ttl:7000][stencil:softheart.png][rect: 384, 384][plasma:-1]")
 
 delay(5000)
 

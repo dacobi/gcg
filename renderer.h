@@ -28,6 +28,9 @@ public:
     // Bouncer drawing
     void drawBouncer(SDL_GPUTexture* tex, const SDL_FRect& dst, Uint8 r, Uint8 g, Uint8 b, Uint8 a, SDL_GPUTexture* stencil_tex = nullptr, bool transparent = false);
 
+    // 3D drawing
+    void drawObject3D(class Object3D* obj, const struct Light3D& light, const float* viewMatrix, const float* projMatrix);
+
     // Background drawing
     void drawBackground(SDL_GPUTexture* tex);
 
@@ -46,12 +49,14 @@ private:
     SDL_GPURenderPass* current_render_pass = nullptr;
 
     SDL_GPUTexture* color_target = nullptr;
+    SDL_GPUTexture* depth_texture = nullptr;
     int target_width = 0;
     int target_height = 0;
 
     SDL_GPUGraphicsPipeline* pipeline_base = nullptr;
     SDL_GPUGraphicsPipeline* pipeline_stencil = nullptr;
     SDL_GPUGraphicsPipeline* pipeline_trans = nullptr;
+    SDL_GPUGraphicsPipeline* pipeline_3d = nullptr;
 
     SDL_GPUSampler* sampler = nullptr;
     SDL_GPUTextureFormat swapchain_format = SDL_GPU_TEXTUREFORMAT_INVALID;
