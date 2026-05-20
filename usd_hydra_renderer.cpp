@@ -127,6 +127,18 @@ void USDHydraRenderer::render(void* outPixels) {
     engine->Render(stage->GetPseudoRoot(), params);
 
     glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, outPixels);
+
+    // Flip the image vertically (OpenGL reads bottom-to-top, SDL expects top-to-bottom)
+    uint8_t* pixels = static_cast<uint8_t*>(outPixels);
+    int rowSize = width * 4;
+    std::vector<uint8_t> rowBuffer(rowSize);
+    for (int y = 0; y < height / 2; ++y) {
+        uint8_t* rowTop = pixels + y * rowSize;
+        uint8_t* rowBottom = pixels + (height - 1 - y) * rowSize;
+        std::memcpy(rowBuffer.data(), rowTop, rowSize);
+        std::memcpy(rowTop, rowBottom, rowSize);
+        std::memcpy(rowBottom, rowBuffer.data(), rowSize);
+    }
     
     if (glBindFramebuffer) glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
