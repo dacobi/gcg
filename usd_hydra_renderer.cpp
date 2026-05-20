@@ -1,27 +1,19 @@
 #include "usd_hydra_renderer.h"
 #include <iostream>
-#include <SDL3/SDL_opengl.h>
+#include <SDL3/SDL_vulkan.h>
 #include <pxr/usd/usd/prim.h>
 #include <pxr/base/gf/rotation.h>
-
-// Helper to get GL function pointers without GLEW
-typedef void (APIENTRYP PFNGLGENFRAMEBUFFERSPROC) (GLsizei n, GLuint *framebuffers);
-typedef void (APIENTRYP PFNGLBINDFRAMEBUFFERPROC) (GLenum target, GLuint framebuffer);
-typedef void (APIENTRYP PFNGLFRAMEBUFFERTEXTURE2DPROC) (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
-typedef void (APIENTRYP PFNGLDELETEFRAMEBUFFERSPROC) (GLsizei n, const GLuint *framebuffers);
-typedef GLenum (APIENTRYP PFNGLCHECKFRAMEBUFFERSTATUSPROC) (GLenum target);
+#include <pxr/imaging/hgi/tokens.h>
+#include <pxr/imaging/hgi/blitCmds.h>
+#include <pxr/imaging/hgi/blitCmdsOps.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/imaging/hd/driver.h>
+#include <pxr/base/gf/half.h>
+#include <pxr/imaging/hgi/enums.h>
 
 USDHydraRenderer::USDHydraRenderer(int w, int h) : width(w), height(h) {}
 
 USDHydraRenderer::~USDHydraRenderer() {
-    if (glContext) {
-        SDL_GL_MakeCurrent(glWindow, glContext);
-        glDeleteTextures(1, &colorTex);
-        glDeleteTextures(1, &depthTex);
-        PFNGLDELETEFRAMEBUFFERSPROC glDeleteFramebuffers = (PFNGLDELETEFRAMEBUFFERSPROC)SDL_GL_GetProcAddress("glDeleteFramebuffers");
-        if (glDeleteFramebuffers) glDeleteFramebuffers(1, &fbo);
-        SDL_GL_DestroyContext(glContext);
-    }
     if (glWindow) SDL_DestroyWindow(glWindow);
 }
 
@@ -29,61 +21,30 @@ bool USDHydraRenderer::init(const std::string& usdFile) {
     stage = UsdStage::Open(usdFile);
     if (!stage) return false;
 
-    SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE,1);
-    // Create a hidden window for OpenGL context
-    glWindow = SDL_CreateWindow("USD Offscreen", width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
+    // Create a hidden window for Vulkan surface (some backends might still require it for setup)
+    glWindow = SDL_CreateWindow("USD Offscreen", width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_HIDDEN);
     if (!glWindow) return false;
 
-    glContext = SDL_GL_CreateContext(glWindow);
-    if (!glContext) return false;
-
-    SDL_GL_MakeCurrent(glWindow, glContext);
-    glEnable(GL_FRAMEBUFFER_SRGB);
-
-    // Basic GL setup for offscreen rendering
-    glGenTextures(1, &colorTex);
-    glBindTexture(GL_TEXTURE_2D, colorTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    
-    glGenTextures(1, &depthTex);
-    glBindTexture(GL_TEXTURE_2D, depthTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, width, height, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, nullptr);
-
-    PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers = (PFNGLGENFRAMEBUFFERSPROC)SDL_GL_GetProcAddress("glGenFramebuffers");
-    PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer = (PFNGLBINDFRAMEBUFFERPROC)SDL_GL_GetProcAddress("glBindFramebuffer");
-    PFNGLFRAMEBUFFERTEXTURE2DPROC glFramebufferTexture2D = (PFNGLFRAMEBUFFERTEXTURE2DPROC)SDL_GL_GetProcAddress("glFramebufferTexture2D");
-    PFNGLCHECKFRAMEBUFFERSTATUSPROC glCheckFramebufferStatus = (PFNGLCHECKFRAMEBUFFERSTATUSPROC)SDL_GL_GetProcAddress("glCheckFramebufferStatus");
-
-    if (glGenFramebuffers && glBindFramebuffer && glFramebufferTexture2D) {
-        glGenFramebuffers(1, &fbo);
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTex, 0);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depthTex, 0);
-
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            std::cerr << "FBO incomplete" << std::endl;
-        }
+    hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->Vulkan);
+    if (!hgi) {
+        std::cerr << "Failed to initialize Vulkan Hgi." << std::endl;
+        return false;
     }
 
-    engine = std::make_unique<UsdImagingGLEngine>();
+    pxr::HdDriver driver;
+    driver.name = pxr::HgiTokens->renderDriver;
+    driver.driver = pxr::VtValue(hgi.get());
+
+    pxr::UsdImagingGLEngine::Parameters params;
+    params.driver = driver;
+
+    engine = std::make_unique<UsdImagingGLEngine>(params);
+    engine->SetEnablePresentation(false);
     return true;
 }
 
 void USDHydraRenderer::render(void* outPixels) {
-    if (!engine || !stage || !glContext) return;
-
-    SDL_GL_MakeCurrent(glWindow, glContext);
-    
-    PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer = (PFNGLBINDFRAMEBUFFERPROC)SDL_GL_GetProcAddress("glBindFramebuffer");
-    if (glBindFramebuffer) glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-    glViewport(0, 0, width, height);
-    if (backgroundTransparency) {
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    } else {
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    }
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    if (!engine || !stage || !hgi) return;
 
     UsdImagingGLRenderParams params;
     params.drawMode = UsdImagingGLDrawMode::DRAW_SHADED_SMOOTH;
@@ -131,22 +92,74 @@ void USDHydraRenderer::render(void* outPixels) {
     }
 
     engine->SetRenderViewport(GfVec4d(0, 0, width, height));
+    engine->SetRenderBufferSize(pxr::GfVec2i(width, height));
+    
+    engine->SetRendererAov(pxr::HdAovTokens->color);
 
     engine->Render(stage->GetPseudoRoot(), params);
 
-    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, outPixels);
+    pxr::HgiTextureHandle colorAovTexture = engine->GetAovTexture(pxr::HdAovTokens->color);
+    if (colorAovTexture) {
+        static bool print_format = true;
+        if (print_format) {
+            std::cout << "Texture format: " << colorAovTexture->GetDescriptor().format << "\n";
+            print_format = false;
+        }
+        pxr::HgiBlitCmdsUniquePtr blitCmds = hgi->CreateBlitCmds();
+        pxr::HgiTextureGpuToCpuOp copyOp;
+        copyOp.gpuSourceTexture = colorAovTexture;
+        copyOp.sourceTexelOffset = pxr::GfVec3i(0, 0, 0);
+        copyOp.mipLevel = 0;
 
-    // Flip the image vertically (OpenGL reads bottom-to-top, SDL expects top-to-bottom)
-    uint8_t* pixels = static_cast<uint8_t*>(outPixels);
-    int rowSize = width * 4;
-    std::vector<uint8_t> rowBuffer(rowSize);
-    for (int y = 0; y < height / 2; ++y) {
-        uint8_t* rowTop = pixels + y * rowSize;
-        uint8_t* rowBottom = pixels + (height - 1 - y) * rowSize;
-        std::memcpy(rowBuffer.data(), rowTop, rowSize);
-        std::memcpy(rowTop, rowBottom, rowSize);
-        std::memcpy(rowBottom, rowBuffer.data(), rowSize);
+        if (colorAovTexture->GetDescriptor().format == pxr::HgiFormatFloat16Vec4) {
+            std::vector<pxr::GfHalf> halfBuffer(width * height * 4);
+            copyOp.cpuDestinationBuffer = halfBuffer.data();
+            copyOp.destinationByteOffset = 0;
+            copyOp.destinationBufferByteSize = width * height * 4 * sizeof(pxr::GfHalf);
+            
+            blitCmds->CopyTextureGpuToCpu(copyOp);
+            hgi->SubmitCmds(blitCmds.get(), pxr::HgiSubmitWaitTypeWaitUntilCompleted);
+            
+            uint8_t* p = static_cast<uint8_t*>(outPixels);
+            for (int i = 0; i < width * height * 4; ++i) {
+                if ((i % 4) == 3) {
+                    p[i] = 255;
+                } else {
+                    float val = static_cast<float>(halfBuffer[i]);
+                    if (val < 0.0f) val = 0.0f;
+                    if (val > 1.0f) val = 1.0f;
+                    p[i] = static_cast<uint8_t>(val * 255.0f);
+                }
+            }
+
+            static bool first = true;
+            if (first) {
+                std::cout << "GfHalf converted! First pixel: " << (int)p[0] << ", " << (int)p[1] << ", " << (int)p[2] << ", " << (int)p[3] << "\n";
+                int different = 0;
+                int max_r = 0, min_r = 255;
+                for (int i=0; i<width*height; i++) {
+                    if (p[i*4+0] != p[0] || p[i*4+1] != p[1] || p[i*4+2] != p[2]) {
+                        different++;
+                        if (p[i*4+0] > max_r) max_r = p[i*4+0];
+                        if (p[i*4+0] < min_r) min_r = p[i*4+0];
+                    }
+                }
+                std::cout << "Different pixels: " << different << " Min R: " << min_r << " Max R: " << max_r << "\n";
+                first = false;
+            }
+        } else {
+            copyOp.cpuDestinationBuffer = outPixels;
+            copyOp.destinationByteOffset = 0;
+            copyOp.destinationBufferByteSize = width * height * 4;
+            
+            blitCmds->CopyTextureGpuToCpu(copyOp);
+            hgi->SubmitCmds(blitCmds.get(), pxr::HgiSubmitWaitTypeWaitUntilCompleted);
+        }
+    } else {
+        static bool first_err = true;
+        if (first_err) {
+            std::cerr << "colorAovTexture is NULL!\n";
+            first_err = false;
+        }
     }
-    
-    if (glBindFramebuffer) glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

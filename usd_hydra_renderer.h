@@ -9,6 +9,7 @@
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usdImaging/usdImagingGL/engine.h>
 #include <pxr/base/gf/matrix4d.h>
+#include <pxr/imaging/hgi/hgi.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -38,10 +39,8 @@ private:
     int height;
 
     SDL_Window* glWindow = nullptr;
-    SDL_GLContext glContext = nullptr;
-    uint32_t fbo = 0;
-    uint32_t colorTex = 0;
-    uint32_t depthTex = 0;
+
+    pxr::HgiUniquePtr hgi;
 
     std::unique_ptr<UsdImagingGLEngine> engine;
     UsdStageRefPtr stage;

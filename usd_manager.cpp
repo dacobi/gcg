@@ -1,5 +1,7 @@
 #include "usd_manager.h"
 #include <pxr/usd/usd/primRange.h>
+#include <pxr/usd/usdGeom/primvarsAPI.h>
+#include <pxr/base/gf/vec2f.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -34,6 +36,15 @@ std::vector<USDMeshData> USDManager::extractMeshes() {
                 normals.assign(points.size(), GfVec3f(0.0f, 1.0f, 0.0f));
             }
 
+            VtArray<GfVec2f> uvs;
+            UsdGeomPrimvarsAPI primvarsAPI(prim);
+            UsdGeomPrimvar stPrimvar = primvarsAPI.GetPrimvar(TfToken("st"));
+            if (stPrimvar && stPrimvar.Get(&uvs) && uvs.size() == points.size()) {
+                // Have per-vertex UVs
+            } else {
+                uvs.assign(points.size(), GfVec2f(0.0f, 0.0f));
+            }
+
             VtArray<int> faceVertexIndices;
             mesh.GetFaceVertexIndicesAttr().Get(&faceVertexIndices);
             
@@ -47,6 +58,8 @@ std::vector<USDMeshData> USDManager::extractMeshes() {
                 v.normal[0] = normals[i][0];
                 v.normal[1] = normals[i][1];
                 v.normal[2] = normals[i][2];
+                v.uv[0] = uvs[i][0];
+                v.uv[1] = uvs[i][1];
                 data.vertices.push_back(v);
             }
             

@@ -89,7 +89,7 @@ bool Renderer::initPipelines() {
     SDL_GPUShader* vs_3d = LoadSPIRVShader(device, vert_3d_spv, vert_3d_spv_len, SDL_SHADERCROSS_SHADERSTAGE_VERTEX, 0, 1);
     if (!vs_3d) return false;
 
-    SDL_GPUShader* fs_3d = LoadSPIRVShader(device, frag_3d_spv, frag_3d_spv_len, SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT, 0, 1);
+    SDL_GPUShader* fs_3d = LoadSPIRVShader(device, frag_3d_spv, frag_3d_spv_len, SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT, 1, 2);
     if (!fs_3d) return false;
     
     SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {};
@@ -143,7 +143,7 @@ bool Renderer::initPipelines() {
     vertex_buffers[0].input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
     vertex_buffers[0].instance_step_rate = 0;
 
-    SDL_GPUVertexAttribute vertex_attributes[2];
+    SDL_GPUVertexAttribute vertex_attributes[3];
     vertex_attributes[0].location = 0;
     vertex_attributes[0].buffer_slot = 0;
     vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
@@ -154,9 +154,14 @@ bool Renderer::initPipelines() {
     vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3;
     vertex_attributes[1].offset = sizeof(float) * 3;
 
+    vertex_attributes[2].location = 2;
+    vertex_attributes[2].buffer_slot = 0;
+    vertex_attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
+    vertex_attributes[2].offset = sizeof(float) * 6;
+
     pipeline_3d_info.vertex_input_state.num_vertex_buffers = 1;
     pipeline_3d_info.vertex_input_state.vertex_buffer_descriptions = vertex_buffers;
-    pipeline_3d_info.vertex_input_state.num_vertex_attributes = 2;
+    pipeline_3d_info.vertex_input_state.num_vertex_attributes = 3;
     pipeline_3d_info.vertex_input_state.vertex_attributes = vertex_attributes;
 
     pipeline_3d = SDL_CreateGPUGraphicsPipeline(device, &pipeline_3d_info);
