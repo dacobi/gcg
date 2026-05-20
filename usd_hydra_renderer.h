@@ -31,6 +31,7 @@ public:
     bool freeCamera = true;
     float sceneRotation[3] = {0.0f, 0.0f, 0.0f};
     float cameraDistance = 10.0f;
+    bool backgroundTransparency = false;
 
 private:
     int width;

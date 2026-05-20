@@ -1173,7 +1173,7 @@ struct ParsedSegment {
     bool bIsStatic;
     int r, g, b; 
     std::string content;
-    int bIsFile; // 0: None, 1: PNG, 2: Video, 3: Plasma, 4: Fractal, 5: Tvid, 6: USD
+    int bIsFile; // 0: None, 1: PNG, 2: Video, 3: Plasma, 4: Fractal, 5: Tvid, 6: USD, 7: Transparent USD
     std::string fullInput;
     int over_w = 0, over_h = 0;
     int line_breaks = 0;
@@ -1206,7 +1206,7 @@ public:
 
         // Scan string for tags
         std::string body = input;
-        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys|layer|usd)(?::\s*([^\]]*))?\])", std::regex::icase);
+        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys|layer|usd|tusd)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -1310,6 +1310,9 @@ public:
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "usd") {
                 results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 6, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
+            } else if (tagType == "tusd") {
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 7, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             }
 
@@ -1753,10 +1756,13 @@ public:
                 newB.mandel = nullptr;
                 return false;
             }
-        } else if (pd.bIsFile == 6) { // USD
+        } else if (pd.bIsFile == 6 || pd.bIsFile == 7) { // USD or Transparent USD
             newB.tw = (pd.over_w > 0) ? pd.over_w : 512;
             newB.th = (pd.over_h > 0) ? pd.over_h : 512;
             newB.usd_renderer = new USDHydraRenderer(newB.tw, newB.th);
+            if (pd.bIsFile == 7) {
+                newB.usd_renderer->backgroundTransparency = true;
+            }
             if (newB.usd_renderer->init(pd.content)) {
                 tex = g_renderer->createTexture(newB.tw, newB.th, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER);
             } else {
@@ -1933,6 +1939,7 @@ static void print_help() {
     std::printf("  [plasma:idx]               Render plasma #\n");
     std::printf("  [fractal:idx]              Render fractal #\n");
     std::printf("  [usd:file.usd]             Render USD file using Hydra\n");
+    std::printf("  [tusd:file.usd]            Render USD file with transparent background\n");
     std::printf("  [stencil:file.png]         Apply alpha mask\n");
     std::printf("  [ttl:ms]                   Self-destruct timer\n");
     std::printf("  [phys:vx,vy,sx,sy,m,b]     Advanced physics and spawn point\n");

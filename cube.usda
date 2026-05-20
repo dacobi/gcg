@@ -23,19 +23,19 @@ def Xform "World"
     # ========================================================================
     # GLOBAL AMBIENT LIGHT
     # ========================================================================
-    def DomeLight "AmbientLight"
-    {
+    #def DomeLight "AmbientLight"
+    #{
         # Linear brightness multiplier
-        float intensity = 10.0
+    #    float intensity = 10.0
         
         # Exponential exposure multiplier (power of 2)
-        float inputs:exposure = 0.0
+    #    float inputs:exposure = 0.0
         
-        asset inputs:texture:file = @orchard.exr@
-
+    #    asset inputs:texture:file = @orchard.exr@
+    
         # Global color of your ambient fill light (R, G, B)
-        color3f inputs:color = (1.0, 1.0, 1.0)
-    }
+    #        color3f inputs:color = (1.0, 1.0, 1.0)
+    #}
     # ========================================================================
     # TEXTURED MESH CUBE
     # ========================================================================

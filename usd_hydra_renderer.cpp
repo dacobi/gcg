@@ -78,7 +78,11 @@ void USDHydraRenderer::render(void* outPixels) {
     if (glBindFramebuffer) glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
     glViewport(0, 0, width, height);
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    if (backgroundTransparency) {
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    } else {
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    }
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     UsdImagingGLRenderParams params;
@@ -86,7 +90,11 @@ void USDHydraRenderer::render(void* outPixels) {
     params.enableLighting = true;
     params.enableSceneLights = true;
     params.colorCorrectionMode = TfToken("sRGB");
-    params.clearColor = GfVec4f(0.1f, 0.1f, 0.1f, 1.0f);
+    if (backgroundTransparency) {
+        params.clearColor = GfVec4f(0.0f, 0.0f, 0.0f, 0.0f);
+    } else {
+        params.clearColor = GfVec4f(0.1f, 0.1f, 0.1f, 1.0f);
+    }
 
     if (!activeCameraPath.IsEmpty() && !freeCamera) {
         engine->SetCameraPath(activeCameraPath);
