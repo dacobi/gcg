@@ -83,25 +83,29 @@ void USDHydraRenderer::render(void* outPixels) {
     params.enableLighting = true;
     params.clearColor = GfVec4f(0.1f, 0.1f, 0.1f, 1.0f);
 
-    GfMatrix4d viewMatrix(1.0);
-    viewMatrix.SetTranslate(GfVec3d(0, 0, -10)); // Move back a bit more
-    
-    // Simple projection matrix calculation
-    double aspect = (double)width / height;
-    double fov = 45.0;
-    double near = 0.1;
-    double far = 100.0;
-    double top = near * tan(fov * M_PI / 360.0);
-    double right = top * aspect;
-    GfMatrix4d projMatrix(1.0);
-    projMatrix[0][0] = near / right;
-    projMatrix[1][1] = near / top;
-    projMatrix[2][2] = -(far + near) / (far - near);
-    projMatrix[3][2] = -2.0 * far * near / (far - near);
-    projMatrix[2][3] = -1.0;
-    projMatrix[3][3] = 0.0;
+    if (!activeCameraPath.IsEmpty()) {
+        engine->SetCameraPath(activeCameraPath);
+    } else {
+        GfMatrix4d viewMatrix(1.0);
+        viewMatrix.SetTranslate(GfVec3d(0, 0, -10)); // Move back a bit more
+        
+        // Simple projection matrix calculation
+        double aspect = (double)width / height;
+        double fov = 45.0;
+        double near = 0.1;
+        double far = 100.0;
+        double top = near * tan(fov * M_PI / 360.0);
+        double right = top * aspect;
+        GfMatrix4d projMatrix(1.0);
+        projMatrix[0][0] = near / right;
+        projMatrix[1][1] = near / top;
+        projMatrix[2][2] = -(far + near) / (far - near);
+        projMatrix[3][2] = -2.0 * far * near / (far - near);
+        projMatrix[2][3] = -1.0;
+        projMatrix[3][3] = 0.0;
 
-    engine->SetCameraState(viewMatrix, projMatrix);
+        engine->SetCameraState(viewMatrix, projMatrix);
+    }
     engine->SetRenderViewport(GfVec4d(0, 0, width, height));
 
     engine->Render(stage->GetPseudoRoot(), params);

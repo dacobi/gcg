@@ -47,6 +47,7 @@
 #include <pxr/base/gf/rotation.h>
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usd/primRange.h>
+#include <pxr/usd/usdGeom/camera.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -67,7 +68,7 @@ const int MIXER_SAMPLE_RATE = 48000;
 
 // --- 1. Audio Mixer Class ---
 
-static void renderUSDTree(UsdPrim prim) {
+static void renderUSDTree(UsdPrim prim, USDHydraRenderer* renderer) {
     if (!prim) return;
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
@@ -78,10 +79,23 @@ static void renderUSDTree(UsdPrim prim) {
     char label[256];
     std::snprintf(label, sizeof(label), "%s [%s]", prim.GetName().GetText(), prim.GetTypeName().GetText());
 
+    if (renderer->getActiveCamera() == prim.GetPath()) {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
+    }
+
     bool open = ImGui::TreeNodeEx(label, flags);
+    
+    if (renderer->getActiveCamera() == prim.GetPath()) {
+        ImGui::PopStyleColor();
+    }
+    
+    if (ImGui::IsItemClicked() && prim.IsA<UsdGeomCamera>()) {
+        renderer->setActiveCamera(prim.GetPath());
+    }
+
     if (open && !prim.GetChildren().empty()) {
         for (UsdPrim child : prim.GetChildren()) {
-            renderUSDTree(child);
+            renderUSDTree(child, renderer);
         }
         ImGui::TreePop();
     }
@@ -2811,7 +2825,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 UsdStageRefPtr stage = state->selected_usd->getStage();
                 if (stage) {
                     ImGui::Text("USD Hierarchy:");
-                    renderUSDTree(stage->GetPseudoRoot());
+                    renderUSDTree(stage->GetPseudoRoot(), state->selected_usd);
                 } else {
                     ImGui::Text("No stage loaded.");
                 }

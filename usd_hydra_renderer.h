@@ -25,6 +25,9 @@ public:
 
     UsdStageRefPtr getStage() const { return stage; }
 
+    void setActiveCamera(const SdfPath& cameraPath) { activeCameraPath = cameraPath; }
+    const SdfPath& getActiveCamera() const { return activeCameraPath; }
+
 private:
     int width;
     int height;
@@ -37,4 +40,5 @@ private:
 
     std::unique_ptr<UsdImagingGLEngine> engine;
     UsdStageRefPtr stage;
+    SdfPath activeCameraPath;
 };
