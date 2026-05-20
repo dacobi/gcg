@@ -42,6 +42,7 @@
 #include "shplasma.h"
 
 #include "usd_manager.h"
+#include "usd_hydra_renderer.h"
 #include "object3d.h"
 #include <pxr/base/gf/rotation.h>
 
@@ -1135,7 +1136,7 @@ struct ParsedSegment {
     bool bIsStatic;
     int r, g, b; 
     std::string content;
-    int bIsFile; // 0: None, 1: PNG, 2: Video, 3: Plasma, 4: Fractal, 5: Tvid
+    int bIsFile; // 0: None, 1: PNG, 2: Video, 3: Plasma, 4: Fractal, 5: Tvid, 6: USD
     std::string fullInput;
     int over_w = 0, over_h = 0;
     int line_breaks = 0;
@@ -1168,7 +1169,7 @@ public:
 
         // Scan string for tags
         std::string body = input;
-        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys|layer)(?::\s*([^\]]*))?\])", std::regex::icase);
+        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys|layer|usd)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -1270,6 +1271,9 @@ public:
             } else if (tagType == "fractal") {
                 results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
+            } else if (tagType == "usd") {
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 6, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             }
 
             lastPos = matchPos + match.length();
@@ -1325,6 +1329,7 @@ struct Bouncer {
     MediaDecoder* decoder = nullptr;
     PlasmaShader* plasma = nullptr;
     MandelbrotOpenCL* mandel = nullptr;
+    USDHydraRenderer* usd_renderer = nullptr;
     float ttl_remaining_ms = -1.0f;
     int layer = 1;
     bool bTransparent = false;
@@ -1447,6 +1452,7 @@ public:
             if (b.decoder) delete b.decoder;
             if (b.plasma) delete b.plasma;
             if (b.mandel) delete b.mandel;
+            if (b.usd_renderer) delete b.usd_renderer;
             if (b.tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), b.tex);
             if (b.stencil_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), b.stencil_tex);
         }
@@ -1486,6 +1492,7 @@ public:
                     if (it->decoder) delete it->decoder;
                     if (it->plasma) delete it->plasma;
                     if (it->mandel) delete it->mandel;
+                    if (it->usd_renderer) delete it->usd_renderer;
                     if (it->tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), it->tex);
                     if (it->stencil_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), it->stencil_tex);
                     it = bouncers.erase(it);
@@ -1507,6 +1514,11 @@ public:
             }
             if (b.mandel && b.tex) {
                 b.mandel->updateTexture(g_renderer, b.tex);
+            }
+            if (b.usd_renderer && b.tex) {
+                std::vector<uint8_t> pixels(b.tw * b.th * 4);
+                b.usd_renderer->render(pixels.data());
+                g_renderer->updateTexture(b.tex, b.tw, b.th, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, pixels.data(), b.tw * 4);
             }
         }
 
@@ -1611,6 +1623,17 @@ public:
             } else {
                 delete newB.mandel;
                 newB.mandel = nullptr;
+                return false;
+            }
+        } else if (pd.bIsFile == 6) { // USD
+            newB.tw = (pd.over_w > 0) ? pd.over_w : 512;
+            newB.th = (pd.over_h > 0) ? pd.over_h : 512;
+            newB.usd_renderer = new USDHydraRenderer(newB.tw, newB.th);
+            if (newB.usd_renderer->init(pd.content)) {
+                tex = g_renderer->createTexture(newB.tw, newB.th, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER);
+            } else {
+                delete newB.usd_renderer;
+                newB.usd_renderer = nullptr;
                 return false;
             }
         } else { // Text (pd.bIsFile == 0)
@@ -1867,6 +1890,7 @@ static void print_help() {
     std::printf("  [tvid:file,no_audio]       Render video with transparency (optional no_audio=1)\n");
     std::printf("  [plasma:idx]               Render plasma #\n");
     std::printf("  [fractal:idx]              Render fractal #\n");
+    std::printf("  [usd:file.usd]             Render USD file using Hydra\n");
     std::printf("  [stencil:file.png]         Apply alpha mask\n");
     std::printf("  [ttl:ms]                   Self-destruct timer\n");
     std::printf("  [phys:vx,vy,sx,sy,m,b]     Advanced physics and spawn point\n");
@@ -2066,21 +2090,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         return SDL_APP_FAILURE;
     }
     std::printf("Active Renderer: SDL3 GPU API\n");
-
-    state->usdManager = new USDManager();
-    if (state->usdManager->loadStage("test.usda")) {
-        std::vector<USDMeshData> meshes = state->usdManager->extractMeshes();
-        for (const auto& meshData : meshes) {
-            Object3D* obj = new Object3D();
-            if (obj->init(g_renderer->getDevice(), meshData.vertices, meshData.indices)) {
-                state->usdObjects.push_back(obj);
-            } else {
-                delete obj;
-            }
-        }
-    } else {
-        std::printf("Failed to load test.usda\n");
-    }
 
     // --- Plasma texture ---
     state->plasma_w = cur_w / 2;
@@ -2843,43 +2852,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         g_renderer->drawBackground(state->plasma_tex);
     } else if (state->mandel_tex) {
         g_renderer->drawBackground(state->mandel_tex);
-    }
-
-    if (!state->usdObjects.empty()) {
-        Light3D light = {};
-        light.position[0] = std::sin(state->time_acc) * 5.0f;
-        light.position[1] = 5.0f;
-        light.position[2] = std::cos(state->time_acc) * 5.0f;
-        light.color[0] = 1.0f; light.color[1] = 1.0f; light.color[2] = 1.0f;
-        light.intensity = 1.0f;
-
-        float viewMatrix[16] = {
-            1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, -5, 1 // Translate back by 5 units
-        };
-
-        int w, h;
-        SDL_GetWindowSize(window, &w, &h);
-        float aspect = (float)w / (float)h;
-        float fov = 45.0f * (M_PI / 180.0f);
-        float f = 1.0f / std::tan(fov / 2.0f);
-        float near_z = 0.1f;
-        float far_z = 100.0f;
-
-        float projMatrix[16] = {
-            f / aspect, 0, 0, 0,
-            0, f, 0, 0,
-            0, 0, far_z / (near_z - far_z), -1,
-            0, 0, (near_z * far_z) / (near_z - far_z), 0
-        };
-
-        for (auto obj : state->usdObjects) {
-            // Spin the object
-            obj->modelMatrix.SetRotate(pxr::GfRotation(pxr::GfVec3d(0, 1, 0), state->time_acc * 50.0));
-            g_renderer->drawObject3D(obj, light, viewMatrix, projMatrix);
-        }
     }
 
     for (int l = 2; l >= 0; --l) {

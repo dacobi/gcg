@@ -478,6 +478,30 @@ shplasma.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/shplasma.cpp.s
 .PHONY : shplasma.cpp.s
 
+usd_hydra_renderer.o: usd_hydra_renderer.cpp.o
+.PHONY : usd_hydra_renderer.o
+
+# target to build an object file
+usd_hydra_renderer.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/usd_hydra_renderer.cpp.o
+.PHONY : usd_hydra_renderer.cpp.o
+
+usd_hydra_renderer.i: usd_hydra_renderer.cpp.i
+.PHONY : usd_hydra_renderer.i
+
+# target to preprocess a source file
+usd_hydra_renderer.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/usd_hydra_renderer.cpp.i
+.PHONY : usd_hydra_renderer.cpp.i
+
+usd_hydra_renderer.s: usd_hydra_renderer.cpp.s
+.PHONY : usd_hydra_renderer.s
+
+# target to generate assembly for a file
+usd_hydra_renderer.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/usd_hydra_renderer.cpp.s
+.PHONY : usd_hydra_renderer.cpp.s
+
 usd_manager.o: usd_manager.cpp.o
 .PHONY : usd_manager.o
 
@@ -554,6 +578,9 @@ help:
 	@echo "... shplasma.o"
 	@echo "... shplasma.i"
 	@echo "... shplasma.s"
+	@echo "... usd_hydra_renderer.o"
+	@echo "... usd_hydra_renderer.i"
+	@echo "... usd_hydra_renderer.s"
 	@echo "... usd_manager.o"
 	@echo "... usd_manager.i"
 	@echo "... usd_manager.s"
