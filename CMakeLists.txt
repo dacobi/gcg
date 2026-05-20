@@ -39,11 +39,14 @@ find_package(OpenCL REQUIRED)
 find_package(Threads REQUIRED)
 find_package(X11 REQUIRED)
 find_package(hdf5 REQUIRED)
+set(pxr_DIR "/usr/local")
 find_package(pxr REQUIRED)
 
 find_package(Python3 COMPONENTS Development REQUIRED)
 find_package(SDL3_shadercross REQUIRED)
 find_package(OpenGL REQUIRED)
+
+link_directories(/usr/local/lib)
 
 target_link_libraries(imgui PUBLIC PkgConfig::SDL3 SDL3_shadercross::SDL3_shadercross-shared)
 #target_compile_options(gcg PRIVATE -g -O2)
