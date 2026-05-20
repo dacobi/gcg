@@ -88,7 +88,7 @@ void USDHydraRenderer::render(void* outPixels) {
     params.colorCorrectionMode = TfToken("sRGB");
     params.clearColor = GfVec4f(0.1f, 0.1f, 0.1f, 1.0f);
 
-    if (!activeCameraPath.IsEmpty()) {
+    if (!activeCameraPath.IsEmpty() && !freeCamera) {
         engine->SetCameraPath(activeCameraPath);
     } else {
         GfMatrix4d viewMatrix(1.0);
@@ -112,7 +112,7 @@ void USDHydraRenderer::render(void* outPixels) {
         engine->SetCameraState(viewMatrix, projMatrix);
     }
 
-    if (rotateScene) {
+    if (freeCamera) {
         GfMatrix4d rootXform(1.0);
         rootXform.SetRotate(GfRotation(GfVec3d(1, 0, 0), sceneRotation[0]) *
                             GfRotation(GfVec3d(0, 1, 0), sceneRotation[1]) *

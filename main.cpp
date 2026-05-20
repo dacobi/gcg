@@ -91,6 +91,7 @@ static void renderUSDTree(UsdPrim prim, USDHydraRenderer* renderer) {
     
     if (ImGui::IsItemClicked() && prim.IsA<UsdGeomCamera>()) {
         renderer->setActiveCamera(prim.GetPath());
+        renderer->freeCamera = false;
     }
 
     if (open && !prim.GetChildren().empty()) {
@@ -2822,15 +2823,19 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             ImGui::Separator();
 
             if (state->selected_usd) {
-                ImGui::Checkbox("Rotate Scene", &state->selected_usd->rotateScene);
-                if (state->selected_usd->rotateScene) {
-                    ImGui::SliderFloat("Rot X", &state->selected_usd->sceneRotation[0], 0.0f, 360.0f);
-                    ImGui::SliderFloat("Rot Y", &state->selected_usd->sceneRotation[1], 0.0f, 360.0f);
-                    ImGui::SliderFloat("Rot Z", &state->selected_usd->sceneRotation[2], 0.0f, 360.0f);
+                if (ImGui::Checkbox("Free Camera", &state->selected_usd->freeCamera)) {
+                    if (state->selected_usd->freeCamera) {
+                        state->selected_usd->setActiveCamera(SdfPath());
+                    }
                 }
-                if (state->selected_usd->getActiveCamera().IsEmpty()) {
-                    ImGui::SliderFloat("Distance", &state->selected_usd->cameraDistance, 0.1f, 100.0f);
-                }
+                
+                ImGui::BeginDisabled(!state->selected_usd->freeCamera);
+                ImGui::SliderFloat("Rot X", &state->selected_usd->sceneRotation[0], 0.0f, 360.0f);
+                ImGui::SliderFloat("Rot Y", &state->selected_usd->sceneRotation[1], 0.0f, 360.0f);
+                ImGui::SliderFloat("Rot Z", &state->selected_usd->sceneRotation[2], 0.0f, 360.0f);
+                ImGui::SliderFloat("Distance", &state->selected_usd->cameraDistance, 0.1f, 100.0f);
+                ImGui::EndDisabled();
+
                 ImGui::Separator();
 
                 UsdStageRefPtr stage = state->selected_usd->getStage();
