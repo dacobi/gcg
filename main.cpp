@@ -45,6 +45,8 @@
 #include "usd_hydra_renderer.h"
 #include "object3d.h"
 #include <pxr/base/gf/rotation.h>
+#include <pxr/usd/usd/prim.h>
+#include <pxr/usd/usd/primRange.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -64,6 +66,26 @@ extern "C" {
 const int MIXER_SAMPLE_RATE = 48000;
 
 // --- 1. Audio Mixer Class ---
+
+static void renderUSDTree(UsdPrim prim) {
+    if (!prim) return;
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+    if (prim.GetChildren().empty()) {
+        flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+    }
+
+    char label[256];
+    std::snprintf(label, sizeof(label), "%s [%s]", prim.GetName().GetText(), prim.GetTypeName().GetText());
+
+    bool open = ImGui::TreeNodeEx(label, flags);
+    if (open && !prim.GetChildren().empty()) {
+        for (UsdPrim child : prim.GetChildren()) {
+            renderUSDTree(child);
+        }
+        ImGui::TreePop();
+    }
+}
 
 class AudioMixer {
 
@@ -1319,6 +1341,8 @@ private:
 
 
 
+struct AppState;
+
 struct Bouncer {
     float x, y;
     float vx, vy;
@@ -1335,10 +1359,12 @@ struct Bouncer {
     bool bTransparent = false;
 };
 
-// ------------------------------------------------
-// Single text texture — just the rendered text, no tiling
-// Returns the texture; writes dimensions into *out_w / *out_h.
-// ---------------------------------------------------------------------------
+static ContentParser mParser;
+static PlasmaShader* myPlasma = nullptr;
+static MandelbrotOpenCL* myMandel = nullptr;
+static bool bUsePlasma = true;
+static bool bUseMandel = false;
+
 static SDL_GPUTexture* create_png_texture(Renderer* renderer,
                                         const char* text,
                                         int* out_w, int* out_h,
@@ -1426,6 +1452,89 @@ static SDL_GPUTexture* create_text_texture(Renderer* renderer,
     return texture;
 }
 
+struct AppState {
+    std::vector<std::string> cli_texts;
+    std::string cli_record_path;
+    std::string cli_bg_path;
+    std::string cli_lua_path;
+    std::string cli_audio_path;
+    int cli_bg_plasma_idx = -1;
+    int cli_bg_fractal_idx = -1;
+    int cli_record_max = -1;
+    bool cli_geekd = false;
+    bool cli_maximize = false;
+    bool cli_plasma_tile = false;
+    int cli_win_w = 0;
+    int cli_win_h = 0;
+
+    PlasmaShader* selected_plasma = nullptr;
+    MandelbrotOpenCL* selected_mandel = nullptr;
+    USDHydraRenderer* selected_usd = nullptr;
+    float usd_tree_height = 300.0f;
+
+    std::vector<std::unique_ptr<class BDdisplay>> mBdisplay;
+
+    LuaScripting* scriptSystem = nullptr;
+
+    SDL_GPUTexture* plasma_tex = nullptr;
+    SDL_GPUTexture* mandel_tex = nullptr;
+    std::unique_ptr<MediaDecoder> bg_video;
+    std::unique_ptr<AudioDecoder> loop_audio;
+    SDL_GPUTexture* bg_tex = nullptr;
+    SDL_GPUTexture* scratch_tex = nullptr;
+    SDL_BlendMode SDL_BLENDMODE_STENCIL;
+
+    std::vector<TextEntry> cli_entries;
+    std::vector<Bouncer> bouncers;
+
+    bool use_custom_text = false;
+    char custom_text_buf[256];
+    std::vector<SDL_GPUTexture*> extra_textures;
+
+    int plasma_w, plasma_h;
+    int prev_win_w, prev_win_h;
+
+    class USDManager* usdManager = nullptr;
+    std::vector<class Object3D*> usdObjects;
+
+    float time_acc = 0.0f;
+    bool roll_palette = false;
+    float roll_palette_speed = 0.5f;
+    bool roll_mandel_palette = false;
+    float roll_mandel_palette_speed = 0.5f;
+
+    Recorder recorder;
+    char record_path_buf[256];
+    float record_time = 0.0f;
+    float record_frame_accum = 0.0f;
+    bool record_max_enabled = true;
+    int record_max_seconds = 59;
+    bool record_gui = false;
+
+    Uint64 last_ticks;
+    Uint64 freq;
+    Uint64 last_time;
+    double frequency;
+
+
+    struct LuaCommand {
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX };
+        Type type;
+        std::string syntax;
+        int index;
+        double value;
+    };
+    std::queue<LuaCommand> lua_commands;
+    std::mutex lua_mutex;
+
+    int event_burst_cooldown = 0;
+
+    AppState() {
+        std::memset(record_path_buf, 0, sizeof(record_path_buf));
+        std::strcpy(record_path_buf, "output.mp4");
+        std::memset(custom_text_buf, 0, sizeof(custom_text_buf));
+    }
+};
 
 class BDdisplay {
 public:
@@ -1480,7 +1589,7 @@ public:
     }
 
 
-    void update(float deltaTime, int windowW, int windowH) {
+    void update(float deltaTime, int windowW, int windowH, struct AppState* state) {
         if (bouncers.empty()) return;
 
         float dt_ms = deltaTime * 1000.0f;
@@ -1489,6 +1598,10 @@ public:
                 it->ttl_remaining_ms -= dt_ms;
                 if (it->ttl_remaining_ms <= 0) {
                     // Cleanup resources
+                    if (it->plasma == state->selected_plasma) state->selected_plasma = myPlasma;
+                    if (it->mandel == state->selected_mandel) state->selected_mandel = myMandel;
+                    if (it->usd_renderer == state->selected_usd) state->selected_usd = nullptr;
+
                     if (it->decoder) delete it->decoder;
                     if (it->plasma) delete it->plasma;
                     if (it->mandel) delete it->mandel;
@@ -1744,92 +1857,6 @@ static Bouncer make_bouncer(int win_w, int win_h, SDL_GPUTexture* tex, int tw, i
     return b;
 }
 
-struct AppState {
-    std::vector<std::string> cli_texts;
-    std::string cli_record_path;
-    std::string cli_bg_path;
-    std::string cli_lua_path;
-    std::string cli_audio_path;
-    int cli_bg_plasma_idx = -1;
-    int cli_bg_fractal_idx = -1;
-    int cli_record_max = -1;
-    bool cli_geekd = false;
-    bool cli_maximize = false;
-    bool cli_plasma_tile = false;
-    int cli_win_w = 0;
-    int cli_win_h = 0;
-
-    PlasmaShader* selected_plasma = nullptr;
-    MandelbrotOpenCL* selected_mandel = nullptr;
-
-    std::vector<std::unique_ptr<BDdisplay>> mBdisplay;
-
-    LuaScripting* scriptSystem = nullptr;
-
-    SDL_GPUTexture* plasma_tex = nullptr;
-    SDL_GPUTexture* mandel_tex = nullptr;
-    std::unique_ptr<MediaDecoder> bg_video;
-    std::unique_ptr<AudioDecoder> loop_audio;
-    SDL_GPUTexture* bg_tex = nullptr;
-    SDL_GPUTexture* scratch_tex = nullptr;
-    SDL_BlendMode SDL_BLENDMODE_STENCIL;
-
-    std::vector<TextEntry> cli_entries;
-    std::vector<Bouncer> bouncers;
-
-    bool use_custom_text = false;
-    char custom_text_buf[256];
-    std::vector<SDL_GPUTexture*> extra_textures;
-
-    int plasma_w, plasma_h;
-    int prev_win_w, prev_win_h;
-
-    class USDManager* usdManager = nullptr;
-    std::vector<class Object3D*> usdObjects;
-
-    float time_acc = 0.0f;
-    bool roll_palette = false;
-    float roll_palette_speed = 0.5f;
-    bool roll_mandel_palette = false;
-    float roll_mandel_palette_speed = 0.5f;
-
-    Recorder recorder;
-    char record_path_buf[256];
-    float record_time = 0.0f;
-    float record_frame_accum = 0.0f;
-    bool record_max_enabled = true;
-    int record_max_seconds = 59;
-    bool record_gui = false;
-
-    Uint64 last_ticks;
-    Uint64 freq;
-    Uint64 last_time;
-    double frequency;
-
-
-    struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX };
-        Type type;
-        std::string syntax;
-        int index;
-        double value;
-    };
-    std::queue<LuaCommand> lua_commands;
-    std::mutex lua_mutex;
-
-    int event_burst_cooldown = 0;
-
-    AppState() {
-        std::memset(record_path_buf, 0, sizeof(record_path_buf));
-        std::strcpy(record_path_buf, "output.mp4");
-        std::memset(custom_text_buf, 0, sizeof(custom_text_buf));
-    }
-};
-
-// ---------------------------------------------------------------------------
-// Plasma parameters — randomised once at startup for a unique look each run
-// ---------------------------------------------------------------------------
-
 
     
 CLPlasmaParams plasma_params;
@@ -1967,14 +1994,6 @@ static void randomise_plasma_xy(CLPlasmaParams& p) {
 
 
 //------------
-static ContentParser mParser;
-static PlasmaShader* myPlasma = nullptr;
-static MandelbrotOpenCL* myMandel = nullptr;
-static bool bUsePlasma = true;
-static bool bUseMandel = false;
-
-// ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
     for (int i = 1; i < argc; ++i) {
@@ -2331,6 +2350,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     for (auto& b : state->mBdisplay[cmd.index]->bouncers) {
                         if (state->selected_plasma == b.plasma) state->selected_plasma = myPlasma;
                         if (state->selected_mandel == b.mandel) state->selected_mandel = myMandel;
+                        if (state->selected_usd == b.usd_renderer) state->selected_usd = nullptr;
                     }
                     state->mBdisplay.erase(state->mBdisplay.begin() + cmd.index);
                 }
@@ -2584,6 +2604,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 for (auto& b : state->mBdisplay[del_text_idx]->bouncers) {
                     if (state->selected_plasma == b.plasma) state->selected_plasma = myPlasma;
                     if (state->selected_mandel == b.mandel) state->selected_mandel = myMandel;
+                    if (state->selected_usd == b.usd_renderer) state->selected_usd = nullptr;
                 }
                 state->mBdisplay.erase(state->mBdisplay.begin() + del_text_idx);
             }
@@ -2769,6 +2790,36 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             }
             ImGui::EndMenu();
         }
+        if (ImGui::BeginMenu("USD")) {
+            if (ImGui::BeginMenu("Select USD Bouncer")) {
+                for (size_t i = 0; i < state->mBdisplay.size(); ++i) {
+                    for (size_t j = 0; j < state->mBdisplay[i]->bouncers.size(); ++j) {
+                        USDHydraRenderer* u = state->mBdisplay[i]->bouncers[j].usd_renderer;
+                        if (u) {
+                            char label[64];
+                            std::snprintf(label, sizeof(label), "Bouncer %zu:%zu", i, j);
+                            if (ImGui::MenuItem(label, NULL, state->selected_usd == u))
+                                state->selected_usd = u;
+                        }
+                    }
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::Separator();
+
+            if (state->selected_usd) {
+                UsdStageRefPtr stage = state->selected_usd->getStage();
+                if (stage) {
+                    ImGui::Text("USD Hierarchy:");
+                    renderUSDTree(stage->GetPseudoRoot());
+                } else {
+                    ImGui::Text("No stage loaded.");
+                }
+            } else {
+                ImGui::Text("No USD bouncer selected.");
+            }
+            ImGui::EndMenu();
+        }
         if (ImGui::BeginMenu("Record")) {
             bool is_recording = (myNvec != NULL);
             if (!is_recording) {
@@ -2818,7 +2869,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     if (state->bg_video && state->bg_tex) state->bg_video->updateTexture(g_renderer, state->bg_tex);
 
     for (auto it = state->mBdisplay.begin(); it != state->mBdisplay.end(); ) {
-        (*it)->update(dt, cur_w, cur_h);
+        (*it)->update(dt, cur_w, cur_h, state);
         if ((*it)->bouncers.empty()) {
             // No need to check bouncers here since they are already empty,
             // but wait, if they were emptied inside update(), their plasma/mandel pointers

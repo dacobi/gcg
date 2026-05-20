@@ -41,6 +41,7 @@ find_package(X11 REQUIRED)
 find_package(hdf5 REQUIRED)
 find_package(pxr REQUIRED)
 
+find_package(Python3 COMPONENTS Development REQUIRED)
 find_package(SDL3_shadercross REQUIRED)
 find_package(OpenGL REQUIRED)
 
@@ -48,6 +49,7 @@ target_link_libraries(imgui PUBLIC PkgConfig::SDL3 SDL3_shadercross::SDL3_shader
 #target_compile_options(gcg PRIVATE -g -O2)
 # --- Our executable ---
 add_executable(gcg main.cpp clplasma.cpp clmandelbrot.cpp luascripting.cpp renderer.cpp shplasma.cpp usd_manager.cpp object3d.cpp usd_hydra_renderer.cpp)
+target_include_directories(gcg PRIVATE /usr/local/include ${Python3_INCLUDE_DIRS})
 target_compile_options(gcg PRIVATE "-g")
-target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA PkgConfig::LUA usd_m OpenCL::OpenCL m SDL3_shadercross::SDL3_shadercross-shared OpenGL::GL /usr/local/lib/libtbb.so)
+target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA PkgConfig::LUA usd_usd usd_usdGeom usd_usdImaging usd_usdImagingGL usd_hd usd_hdSt usd_hgi usd_hgiGL usd_sdf usd_tf usd_gf usd_vt usd_python ${Python3_LIBRARIES} OpenCL::OpenCL m SDL3_shadercross::SDL3_shadercross-shared OpenGL::GL /usr/local/lib/libtbb.so)
 
