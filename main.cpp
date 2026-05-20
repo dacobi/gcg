@@ -2822,6 +2822,17 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             ImGui::Separator();
 
             if (state->selected_usd) {
+                ImGui::Checkbox("Rotate Scene", &state->selected_usd->rotateScene);
+                if (state->selected_usd->rotateScene) {
+                    ImGui::SliderFloat("Rot X", &state->selected_usd->sceneRotation[0], 0.0f, 360.0f);
+                    ImGui::SliderFloat("Rot Y", &state->selected_usd->sceneRotation[1], 0.0f, 360.0f);
+                    ImGui::SliderFloat("Rot Z", &state->selected_usd->sceneRotation[2], 0.0f, 360.0f);
+                }
+                if (state->selected_usd->getActiveCamera().IsEmpty()) {
+                    ImGui::SliderFloat("Distance", &state->selected_usd->cameraDistance, 0.1f, 100.0f);
+                }
+                ImGui::Separator();
+
                 UsdStageRefPtr stage = state->selected_usd->getStage();
                 if (stage) {
                     ImGui::Text("USD Hierarchy:");

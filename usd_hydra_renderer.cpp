@@ -2,6 +2,7 @@
 #include <iostream>
 #include <SDL3/SDL_opengl.h>
 #include <pxr/usd/usd/prim.h>
+#include <pxr/base/gf/rotation.h>
 
 // Helper to get GL function pointers without GLEW
 typedef void (APIENTRYP PFNGLGENFRAMEBUFFERSPROC) (GLsizei n, GLuint *framebuffers);
@@ -28,6 +29,7 @@ bool USDHydraRenderer::init(const std::string& usdFile) {
     stage = UsdStage::Open(usdFile);
     if (!stage) return false;
 
+    SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE,1);
     // Create a hidden window for OpenGL context
     glWindow = SDL_CreateWindow("USD Offscreen", width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
     if (!glWindow) return false;
@@ -36,6 +38,7 @@ bool USDHydraRenderer::init(const std::string& usdFile) {
     if (!glContext) return false;
 
     SDL_GL_MakeCurrent(glWindow, glContext);
+    glEnable(GL_FRAMEBUFFER_SRGB);
 
     // Basic GL setup for offscreen rendering
     glGenTextures(1, &colorTex);
@@ -87,7 +90,7 @@ void USDHydraRenderer::render(void* outPixels) {
         engine->SetCameraPath(activeCameraPath);
     } else {
         GfMatrix4d viewMatrix(1.0);
-        viewMatrix.SetTranslate(GfVec3d(0, 0, -10)); // Move back a bit more
+        viewMatrix.SetTranslate(GfVec3d(0, 0, -cameraDistance));
         
         // Simple projection matrix calculation
         double aspect = (double)width / height;
@@ -106,6 +109,17 @@ void USDHydraRenderer::render(void* outPixels) {
 
         engine->SetCameraState(viewMatrix, projMatrix);
     }
+
+    if (rotateScene) {
+        GfMatrix4d rootXform(1.0);
+        rootXform.SetRotate(GfRotation(GfVec3d(1, 0, 0), sceneRotation[0]) *
+                            GfRotation(GfVec3d(0, 1, 0), sceneRotation[1]) *
+                            GfRotation(GfVec3d(0, 0, 1), sceneRotation[2]));
+        engine->SetRootTransform(rootXform);
+    } else {
+        engine->SetRootTransform(GfMatrix4d(1.0));
+    }
+
     engine->SetRenderViewport(GfVec4d(0, 0, width, height));
 
     engine->Render(stage->GetPseudoRoot(), params);
