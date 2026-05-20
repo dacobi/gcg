@@ -84,6 +84,8 @@ void USDHydraRenderer::render(void* outPixels) {
     UsdImagingGLRenderParams params;
     params.drawMode = UsdImagingGLDrawMode::DRAW_SHADED_SMOOTH;
     params.enableLighting = true;
+    params.enableSceneLights = true;
+    params.colorCorrectionMode = TfToken("sRGB");
     params.clearColor = GfVec4f(0.1f, 0.1f, 0.1f, 1.0f);
 
     if (!activeCameraPath.IsEmpty()) {

@@ -31,6 +31,8 @@ def Xform "World"
         # Exponential exposure multiplier (power of 2)
         float inputs:exposure = 0.0
         
+        asset inputs:texture:file = @orchard.exr@
+
         # Global color of your ambient fill light (R, G, B)
         color3f inputs:color = (1.0, 1.0, 1.0)
     }
