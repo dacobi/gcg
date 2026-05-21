@@ -29,6 +29,8 @@ public:
     void setActiveCamera(const SdfPath& cameraPath) { activeCameraPath = cameraPath; }
     const SdfPath& getActiveCamera() const { return activeCameraPath; }
 
+    void setCameraByIndex(int index);
+
     bool freeCamera = true;
     float sceneRotation[3] = {0.0f, 0.0f, 0.0f};
     float cameraDistance = 10.0f;

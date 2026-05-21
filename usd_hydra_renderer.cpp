@@ -10,6 +10,8 @@
 #include <pxr/imaging/hd/driver.h>
 #include <pxr/base/gf/half.h>
 #include <pxr/imaging/hgi/enums.h>
+#include <pxr/usd/usdGeom/camera.h>
+#include <pxr/usd/usd/primRange.h>
 
 USDHydraRenderer::USDHydraRenderer(int w, int h) : width(w), height(h) {}
 
@@ -161,6 +163,28 @@ void USDHydraRenderer::render(void* outPixels) {
         if (first_err) {
             std::cerr << "colorAovTexture is NULL!\n";
             first_err = false;
+        }
+    }
+}
+
+void USDHydraRenderer::setCameraByIndex(int index) {
+    if (index < 0) {
+        freeCamera = true;
+        activeCameraPath = SdfPath();
+        return;
+    }
+
+    if (!stage) return;
+
+    int current = 0;
+    for (auto prim : stage->Traverse()) {
+        if (prim.IsA<UsdGeomCamera>()) {
+            if (current == index) {
+                activeCameraPath = prim.GetPath();
+                freeCamera = false;
+                return;
+            }
+            current++;
         }
     }
 }

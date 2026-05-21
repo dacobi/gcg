@@ -4,8 +4,8 @@
 
 LuaScripting* LuaScripting::instance = nullptr;
 
-LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc)
-    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc) {
+LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SetUSDParamFunc setUSDParamFunc)
+    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc), selectUSDFunc(selectUSDFunc), setUSDParamFunc(setUSDParamFunc) {
     instance = this;
 }
 
@@ -40,8 +40,10 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     lua_register(L, "setBG", lua_setBG);
     lua_register(L, "selectPlasma", lua_selectPlasma);
     lua_register(L, "selectFractal", lua_selectFractal);
+    lua_register(L, "selectUSD", lua_selectUSD);
     lua_register(L, "setPlasmaParam", lua_setPlasmaParam);
     lua_register(L, "setFractalParam", lua_setFractalParam);
+    lua_register(L, "setUSDParam", lua_setUSDParam);
     lua_register(L, "randomizePlasmaPalette", lua_randomizePlasmaPalette);
     lua_register(L, "randomizePlasmaXY", lua_randomizePlasmaXY);
     lua_register(L, "randomizeFractalPalette", lua_randomizeFractalPalette);
@@ -122,6 +124,16 @@ int LuaScripting::lua_selectFractal(lua_State* L) {
     return 0;
 }
 
+int LuaScripting::lua_selectUSD(lua_State* L) {
+    if (lua_isinteger(L, 1)) {
+        int index = (int)lua_tointeger(L, 1);
+        if (instance && instance->selectUSDFunc) {
+            instance->selectUSDFunc(index);
+        }
+    }
+    return 0;
+}
+
 int LuaScripting::lua_setPlasmaParam(lua_State* L) {
     if (lua_isstring(L, 1) && lua_isnumber(L, 2)) {
         std::string name = lua_tostring(L, 1);
@@ -139,6 +151,17 @@ int LuaScripting::lua_setFractalParam(lua_State* L) {
         double val = lua_tonumber(L, 2);
         if (instance && instance->setParamFunc) {
             instance->setParamFunc(false, name, val);
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_setUSDParam(lua_State* L) {
+    if (lua_isstring(L, 1) && lua_isnumber(L, 2)) {
+        std::string name = lua_tostring(L, 1);
+        double val = lua_tonumber(L, 2);
+        if (instance && instance->setUSDParamFunc) {
+            instance->setUSDParamFunc(name, val);
         }
     }
     return 0;

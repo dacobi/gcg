@@ -1536,7 +1536,7 @@ struct AppState {
 
 
     struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX };
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX };
         Type type;
         std::string syntax;
         int index;
@@ -1907,8 +1907,10 @@ static void print_help() {
     std::printf("  setBG(path_or_tag)         Sets background to file, [plasma:#], or [fractal:#]\n");
     std::printf("  selectPlasma(index)        Selects plasma instance (-1=BG, 0+=bouncer)\n");
     std::printf("  selectFractal(index)       Selects fractal instance (-1=BG, 0+=bouncer)\n");
+    std::printf("  selectUSD(index)           Selects USD instance (0+=bouncer)\n");
     std::printf("  setPlasmaParam(name, val)  Sets parameter on selected plasma\n");
     std::printf("  setFractalParam(name, val) Sets parameter on selected fractal\n");
+    std::printf("  setUSDParam(name, val)     Sets parameter on selected USD\n");
     std::printf("  randomizePlasmaPalette()   Randomizes selected plasma colors\n");
     std::printf("  randomizePlasmaXY()        Randomizes selected plasma motion/scale\n");
     std::printf("  randomizeFractalPalette()  Randomizes selected fractal colors\n");
@@ -1928,6 +1930,9 @@ static void print_help() {
     std::printf("  x_offset, y_offset, zoom, max_iterations, color_speed,\n");
     std::printf("  palette_phase_r, palette_phase_g, palette_phase_b,\n");
     std::printf("  transparency (bands), roll_palette, roll_speed\n\n");
+
+    std::printf("Supported USD Parameters (for setUSDParam):\n");
+    std::printf("  rot_x, rot_y, rot_z, dist, camera (-1=Free Cam)\n\n");
 
     std::printf("Overlay Tag Syntax:\n");
     std::printf("  [pos:x,y,vx,vy]            Position and velocity\n");
@@ -2296,6 +2301,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             },
             []() {
                 return (myNvec != nullptr);
+            },
+            [state](int index) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::SELECT_USD, "", index, 0.0});
+            },
+            [state](const std::string& name, double value) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::SET_USD_PARAM, name, 0, value});
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);
@@ -2475,6 +2488,25 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         }
                     }
                     found_f:;
+                }
+            } else if (cmd.type == AppState::LuaCommand::SELECT_USD) {
+                int count = 0;
+                for (auto& bd : state->mBdisplay) {
+                    for (auto& b : bd->bouncers) {
+                        if (b.usd_renderer) {
+                            if (count == cmd.index) { state->selected_usd = b.usd_renderer; goto found_usd; }
+                            count++;
+                        }
+                    }
+                }
+                found_usd:;
+            } else if (cmd.type == AppState::LuaCommand::SET_USD_PARAM) {
+                if (state->selected_usd) {
+                    if (cmd.syntax == "rot_x") state->selected_usd->sceneRotation[0] = (float)cmd.value;
+                    else if (cmd.syntax == "rot_y") state->selected_usd->sceneRotation[1] = (float)cmd.value;
+                    else if (cmd.syntax == "rot_z") state->selected_usd->sceneRotation[2] = (float)cmd.value;
+                    else if (cmd.syntax == "dist") state->selected_usd->cameraDistance = (float)cmd.value;
+                    else if (cmd.syntax == "camera") state->selected_usd->setCameraByIndex((int)cmd.value);
                 }
             } else if (cmd.type == AppState::LuaCommand::SET_PLASMA_PARAM) {
                 if (state->selected_plasma) {

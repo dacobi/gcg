@@ -25,8 +25,10 @@ public:
     using SetAudioFunc = std::function<void(const std::string&)>;
     using RecordFunc = std::function<void(int type, const std::string& path, int val)>;
     using IsRecordingFunc = std::function<bool()>;
+    using SelectUSDFunc = std::function<void(int index)>;
+    using SetUSDParamFunc = std::function<void(const std::string& name, double value)>;
 
-    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc);
+    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SetUSDParamFunc setUSDParamFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
@@ -38,8 +40,10 @@ private:
     static int lua_setBG(lua_State* L);
     static int lua_selectPlasma(lua_State* L);
     static int lua_selectFractal(lua_State* L);
+    static int lua_selectUSD(lua_State* L);
     static int lua_setPlasmaParam(lua_State* L);
     static int lua_setFractalParam(lua_State* L);
+    static int lua_setUSDParam(lua_State* L);
     static int lua_randomizePlasmaPalette(lua_State* L);
     static int lua_randomizePlasmaXY(lua_State* L);
     static int lua_randomizeFractalPalette(lua_State* L);
@@ -65,6 +69,8 @@ private:
     SetAudioFunc setAudioFunc;
     RecordFunc recordFunc;
     IsRecordingFunc isRecFunc;
+    SelectUSDFunc selectUSDFunc;
+    SetUSDParamFunc setUSDParamFunc;
 
     static LuaScripting* instance;
 };
