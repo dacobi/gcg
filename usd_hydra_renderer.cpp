@@ -45,6 +45,11 @@ bool USDHydraRenderer::init(const std::string& usdFile) {
     return true;
 }
 
+void USDHydraRenderer::resize(int w, int h) {
+    width = w;
+    height = h;
+}
+
 void USDHydraRenderer::render(void* outPixels) {
     if (!engine || !stage || !hgi) return;
 

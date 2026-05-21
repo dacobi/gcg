@@ -20,6 +20,7 @@ public:
 
     bool init(const std::string& usdFile);
     void render(void* outPixels);
+    void resize(int w, int h);
     
     int getWidth() const { return width; }
     int getHeight() const { return height; }

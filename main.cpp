@@ -1382,6 +1382,7 @@ static PlasmaShader* myPlasma = nullptr;
 static MandelbrotOpenCL* myMandel = nullptr;
 static bool bUsePlasma = true;
 static bool bUseMandel = false;
+static bool bUseUSD = false;
 
 static SDL_GPUTexture* create_png_texture(Renderer* renderer,
                                         const char* text,
@@ -1478,6 +1479,7 @@ struct AppState {
     std::string cli_audio_path;
     int cli_bg_plasma_idx = -1;
     int cli_bg_fractal_idx = -1;
+    std::string cli_bg_usd_path;
     int cli_record_max = -1;
     bool cli_geekd = false;
     bool cli_maximize = false;
@@ -1496,6 +1498,7 @@ struct AppState {
 
     SDL_GPUTexture* plasma_tex = nullptr;
     SDL_GPUTexture* mandel_tex = nullptr;
+    USDHydraRenderer* bg_usd = nullptr;
     std::unique_ptr<MediaDecoder> bg_video;
     std::unique_ptr<AudioDecoder> loop_audio;
     SDL_GPUTexture* bg_tex = nullptr;
@@ -2065,15 +2068,23 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                     state->cli_bg_fractal_idx = std::stoi(idx_str);
                     bUseMandel = true;
                     bUsePlasma = false;
+                    bUseUSD = false;
                 } catch (...) {
                     state->cli_bg_path = arg;
                     bUsePlasma = false;
                     bUseMandel = false;
+                    bUseUSD = false;
                 }
+            } else if (arg.size() > 5 && arg.substr(0, 5) == "[usd:" && arg.back() == ']') {
+                state->cli_bg_usd_path = arg.substr(5, arg.size() - 6);
+                bUseUSD = true;
+                bUsePlasma = false;
+                bUseMandel = false;
             } else {
                 state->cli_bg_path = arg;
                 bUsePlasma = false;
                 bUseMandel = false;
+                bUseUSD = false;
             }
         } else if (std::strcmp(argv[i], "--record-max") == 0 && i + 1 < argc) {
             state->cli_record_max = std::atoi(argv[++i]);
@@ -2147,6 +2158,19 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     if (bUseMandel) {
         SDL_Log("Creating Mandelbrot texture...");
         state->mandel_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
+    }
+    if (bUseUSD) {
+        SDL_Log("Creating USD Background...");
+        state->bg_usd = new USDHydraRenderer(cur_w, cur_h);
+        if (state->bg_usd->init(state->cli_bg_usd_path)) {
+            state->selected_usd = state->bg_usd;
+        } else {
+            SDL_Log("USD background initialization failed!");
+            delete state->bg_usd;
+            state->bg_usd = nullptr;
+            bUseUSD = false;
+        }
+        state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
     }
 
     // --- Custom Background layer ---
@@ -2350,6 +2374,11 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
                 myPlasma->resize(state->plasma_w, state->plasma_h);
                 myPlasma->setArgs(plasma_params);
             }
+            if (bUseUSD && state->bg_usd) {
+                state->bg_usd->resize(cur_w, cur_h);
+                if (state->bg_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->bg_tex);
+                state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
+            }
             state->prev_win_w = cur_w;
             state->prev_win_h = cur_h;
         }
@@ -2397,6 +2426,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 state->bg_video.reset();
                 if (state->plasma_tex) { SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->plasma_tex); state->plasma_tex = nullptr; }
                 if (state->mandel_tex) { SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->mandel_tex); state->mandel_tex = nullptr; }
+                if (state->bg_usd) {
+                    if (state->selected_usd == state->bg_usd) state->selected_usd = nullptr;
+                    delete state->bg_usd; state->bg_usd = nullptr; bUseUSD = false;
+                }
                 if (myPlasma) { 
                     if (state->selected_plasma == myPlasma) state->selected_plasma = nullptr;
                     delete myPlasma; myPlasma = nullptr; bUsePlasma = false; 
@@ -2406,6 +2439,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     delete myMandel; myMandel = nullptr; bUseMandel = false; 
                 }
                 state->cli_bg_path = "";
+                state->cli_bg_usd_path = "";
 
                 if (arg.size() > 8 && arg.substr(0, 8) == "[plasma:" && arg.back() == ']') {
                     std::string idx_str = arg.substr(8, arg.size() - 9);
@@ -2419,6 +2453,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         state->cli_bg_fractal_idx = std::stoi(idx_str);
                         bUseMandel = true;
                     } catch (...) {}
+                } else if (arg.size() > 5 && arg.substr(0, 5) == "[usd:" && arg.back() == ']') {
+                    state->cli_bg_usd_path = arg.substr(5, arg.size() - 6);
+                    bUseUSD = true;
                 } else {
                     state->cli_bg_path = arg;
                 }
@@ -2438,6 +2475,15 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         state->selected_mandel = myMandel;
                     }
                     state->mandel_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
+                }
+                if (bUseUSD) {
+                    state->bg_usd = new USDHydraRenderer(cur_w, cur_h);
+                    if (state->bg_usd->init(state->cli_bg_usd_path)) {
+                        state->selected_usd = state->bg_usd;
+                    } else {
+                        delete state->bg_usd; state->bg_usd = nullptr; bUseUSD = false;
+                    }
+                    state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
                 }
                 if (!state->cli_bg_path.empty()) {
                     std::string ext = state->cli_bg_path;
@@ -2490,12 +2536,16 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     found_f:;
                 }
             } else if (cmd.type == AppState::LuaCommand::SELECT_USD) {
-                int count = 0;
-                for (auto& bd : state->mBdisplay) {
-                    for (auto& b : bd->bouncers) {
-                        if (b.usd_renderer) {
-                            if (count == cmd.index) { state->selected_usd = b.usd_renderer; goto found_usd; }
-                            count++;
+                if (cmd.index == -1) {
+                    state->selected_usd = state->bg_usd;
+                } else {
+                    int count = 0;
+                    for (auto& bd : state->mBdisplay) {
+                        for (auto& b : bd->bouncers) {
+                            if (b.usd_renderer) {
+                                if (count == cmd.index) { state->selected_usd = b.usd_renderer; goto found_usd; }
+                                count++;
+                            }
                         }
                     }
                 }
@@ -2846,6 +2896,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
         if (ImGui::BeginMenu("USD")) {
             if (ImGui::BeginMenu("Select USD Bouncer")) {
+                if (state->bg_usd) {
+                    if (ImGui::MenuItem("Background", NULL, state->selected_usd == state->bg_usd))
+                        state->selected_usd = state->bg_usd;
+                }
                 for (size_t i = 0; i < state->mBdisplay.size(); ++i) {
                     for (size_t j = 0; j < state->mBdisplay[i]->bouncers.size(); ++j) {
                         USDHydraRenderer* u = state->mBdisplay[i]->bouncers[j].usd_renderer;
@@ -2958,6 +3012,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     if (bUseMandel) {
         myMandel->updateTexture(g_renderer, state->mandel_tex);
     }
+    if (bUseUSD && state->bg_usd && state->bg_tex) {
+        std::vector<uint8_t> pixels(cur_w * cur_h * 4);
+        state->bg_usd->render(pixels.data());
+        g_renderer->updateTexture(state->bg_tex, cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, pixels.data(), cur_w * 4);
+    }
 
     g_renderer->beginFrame();
 
@@ -3017,6 +3076,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         recorder_stop(state->recorder);
         if (bUsePlasma && myPlasma) { /* myPlasma->stop(); */ }
         if (bUseMandel && myMandel) myMandel->stop();
+        if (state->bg_usd) delete state->bg_usd;
         if (state->bg_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->bg_tex);
         for (auto* et : state->extra_textures) SDL_ReleaseGPUTexture(g_renderer->getDevice(), et);
         for (auto& e : state->cli_entries) { if (e.tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), e.tex); }
