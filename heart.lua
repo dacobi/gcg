@@ -2,10 +2,18 @@
 setBG("[plasma:13]")
 addBouncer("[pos: 100,100,100,100][tusd:heart.usdc]");
 
+addBouncer("[stencil:softstar.png][pos: 100,600,100,100][usd:cube.usda]");
+
 
 selectUSD(0);
 setUSDParam("camera",-1);
 setUSDParam("dist",35);
+
+
+selectUSD(1);
+setUSDParam("camera",-1);
+setUSDParam("dist",15);
+
 
 local tasks = {}
      function spawn(f) table.insert(tasks, coroutine.create(f)) end
@@ -24,26 +32,42 @@ local tasks = {}
    
    spawn(function()
 	  for i=1, 5 do coroutine.yield() end
-	selectUSD(0)
+--	selectUSD(0)
 
         --lectUSD(0) -- Select the first bouncer with a fractal
 	      local base = 0 
 	 while true do
+--	selectUSD(0);
+
            -- Be careful with large increments: 0.1 * 5000 is 500. 
            -- The fractal will move off-screen very quickly!
-           for i = 1, 300, 1 do 
-                setUSDParam("rot_y", base + (0.5 * i))
-                coroutine.yield() -- Wait for the next frame
-           end
-            for i = 1, 300, 1 do 
-               setUSDParam("rot_y", base + (0.5 * (300-i)))
-               coroutine.yield()
-           end
+           --for i = 1, 360, 1 do 
+             --   setUSDParam("rot_y",i);
+--              --  coroutine.yield() -- Wait for the next frame
+           --end
+
+	---selectUSD(1);
+
+           -- Be careful with large increments: 0.1 * 5000 is 500. 
+           -- The fractal will move off-screen very quickly!
+           for i = 1, 360, 1 do 
+	selectUSD(0);
+                setUSDParam("rot_y",i);
+		
+	selectUSD(1);
+	
+		   setUSDParam("rot_y",i);
+		 setUSDParam("rot_x",i);
+		coroutine.yield() 
+	   end
+           -- for i = 1, 300, 1 do 
+            --   setUSDParam("rot_y", base + (0.5 * (300-i)))
+            --   coroutine.yield()
+           --end
        end
    end
   ) 
-   
-  
+
    run()
 
 
