@@ -121,39 +121,40 @@ void USDHydraRenderer::render(void* outPixels) {
             hgi->SubmitCmds(blitCmds.get(), pxr::HgiSubmitWaitTypeWaitUntilCompleted);
             
             uint8_t* p = static_cast<uint8_t*>(outPixels);
-            for (int i = 0; i < width * height * 4; ++i) {
-                if ((i % 4) == 3) {
-                    p[i] = 255;
-                } else {
-                    float val = static_cast<float>(halfBuffer[i]);
-                    if (val < 0.0f) val = 0.0f;
-                    if (val > 1.0f) val = 1.0f;
-                    p[i] = static_cast<uint8_t>(val * 255.0f);
-                }
-            }
-
-            static bool first = true;
-            if (first) {
-                std::cout << "GfHalf converted! First pixel: " << (int)p[0] << ", " << (int)p[1] << ", " << (int)p[2] << ", " << (int)p[3] << "\n";
-                int different = 0;
-                int max_r = 0, min_r = 255;
-                for (int i=0; i<width*height; i++) {
-                    if (p[i*4+0] != p[0] || p[i*4+1] != p[1] || p[i*4+2] != p[2]) {
-                        different++;
-                        if (p[i*4+0] > max_r) max_r = p[i*4+0];
-                        if (p[i*4+0] < min_r) min_r = p[i*4+0];
+            for (int y = 0; y < height; ++y) {
+                int dstY = height - 1 - y; // Vertical flip
+                for (int x = 0; x < width; ++x) {
+                    int dstX = width - 1 - x; // Horizontal flip (together = 180 deg rotation)
+                    int srcIdx = (y * width + x) * 4;
+                    int dstIdx = (dstY * width + dstX) * 4;
+                    
+                    for (int c = 0; c < 4; ++c) {
+                        float val = static_cast<float>(halfBuffer[srcIdx + c]);
+                        if (val < 0.0f) val = 0.0f;
+                        if (val > 1.0f) val = 1.0f;
+                        p[dstIdx + c] = static_cast<uint8_t>(val * 255.0f);
                     }
                 }
-                std::cout << "Different pixels: " << different << " Min R: " << min_r << " Max R: " << max_r << "\n";
-                first = false;
             }
         } else {
-            copyOp.cpuDestinationBuffer = outPixels;
+            std::vector<uint8_t> tempBuffer(width * height * 4);
+            copyOp.cpuDestinationBuffer = tempBuffer.data();
             copyOp.destinationByteOffset = 0;
             copyOp.destinationBufferByteSize = width * height * 4;
             
             blitCmds->CopyTextureGpuToCpu(copyOp);
             hgi->SubmitCmds(blitCmds.get(), pxr::HgiSubmitWaitTypeWaitUntilCompleted);
+
+            uint8_t* p = static_cast<uint8_t*>(outPixels);
+            for (int y = 0; y < height; ++y) {
+                int dstY = height - 1 - y;
+                for (int x = 0; x < width; ++x) {
+                    int dstX = width - 1 - x;
+                    int srcIdx = (y * width + x) * 4;
+                    int dstIdx = (dstY * width + dstX) * 4;
+                    std::memcpy(p + dstIdx, tempBuffer.data() + srcIdx, 4);
+                }
+            }
         }
     } else {
         static bool first_err = true;
