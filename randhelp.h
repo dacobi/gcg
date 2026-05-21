@@ -7,7 +7,9 @@ static float rand_range(float lo, float hi) {
 }
 
 static int rand_int(int cval) {
-    return static_cast<int>((std::rand()) / static_cast<float>(RAND_MAX) * (float)cval) -1;
+    int temps = static_cast<int>((std::rand()) / static_cast<float>(RAND_MAX) * (float)cval) -1;
+    if(temps < 0) return 0;
+    return temps;
 }
 
 
