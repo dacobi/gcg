@@ -41,6 +41,9 @@
 
 #include "shplasma.h"
 
+#include "godot_manager.h"
+#include "godot_renderer.h"
+
 #include "usd_manager.h"
 #include "usd_hydra_renderer.h"
 #include "object3d.h"
@@ -1206,7 +1209,7 @@ public:
 
         // Scan string for tags
         std::string body = input;
-        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys|layer|usd|tusd)(?::\s*([^\]]*))?\])", std::regex::icase);
+        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys|layer|usd|tusd|tscn|ttscn)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -1314,6 +1317,12 @@ public:
             } else if (tagType == "tusd") {
                 results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 7, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
+            } else if (tagType == "tscn") {
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 8, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
+            } else if (tagType == "ttscn") {
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 9, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             }
 
             lastPos = matchPos + match.length();
@@ -1372,6 +1381,7 @@ struct Bouncer {
     PlasmaShader* plasma = nullptr;
     MandelbrotOpenCL* mandel = nullptr;
     USDHydraRenderer* usd_renderer = nullptr;
+    GodotRenderer* godot_renderer = nullptr;
     float ttl_remaining_ms = -1.0f;
     int layer = 1;
     bool bTransparent = false;
@@ -1518,6 +1528,8 @@ struct AppState {
     class USDManager* usdManager = nullptr;
     std::vector<class Object3D*> usdObjects;
 
+    GodotManager* godot_manager = nullptr;
+
     float time_acc = 0.0f;
     bool roll_palette = false;
     float roll_palette_speed = 0.5f;
@@ -1583,6 +1595,7 @@ public:
             if (b.plasma) delete b.plasma;
             if (b.mandel) delete b.mandel;
             if (b.usd_renderer) delete b.usd_renderer;
+            if (b.godot_renderer) delete b.godot_renderer;
             if (b.tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), b.tex);
             if (b.stencil_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), b.stencil_tex);
         }
@@ -1627,6 +1640,7 @@ public:
                     if (it->plasma) delete it->plasma;
                     if (it->mandel) delete it->mandel;
                     if (it->usd_renderer) delete it->usd_renderer;
+                    if (it->godot_renderer) delete it->godot_renderer;
                     if (it->tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), it->tex);
                     if (it->stencil_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), it->stencil_tex);
                     it = bouncers.erase(it);
@@ -1652,6 +1666,11 @@ public:
             if (b.usd_renderer && b.tex) {
                 std::vector<uint8_t> pixels(b.tw * b.th * 4);
                 b.usd_renderer->render(pixels.data());
+                g_renderer->updateTexture(b.tex, b.tw, b.th, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, pixels.data(), b.tw * 4);
+            }
+            if (b.godot_renderer && b.tex) {
+                std::vector<uint8_t> pixels(b.tw * b.th * 4);
+                b.godot_renderer->render(pixels.data());
                 g_renderer->updateTexture(b.tex, b.tw, b.th, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, pixels.data(), b.tw * 4);
             }
         }
@@ -1771,6 +1790,18 @@ public:
             } else {
                 delete newB.usd_renderer;
                 newB.usd_renderer = nullptr;
+                return false;
+            }
+        } else if (pd.bIsFile == 8 || pd.bIsFile == 9) { // Godot tscn or ttscn
+            newB.tw = (pd.over_w > 0) ? pd.over_w : 512;
+            newB.th = (pd.over_h > 0) ? pd.over_h : 512;
+            bool transparent = (pd.bIsFile == 9);
+            newB.godot_renderer = new GodotRenderer(newB.tw, newB.th, transparent);
+            if (newB.godot_renderer->init(pd.content)) {
+                tex = g_renderer->createTexture(newB.tw, newB.th, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_TEXTUREUSAGE_SAMPLER);
+            } else {
+                delete newB.godot_renderer;
+                newB.godot_renderer = nullptr;
                 return false;
             }
         } else { // Text (pd.bIsFile == 0)
@@ -2035,6 +2066,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
     AppState* state = new AppState();
     *appstate = state;
+
+    state->godot_manager = new GodotManager();
+    const char* godot_args[] = {"--headless"};
+    state->godot_manager->init(1, (char**)godot_args);
 
     myMix = new AudioMixer(MIXER_SAMPLE_RATE);
 
@@ -2391,6 +2426,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
 SDL_AppResult SDL_AppIterate(void *appstate)
 {    
     AppState* state = (AppState*)appstate;
+
+    if (state->godot_manager) {
+        state->godot_manager->iteration();
+    }
 
     // Process Lua Commands
     {
@@ -3087,6 +3126,11 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         state->mBdisplay.clear();
         state->bg_video.reset();
         state->loop_audio.reset(); // Destroy audio decoder before mixer
+
+        if (state->godot_manager) {
+            delete state->godot_manager;
+            state->godot_manager = nullptr;
+        }
 
         for (auto obj : state->usdObjects) {
             obj->destroy(g_renderer->getDevice());

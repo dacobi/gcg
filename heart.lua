@@ -1,8 +1,8 @@
 --addBouncer("[phys: 250,250,0,0,1,0.95][rect: 1024, 768][fractal:2]")
-setBG("[usd:../usddata/World_Lobby.usd]")
+setBG("[plasma:12]")
 addBouncer("[pos: 100,100,100,100][tusd:heart.usdc]");
 
-addBouncer("[stencil:softstar.png][pos: 100,600,100,100][usd:cube.usda]");
+addBouncer("[stencil:softstar.png][pos: 300,600,100,100][usd:cube.usda]");
 
 selectUSD(-1);
 setUSDParam("camera",2);
