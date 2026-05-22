@@ -60,13 +60,17 @@ bool GodotRenderer::init(const std::string& tscn_path) {
 void GodotRenderer::render(uint8_t* out_pixels) {
     if (!viewport) return;
     
-    // Use Variant call to avoid direct Ref issues
-    Variant tex_var = viewport->call("get_texture");
-    Ref<Texture2D> tex = tex_var;
-    if (tex.is_null()) return;
+    // Ensure Godot has rendered the frame
+    RenderingServer::get_singleton()->draw(false);
+
+    // Get the viewport's RID and fetch its texture directly from the server
+    RID viewport_rid = viewport->get_viewport_rid();
+    RID texture_rid = RenderingServer::get_singleton()->viewport_get_texture(viewport_rid);
     
-    Variant img_var = tex->call("get_image");
-    Ref<Image> img = img_var;
+    if (texture_rid.is_null()) return;
+
+    // Extract the Image directly from the texture RID on the server
+    Ref<Image> img = RenderingServer::get_singleton()->texture_2d_get(texture_rid);
     if (img.is_null()) return;
 
     if (img->get_format() != Image::FORMAT_RGBA8) {

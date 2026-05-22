@@ -190,6 +190,54 @@ clplasma.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clplasma.cpp.s
 .PHONY : clplasma.cpp.s
 
+godot_manager.o: godot_manager.cpp.o
+.PHONY : godot_manager.o
+
+# target to build an object file
+godot_manager.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/godot_manager.cpp.o
+.PHONY : godot_manager.cpp.o
+
+godot_manager.i: godot_manager.cpp.i
+.PHONY : godot_manager.i
+
+# target to preprocess a source file
+godot_manager.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/godot_manager.cpp.i
+.PHONY : godot_manager.cpp.i
+
+godot_manager.s: godot_manager.cpp.s
+.PHONY : godot_manager.s
+
+# target to generate assembly for a file
+godot_manager.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/godot_manager.cpp.s
+.PHONY : godot_manager.cpp.s
+
+godot_renderer.o: godot_renderer.cpp.o
+.PHONY : godot_renderer.o
+
+# target to build an object file
+godot_renderer.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/godot_renderer.cpp.o
+.PHONY : godot_renderer.cpp.o
+
+godot_renderer.i: godot_renderer.cpp.i
+.PHONY : godot_renderer.i
+
+# target to preprocess a source file
+godot_renderer.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/godot_renderer.cpp.i
+.PHONY : godot_renderer.cpp.i
+
+godot_renderer.s: godot_renderer.cpp.s
+.PHONY : godot_renderer.s
+
+# target to generate assembly for a file
+godot_renderer.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/godot_renderer.cpp.s
+.PHONY : godot_renderer.cpp.s
+
 home/dacobi/src/ImGui/backends/imgui_impl_sdl3.o: home/dacobi/src/ImGui/backends/imgui_impl_sdl3.cpp.o
 .PHONY : home/dacobi/src/ImGui/backends/imgui_impl_sdl3.o
 
@@ -542,6 +590,12 @@ help:
 	@echo "... clplasma.o"
 	@echo "... clplasma.i"
 	@echo "... clplasma.s"
+	@echo "... godot_manager.o"
+	@echo "... godot_manager.i"
+	@echo "... godot_manager.s"
+	@echo "... godot_renderer.o"
+	@echo "... godot_renderer.i"
+	@echo "... godot_renderer.s"
 	@echo "... home/dacobi/src/ImGui/backends/imgui_impl_sdl3.o"
 	@echo "... home/dacobi/src/ImGui/backends/imgui_impl_sdl3.i"
 	@echo "... home/dacobi/src/ImGui/backends/imgui_impl_sdl3.s"

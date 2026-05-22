@@ -1,6 +1,10 @@
 #include "godot_manager.h"
 #include "core/extension/libgodot.h"
 #include "core/extension/godot_instance.h"
+#include "servers/display/display_server.h"
+#include "scene/main/scene_tree.h"
+#include "scene/main/window.h"
+#include "core/os/os.h"
 #include <iostream>
 
 GodotManager::GodotManager() {
@@ -28,7 +32,7 @@ bool GodotManager::init(int argc, char* argv[]) {
     godot_instance = ptr;
     GodotInstance* instance = static_cast<GodotInstance*>(godot_instance);
     
-    // We start the instance (it handles the provided command line arguments like --headless)
+    // We start the instance
     if (!instance->start()) {
         std::cerr << "Failed to start Godot instance" << std::endl;
         libgodot_destroy_godot_instance(ptr);
@@ -36,6 +40,7 @@ bool GodotManager::init(int argc, char* argv[]) {
         return false;
     }
     
+    bFirstIteration = true; 
     is_running = true;
     return true;
 }
@@ -43,6 +48,23 @@ bool GodotManager::init(int argc, char* argv[]) {
 void GodotManager::iteration() {
     if (!is_running || !godot_instance) return;
     
+    if (bFirstIteration) {
+        // Enforce "stealth" window state via DisplayServer on the first iteration
+        DisplayServer* ds = DisplayServer::get_singleton();
+        if (ds) {
+            // Shrink, move offscreen, and minimize
+            ds->window_set_size(Size2i(1, 1));
+            ds->window_set_position(Point2i(-10000, -10000));
+            ds->window_set_mode(DisplayServerEnums::WINDOW_MODE_MINIMIZED);
+            
+            // Also make it borderless and transparent to be as invisible as possible
+            ds->window_set_flag(DisplayServerEnums::WINDOW_FLAG_BORDERLESS, true);
+            ds->window_set_flag(DisplayServerEnums::WINDOW_FLAG_TRANSPARENT, true);
+        }
+
+        bFirstIteration = false;
+    }
+
     GodotInstance* instance = static_cast<GodotInstance*>(godot_instance);
     bool should_quit = instance->iteration();
     if (should_quit) {

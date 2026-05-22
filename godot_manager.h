@@ -18,4 +18,5 @@ private:
     void* godot_instance = nullptr;
     std::thread godot_thread;
     std::atomic<bool> is_running{false};
+    bool bFirstIteration = true;
 };
