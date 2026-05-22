@@ -40,7 +40,6 @@ bool GodotManager::init(int argc, char* argv[]) {
         return false;
     }
     
-    bFirstIteration = true; 
     is_running = true;
     return true;
 }
@@ -48,23 +47,6 @@ bool GodotManager::init(int argc, char* argv[]) {
 void GodotManager::iteration() {
     if (!is_running || !godot_instance) return;
     
-    if (bFirstIteration) {
-        // Enforce "stealth" window state via DisplayServer on the first iteration
-        DisplayServer* ds = DisplayServer::get_singleton();
-        if (ds) {
-            // Shrink, move offscreen, and minimize
-            ds->window_set_size(Size2i(1, 1));
-            ds->window_set_position(Point2i(-10000, -10000));
-            ds->window_set_mode(DisplayServerEnums::WINDOW_MODE_MINIMIZED);
-            
-            // Also make it borderless and transparent to be as invisible as possible
-            ds->window_set_flag(DisplayServerEnums::WINDOW_FLAG_BORDERLESS, true);
-            ds->window_set_flag(DisplayServerEnums::WINDOW_FLAG_TRANSPARENT, true);
-        }
-
-        bFirstIteration = false;
-    }
-
     GodotInstance* instance = static_cast<GodotInstance*>(godot_instance);
     bool should_quit = instance->iteration();
     if (should_quit) {

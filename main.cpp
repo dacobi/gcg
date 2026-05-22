@@ -2068,8 +2068,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     *appstate = state;
 
     state->godot_manager = new GodotManager();
-    const char* godot_args[] = {"gcg"};
-    state->godot_manager->init(1, (char**)godot_args);
+    const char* godot_args[] = {"gcg", "--offscreen", "--rendering-driver", "vulkan"};
+    state->godot_manager->init(4, (char**)godot_args);
 
     myMix = new AudioMixer(MIXER_SAMPLE_RATE);
 
