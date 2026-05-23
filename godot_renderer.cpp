@@ -8,6 +8,7 @@
 #include "scene/resources/packed_scene.h"
 #include "scene/main/window.h"
 #include "scene/main/node.h"
+#include "scene/3d/camera_3d.h"
 #include "servers/rendering/rendering_server.h"
 #include "imgui.h"
 #include <cstring>
@@ -99,7 +100,22 @@ static void renderGodotNode(Node* node) {
     char label[256];
     std::snprintf(label, sizeof(label), "%s [%s]", name.utf8().get_data(), type.utf8().get_data());
 
+    Camera3D* camera = Object::cast_to<Camera3D>(node);
+    bool is_current_camera = camera && camera->is_current();
+
+    if (is_current_camera) {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
+    }
+
     bool open = ImGui::TreeNodeEx(label, flags);
+
+    if (is_current_camera) {
+        ImGui::PopStyleColor();
+    }
+
+    if (ImGui::IsItemClicked() && camera) {
+        camera->make_current();
+    }
 
     if (open && node->get_child_count() > 0) {
         for (int i = 0; i < node->get_child_count(); i++) {
