@@ -7,11 +7,11 @@ ambient_light_source = 2
 
 [node name="Heart" type="Node3D" unique_id=923195209]
 
-[node name="Camera3D" type="Camera3D" parent="." unique_id=1733516661]
-transform = Transform3D(1, 0, 0, 0, 0.5, 0.8660254, 0, -0.8660254, 0.5, 0, 16, 15.154388)
-
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2098957685]
 environment = SubResource("Environment_cixvg")
+
+[node name="Camera3D" type="Camera3D" parent="WorldEnvironment" unique_id=1733516661]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.8660254, 0, -0.8660254, 0.5, 0, 16.000002, 15.154389)
 
 [node name="SpotLight3D" type="SpotLight3D" parent="WorldEnvironment" unique_id=1802677875]
 transform = Transform3D(1, 0, 0, 0, 0.6273109, 0.77876896, 0, -0.77876896, 0.6273109, 0, 48.05873, 52.294968)
@@ -28,3 +28,6 @@ omni_range = 307.091
 
 [node name="heart" parent="WorldEnvironment" unique_id=2096269389 instance=ExtResource("1_cixvg")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1091365, -1.9999981, 0.018720627)
+
+[node name="Camera3D2" type="Camera3D" parent="WorldEnvironment" unique_id=1707583554]
+transform = Transform3D(1, 0, 0, 0, 0.70710677, -0.7071068, 0, 0.7071068, 0.70710677, 0, -13, 13)

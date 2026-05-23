@@ -7,7 +7,9 @@
 #include "core/io/resource_loader.h"
 #include "scene/resources/packed_scene.h"
 #include "scene/main/window.h"
+#include "scene/main/node.h"
 #include "servers/rendering/rendering_server.h"
+#include "imgui.h"
 #include <cstring>
 
 GodotRenderer::GodotRenderer(int w, int h, bool transparent) : width(w), height(h), bTransparent(transparent) {
@@ -82,4 +84,33 @@ void GodotRenderer::render(uint8_t* out_pixels) {
 
     const uint8_t* src = data.ptr();
     std::memcpy(out_pixels, src, width * height * 4);
+}
+
+static void renderGodotNode(Node* node) {
+    if (!node) return;
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_DefaultOpen;
+    if (node->get_child_count() == 0) {
+        flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+    }
+
+    String name = node->get_name();
+    String type = node->get_class();
+    char label[256];
+    std::snprintf(label, sizeof(label), "%s [%s]", name.utf8().get_data(), type.utf8().get_data());
+
+    bool open = ImGui::TreeNodeEx(label, flags);
+
+    if (open && node->get_child_count() > 0) {
+        for (int i = 0; i < node->get_child_count(); i++) {
+            renderGodotNode(node->get_child(i));
+        }
+        ImGui::TreePop();
+    }
+}
+
+void GodotRenderer::renderTree() {
+    if (scene_instance) {
+        renderGodotNode(scene_instance);
+    }
 }

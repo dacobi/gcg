@@ -15,6 +15,7 @@ public:
 
     bool init(const std::string& tscn_path);
     void render(uint8_t* out_pixels);
+    void renderTree();
 
     int getWidth() const { return width; }
     int getHeight() const { return height; }

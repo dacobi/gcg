@@ -1500,6 +1500,7 @@ struct AppState {
     PlasmaShader* selected_plasma = nullptr;
     MandelbrotOpenCL* selected_mandel = nullptr;
     USDHydraRenderer* selected_usd = nullptr;
+    GodotRenderer* selected_godot = nullptr;
     float usd_tree_height = 300.0f;
 
     std::vector<std::unique_ptr<class BDdisplay>> mBdisplay;
@@ -1635,6 +1636,7 @@ public:
                     if (it->plasma == state->selected_plasma) state->selected_plasma = myPlasma;
                     if (it->mandel == state->selected_mandel) state->selected_mandel = myMandel;
                     if (it->usd_renderer == state->selected_usd) state->selected_usd = nullptr;
+                    if (it->godot_renderer == state->selected_godot) state->selected_godot = nullptr;
 
                     if (it->decoder) delete it->decoder;
                     if (it->plasma) delete it->plasma;
@@ -2454,6 +2456,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         if (state->selected_plasma == b.plasma) state->selected_plasma = myPlasma;
                         if (state->selected_mandel == b.mandel) state->selected_mandel = myMandel;
                         if (state->selected_usd == b.usd_renderer) state->selected_usd = nullptr;
+                        if (state->selected_godot == b.godot_renderer) state->selected_godot = nullptr;
                     }
                     state->mBdisplay.erase(state->mBdisplay.begin() + cmd.index);
                 }
@@ -2748,6 +2751,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     if (state->selected_plasma == b.plasma) state->selected_plasma = myPlasma;
                     if (state->selected_mandel == b.mandel) state->selected_mandel = myMandel;
                     if (state->selected_usd == b.usd_renderer) state->selected_usd = nullptr;
+                    if (state->selected_godot == b.godot_renderer) state->selected_godot = nullptr;
                 }
                 state->mBdisplay.erase(state->mBdisplay.begin() + del_text_idx);
             }
@@ -2979,6 +2983,31 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 }
             } else {
                 ImGui::Text("No USD bouncer selected.");
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Godot")) {
+            if (ImGui::BeginMenu("Select Godot Bouncer")) {
+                for (size_t i = 0; i < state->mBdisplay.size(); ++i) {
+                    for (size_t j = 0; j < state->mBdisplay[i]->bouncers.size(); ++j) {
+                        GodotRenderer* g = state->mBdisplay[i]->bouncers[j].godot_renderer;
+                        if (g) {
+                            char label[64];
+                            std::snprintf(label, sizeof(label), "Bouncer %zu:%zu", i, j);
+                            if (ImGui::MenuItem(label, NULL, state->selected_godot == g))
+                                state->selected_godot = g;
+                        }
+                    }
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::Separator();
+
+            if (state->selected_godot) {
+                ImGui::Text("Godot Hierarchy:");
+                state->selected_godot->renderTree();
+            } else {
+                ImGui::Text("No Godot bouncer selected.");
             }
             ImGui::EndMenu();
         }
