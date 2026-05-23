@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://dtwihqno5pdkw"]
+
+[ext_resource type="PackedScene" uid="uid://c01f0bi2gx26y" path="res://heart/heart/heart.glb" id="1_388ic"]
+[ext_resource type="Material" uid="uid://bwkxfi7td7rpq" path="res://heart/heart/metal.tres" id="2_osvgt"]
+
+[node name="heart" unique_id=815255609 instance=ExtResource("1_388ic")]
+
+[node name="12190_Heart_v1_L3" parent="." index="0" unique_id=38476521]
+material_override = ExtResource("2_osvgt")
+
+[node name="OmniLight3D" type="OmniLight3D" parent="12190_Heart_v1_L3" index="0" unique_id=1077025347]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 27)
+omni_range = 37.0
+
+[node name="Camera3D" type="Camera3D" parent="." index="1" unique_id=813757493]
+transform = Transform3D(1, 0, 0, 0, 0.70710677, 0.70710677, 0, -0.70710677, 0.70710677, 0, 15, 17)
+
+[node name="SpotLight3D" type="SpotLight3D" parent="." index="2" unique_id=183095448]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 21, 0)
+light_color = Color(0.74471194, 0, 0.24493662, 1)
+light_energy = 222.0
+spot_range = 28.0
+spot_angle = 29.89346
