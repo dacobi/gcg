@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://duoc4wth32y76"]
 
-[ext_resource type="PackedScene" uid="uid://c01f0bi2gx26y" path="res://heart.glb" id="1_cixvg"]
+[ext_resource type="PackedScene" uid="uid://c01f0bi2gx26y" path="res://heart/heart/heart.glb" id="1_cixvg"]
 
 [sub_resource type="Environment" id="Environment_cixvg"]
 ambient_light_source = 2
