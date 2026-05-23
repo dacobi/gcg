@@ -1,0 +1,8 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://bhdtb8wgmh88x"]
+
+[resource]
+resource_name = "Heart"
+cull_mode = 2
+albedo_color = Color(0.8532224, 0.25030932, 0.25030932, 1)
+metallic = 0.1
+roughness = 0.7654792
