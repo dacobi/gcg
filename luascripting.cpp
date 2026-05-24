@@ -186,7 +186,9 @@ int LuaScripting::lua_godotSelectRoot(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_SELECT_ROOT, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
     }
     return 0;
 }
@@ -197,7 +199,9 @@ int LuaScripting::lua_godotSelectNode(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_SELECT_NODE, lua_tostring(L, 1), fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
         lua_pushboolean(L, sd.b_res);
         return 1;
     }
@@ -210,7 +214,9 @@ int LuaScripting::lua_godotSearchNode(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_SEARCH_NODE, lua_tostring(L, 1), fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
         lua_pushboolean(L, sd.b_res);
         return 1;
     }
@@ -223,7 +229,9 @@ int LuaScripting::lua_godotGetNodeType(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_GET_NODE_TYPE, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
         lua_pushstring(L, sd.s_res.c_str());
         return 1;
     }
@@ -236,7 +244,9 @@ int LuaScripting::lua_godotSetCamera(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_SET_CAMERA, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
         lua_pushboolean(L, sd.b_res);
         return 1;
     }
@@ -249,7 +259,9 @@ int LuaScripting::lua_godotGetPos(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_GET_POS, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
         lua_pushnumber(L, sd.f_res[0]);
         lua_pushnumber(L, sd.f_res[1]);
         lua_pushnumber(L, sd.f_res[2]);
@@ -264,7 +276,9 @@ int LuaScripting::lua_godotSetPos(lua_State* L) {
         float fargs[3] = {(float)lua_tonumber(L, 1), (float)lua_tonumber(L, 2), (float)lua_tonumber(L, 3)};
         instance->godotCmdFunc(GCMD_SET_POS, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
     }
     return 0;
 }
@@ -275,7 +289,9 @@ int LuaScripting::lua_godotMoveX(lua_State* L) {
         float fargs[3] = {(float)lua_tonumber(L, 1), 0, 0};
         instance->godotCmdFunc(GCMD_MOVE_X, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
     }
     return 0;
 }
@@ -286,7 +302,9 @@ int LuaScripting::lua_godotMoveY(lua_State* L) {
         float fargs[3] = {0, (float)lua_tonumber(L, 1), 0};
         instance->godotCmdFunc(GCMD_MOVE_Y, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
     }
     return 0;
 }
@@ -297,7 +315,9 @@ int LuaScripting::lua_godotMoveZ(lua_State* L) {
         float fargs[3] = {0, 0, (float)lua_tonumber(L, 1)};
         instance->godotCmdFunc(GCMD_MOVE_Z, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
     }
     return 0;
 }
@@ -308,7 +328,9 @@ int LuaScripting::lua_godotCreateNode(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_CREATE_NODE, lua_tostring(L, 1), fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
         lua_pushboolean(L, sd.b_res);
         return 1;
     }
@@ -321,7 +343,9 @@ int LuaScripting::lua_godotLoadNode(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_LOAD_NODE, lua_tostring(L, 1), fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
         lua_pushboolean(L, sd.b_res);
         return 1;
     }
@@ -334,7 +358,9 @@ int LuaScripting::lua_godotDeleteNode(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_DELETE_NODE, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
     }
     return 0;
 }
