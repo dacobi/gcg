@@ -1,4 +1,6 @@
-[gd_scene format=3]
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://hitdit.gd" id="1_hitdit"]
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_concrete"]
 frequency = 0.05
@@ -15,6 +17,7 @@ albedo_texture = SubResource("NoiseTexture2D_concrete")
 roughness = 0.9
 
 [node name="BunkerPixel" type="Node3D"]
+script = ExtResource("1_hitdit")
 
 [node name="Geometry" type="CSGBox3D" parent="."]
 size = Vector3(0.8, 0.8, 0.8)

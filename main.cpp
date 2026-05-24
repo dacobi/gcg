@@ -48,6 +48,7 @@
 #include "usd_manager.h"
 #include "usd_hydra_renderer.h"
 #include "object3d.h"
+#include "core/variant/variant.h"
 #include <pxr/base/gf/rotation.h>
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usd/primRange.h>
@@ -1558,7 +1559,8 @@ struct AppState {
     struct LuaCommand {
         enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX,
                     GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
-                    GODOT_MOVE_AND_COLLIDE, GODOT_GET_OVERLAPPING_AREAS, GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE };
+                    GODOT_MOVE_AND_COLLIDE, GODOT_GET_OVERLAPPING_AREAS, GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE,
+                    GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY };
         Type type;
         std::string syntax;
         int index;
@@ -1990,7 +1992,10 @@ static void print_help() {
     std::printf("  godotGetOverlappingAreas()  Returns list of overlapping Area3D names\n");
     std::printf("  godotCreateNode(name)      Creates Node3D as child of current node\n");
     std::printf("  godotLoadNode(path)        Instances scene as child of current node\n");
-    std::printf("  godotDeleteNode()          Deletes selected node and selects parent\n\n");
+    std::printf("  godotDeleteNode()          Deletes selected node and selects parent\n");
+    std::printf("  godotAttachScript(path)    Attaches GDScript to selected node\n");
+    std::printf("  godotSetProperty(name, v)  Sets property/variable on selected node\n");
+    std::printf("  godotGetProperty(name)     Gets property/variable from selected node\n\n");
 
     std::printf("Supported Plasma Parameters (for setPlasmaParam):\n");
     std::printf("  drift_amp, drift_speed_x, drift_speed_y, rot_speed,\n");
@@ -2460,6 +2465,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                     case LuaScripting::GCMD_CREATE_NODE: cmd.type = AppState::LuaCommand::GODOT_CREATE_NODE; break;
                     case LuaScripting::GCMD_LOAD_NODE: cmd.type = AppState::LuaCommand::GODOT_LOAD_NODE; break;
                     case LuaScripting::GCMD_DELETE_NODE: cmd.type = AppState::LuaCommand::GODOT_DELETE_NODE; break;
+                    case LuaScripting::GCMD_ATTACH_SCRIPT: cmd.type = AppState::LuaCommand::GODOT_ATTACH_SCRIPT; break;
+                    case LuaScripting::GCMD_SET_PROPERTY: cmd.type = AppState::LuaCommand::GODOT_SET_PROPERTY; break;
+                    case LuaScripting::GCMD_GET_PROPERTY: cmd.type = AppState::LuaCommand::GODOT_GET_PROPERTY; break;
                     default: return;
                 }
                 state->lua_commands.push(cmd);
@@ -2724,7 +2732,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     }
                 }
                 found_godot:;
-            } else if (cmd.type >= AppState::LuaCommand::GODOT_SELECT_ROOT && cmd.type <= AppState::LuaCommand::GODOT_DELETE_NODE) {
+            } else if (cmd.type >= AppState::LuaCommand::GODOT_SELECT_ROOT && cmd.type <= AppState::LuaCommand::GODOT_GET_PROPERTY) {
                 if (state->selected_godot) {
                     switch (cmd.type) {
                         case AppState::LuaCommand::GODOT_SELECT_ROOT: state->selected_godot->selectRoot(); break;
@@ -2744,6 +2752,31 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         case AppState::LuaCommand::GODOT_CREATE_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->createNode(cmd.syntax); break;
                         case AppState::LuaCommand::GODOT_LOAD_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->loadNode(cmd.syntax); break;
                         case AppState::LuaCommand::GODOT_DELETE_NODE: state->selected_godot->deleteNode(); break;
+                        case AppState::LuaCommand::GODOT_ATTACH_SCRIPT: if (cmd.sync) cmd.sync->b_res = state->selected_godot->attachScript(cmd.syntax); break;
+                        case AppState::LuaCommand::GODOT_SET_PROPERTY: 
+                            if (cmd.fargs[1] == 1.0f) {
+                                size_t sep = cmd.syntax.find('|');
+                                if (sep != std::string::npos) {
+                                    std::string prop = cmd.syntax.substr(0, sep);
+                                    std::string val = cmd.syntax.substr(sep + 1);
+                                    state->selected_godot->setProperty(prop, Variant(val.c_str()));
+                                }
+                            } else {
+                                state->selected_godot->setProperty(cmd.syntax, Variant(cmd.fargs[0]));
+                            }
+                            break;
+                        case AppState::LuaCommand::GODOT_GET_PROPERTY:
+                            if (cmd.sync) {
+                                Variant v = state->selected_godot->getProperty(cmd.syntax);
+                                if (v.get_type() == Variant::INT || v.get_type() == Variant::FLOAT) {
+                                    cmd.sync->b_res = true;
+                                    cmd.sync->d_res = (double)v;
+                                } else {
+                                    cmd.sync->b_res = false;
+                                    cmd.sync->s_res = String(v).utf8().get_data();
+                                }
+                            }
+                            break;
                     }
                 }
                 if (cmd.sync) {

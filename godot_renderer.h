@@ -35,6 +35,10 @@ public:
     bool loadNode(const std::string& path);
     void deleteNode();
 
+    bool attachScript(const std::string& path);
+    void setProperty(const std::string& name, const class Variant& value);
+    class Variant getProperty(const std::string& name);
+
     int getWidth() const { return width; }
     int getHeight() const { return height; }
 

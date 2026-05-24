@@ -84,6 +84,9 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     lua_register(L, "godotCreateNode", lua_godotCreateNode);
     lua_register(L, "godotLoadNode", lua_godotLoadNode);
     lua_register(L, "godotDeleteNode", lua_godotDeleteNode);
+    lua_register(L, "godotAttachScript", lua_godotAttachScript);
+    lua_register(L, "godotSetProperty", lua_godotSetProperty);
+    lua_register(L, "godotGetProperty", lua_godotGetProperty);
 
     // Set a hook to abort execution if stop() is called
     lua_sethook(L, lua_hook, LUA_MASKCOUNT, 100);
@@ -432,6 +435,67 @@ int LuaScripting::lua_godotDeleteNode(lua_State* L) {
     return 0;
 }
 
+int LuaScripting::lua_godotAttachScript(lua_State* L) {
+    if (lua_isstring(L, 1) && instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_ATTACH_SCRIPT, lua_tostring(L, 1), fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
+        lua_pushboolean(L, sd.b_res);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotSetProperty(lua_State* L) {
+    if (lua_isstring(L, 1) && instance && instance->godotCmdFunc) {
+        std::string name = lua_tostring(L, 1);
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        if (lua_isnumber(L, 2)) {
+            fargs[0] = (float)lua_tonumber(L, 2);
+            instance->godotCmdFunc(GCMD_SET_PROPERTY, name, fargs, &sd); // fargs[0] signals number
+        } else if (lua_isstring(L, 2)) {
+            // We use a hack: store the value in str_arg with a separator, or just use fargs[1]=1 for string?
+            // Actually, let's just use the current command structure and add a value type.
+            // For now, I'll pass the value in fargs[0] and use fargs[1] as a type flag.
+            // fargs[1] = 0: number, 1: string
+            fargs[0] = 0; // Not used for string
+            fargs[1] = 1; // Type = string
+            std::string combined = name + "|" + lua_tostring(L, 2);
+            instance->godotCmdFunc(GCMD_SET_PROPERTY, combined, fargs, &sd);
+        } else {
+            return 0;
+        }
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotGetProperty(lua_State* L) {
+    if (lua_isstring(L, 1) && instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_GET_PROPERTY, lua_tostring(L, 1), fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
+        if (sd.b_res) { // Use b_res to signal if it was a number or string?
+            lua_pushnumber(L, sd.d_res);
+        } else {
+            lua_pushstring(L, sd.s_res.c_str());
+        }
+        return 1;
+    }
+    return 0;
+}
 
 int LuaScripting::lua_addBouncer(lua_State* L) {
     if (lua_isstring(L, 1)) {

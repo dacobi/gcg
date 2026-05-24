@@ -13,6 +13,7 @@
 #include "scene/3d/physics/physics_body_3d.h"
 #include "scene/3d/physics/area_3d.h"
 #include "core/object/object.h"
+#include "core/variant/variant.h"
 #include "core/os/memory.h"
 #include "servers/rendering/rendering_server.h"
 #include "modules/gltf/gltf_document.h"
@@ -241,6 +242,29 @@ void GodotRenderer::deleteNode() {
     current_node = to_delete->get_parent();
     if (!current_node) current_node = scene_instance;
     to_delete->queue_free();
+}
+
+bool GodotRenderer::attachScript(const std::string& path) {
+    if (!current_node) return false;
+    Ref<Resource> res = ResourceLoader::load(String(path.c_str()));
+    if (res.is_valid()) {
+        current_node->set_script(res);
+        return true;
+    }
+    return false;
+}
+
+void GodotRenderer::setProperty(const std::string& name, const Variant& value) {
+    if (current_node) {
+        current_node->set(String(name.c_str()), value);
+    }
+}
+
+Variant GodotRenderer::getProperty(const std::string& name) {
+    if (current_node) {
+        return current_node->get(String(name.c_str()));
+    }
+    return Variant();
 }
 
 void GodotRenderer::resize(int w, int h) {

@@ -17,6 +17,7 @@ struct LuaSyncData {
     bool b_res = false;
     std::string s_res;
     float f_res[3] = {0.0f, 0.0f, 0.0f};
+    double d_res = 0.0;
     std::vector<std::string> vs_res;
 };
 
@@ -39,7 +40,10 @@ public:
         GCMD_GET_OVERLAPPING_AREAS,
         GCMD_CREATE_NODE,
         GCMD_LOAD_NODE,
-        GCMD_DELETE_NODE
+        GCMD_DELETE_NODE,
+        GCMD_ATTACH_SCRIPT,
+        GCMD_SET_PROPERTY,
+        GCMD_GET_PROPERTY
     };
 
     using AddBouncerFunc = std::function<void(const std::string&)>;
@@ -111,6 +115,9 @@ private:
     static int lua_godotCreateNode(lua_State* L);
     static int lua_godotLoadNode(lua_State* L);
     static int lua_godotDeleteNode(lua_State* L);
+    static int lua_godotAttachScript(lua_State* L);
+    static int lua_godotSetProperty(lua_State* L);
+    static int lua_godotGetProperty(lua_State* L);
 
     static void lua_hook(lua_State* L, lua_Debug* ar);
 

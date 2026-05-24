@@ -1,11 +1,8 @@
-print("Space Invaders Logic Started")
+print("Space Invaders Logic Started (GDScript Optimized)")
 
 setBG("[tscn:space_invaders_game.tscn]")
 selectGodot(-1)
-delay(100) -- give it a moment to load
-
-local projectiles = {}
-local proj_id = 1
+delay(200) -- give it a moment to load
 
 while true do
     -- Allow exiting via ESC
@@ -30,57 +27,16 @@ while true do
             local sx, sy, sz = godotGetPos()
             godotSelectRoot()
             if godotSearchNode("Projectiles") then
+                -- Projectiles now move and collide automatically via firep.gd
                 if godotLoadNode("res://projectile.tscn") then
-                    local p_name = "Proj_" .. proj_id
-                    godotRenameNode(p_name)
-                    -- Spawn slightly above the ship
                     godotSetPos(sx, sy + 3, sz)
-                    table.insert(projectiles, p_name)
-                    proj_id = proj_id + 1
+                    -- We don't need to track them in Lua anymore!
                 end
             end
         end
     end
 
-    -- Update active projectiles
-    for i = #projectiles, 1, -1 do
-        local p_name = projectiles[i]
-        godotSelectRoot()
-        if godotSearchNode(p_name) then
-            godotMoveY(1.0) -- projectile speed per frame
-            local px, py, pz = godotGetPos()
-            
-            -- Check for collisions
-            local hit = false
-            local overlaps = godotGetOverlappingAreas()
-            if overlaps then
-                for _, area_name in ipairs(overlaps) do
-                    if string.sub(area_name, 1, 3) == "Inv" then
-                        print("Hit Invader: " .. area_name)
-                        godotSelectRoot()
-                        if godotSearchNode(area_name) then
-                            godotDeleteNode()
-                        end
-                        hit = true
-                        break
-                    end
-                end
-            end
-
-            if hit or py > 80.0 then -- despawn threshold at top of screen
-                godotSelectRoot()
-                if godotSearchNode(p_name) then
-                    godotDeleteNode()
-                end
-                table.remove(projectiles, i)
-            end
-        else
-            -- If node somehow disappeared, remove from tracking
-            table.remove(projectiles, i)
-        end
-    end
-
-    --delay(16) -- run at roughly 60 fps
+    delay(16) -- run at roughly 60 fps
 end
 
 print("Space Invaders Logic Ended")
