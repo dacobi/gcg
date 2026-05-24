@@ -8,7 +8,7 @@ selectGodot(-1)
 delay(200) -- give it a moment to load
 
 godotWatchProperty("Ship", "alive", false, "game_over.lua")
-godotWatchProperty("Invaders", "vaders", 0, "game_over.lua", 3)
+godotWatchProperty("Invaders", "vaders", 0, "game_won.lua", 3)
 
 
 while true do
