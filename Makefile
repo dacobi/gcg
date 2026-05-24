@@ -406,6 +406,30 @@ home/dacobi/src/ImGui/imgui_widgets.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/imgui.dir/build.make CMakeFiles/imgui.dir/home/dacobi/src/ImGui/imgui_widgets.cpp.s
 .PHONY : home/dacobi/src/ImGui/imgui_widgets.cpp.s
 
+input_manager.o: input_manager.cpp.o
+.PHONY : input_manager.o
+
+# target to build an object file
+input_manager.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/input_manager.cpp.o
+.PHONY : input_manager.cpp.o
+
+input_manager.i: input_manager.cpp.i
+.PHONY : input_manager.i
+
+# target to preprocess a source file
+input_manager.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/input_manager.cpp.i
+.PHONY : input_manager.cpp.i
+
+input_manager.s: input_manager.cpp.s
+.PHONY : input_manager.s
+
+# target to generate assembly for a file
+input_manager.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/input_manager.cpp.s
+.PHONY : input_manager.cpp.s
+
 luascripting.o: luascripting.cpp.o
 .PHONY : luascripting.o
 
@@ -641,6 +665,9 @@ help:
 	@echo "... home/dacobi/src/ImGui/imgui_widgets.o"
 	@echo "... home/dacobi/src/ImGui/imgui_widgets.i"
 	@echo "... home/dacobi/src/ImGui/imgui_widgets.s"
+	@echo "... input_manager.o"
+	@echo "... input_manager.i"
+	@echo "... input_manager.s"
 	@echo "... luascripting.o"
 	@echo "... luascripting.i"
 	@echo "... luascripting.s"

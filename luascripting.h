@@ -49,6 +49,18 @@ private:
     static int lua_stopRecord(lua_State* L);
     static int lua_setRecordMax(lua_State* L);
     static int lua_delay(lua_State* L);
+    
+    // Input Framework
+    static int lua_ioKBClicked(lua_State* L);
+    static int lua_ioKBDown(lua_State* L);
+    static int lua_ioKBUp(lua_State* L);
+    static int lua_ioMousePos(lua_State* L);
+    static int lua_ioMouseMoved(lua_State* L);
+    static int lua_ioMouseGetMotion(lua_State* L);
+    static int lua_ioMouseBTNClicked(lua_State* L);
+    static int lua_ioMouseBTNDown(lua_State* L);
+    static int lua_ioMouseBTNUp(lua_State* L);
+
     static void lua_hook(lua_State* L, lua_Debug* ar);
 
     void scriptThreadFunc(std::string filename);

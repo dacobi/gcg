@@ -1,4 +1,5 @@
 #include "luascripting.h"
+#include "input_manager.h"
 #include <iostream>
 #include <chrono>
 
@@ -54,6 +55,17 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     lua_register(L, "setRecordMax", lua_setRecordMax);
     lua_register(L, "delay", lua_delay);
 
+    // Input Framework
+    lua_register(L, "ioKBClicked", lua_ioKBClicked);
+    lua_register(L, "ioKBDown", lua_ioKBDown);
+    lua_register(L, "ioKBUp", lua_ioKBUp);
+    lua_register(L, "ioMousePos", lua_ioMousePos);
+    lua_register(L, "ioMouseMoved", lua_ioMouseMoved);
+    lua_register(L, "ioMouseGetMotion", lua_ioMouseGetMotion);
+    lua_register(L, "ioMouseBTNClicked", lua_ioMouseBTNClicked);
+    lua_register(L, "ioMouseBTNDown", lua_ioMouseBTNDown);
+    lua_register(L, "ioMouseBTNUp", lua_ioMouseBTNUp);
+
     // Set a hook to abort execution if stop() is called
     lua_sethook(L, lua_hook, LUA_MASKCOUNT, 100);
 
@@ -71,9 +83,88 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
 
 void LuaScripting::lua_hook(lua_State* L, lua_Debug* ar) {
     if (instance && !instance->running) {
-        luaL_error(L, "Script terminated");
+        luaL_error(L, "Script aborted");
     }
 }
+
+int LuaScripting::lua_ioKBClicked(lua_State* L) {
+    if (lua_isstring(L, 1)) {
+        std::string key = lua_tostring(L, 1);
+        SDL_Keycode kc = InputManager::stringToKeycode(key);
+        lua_pushboolean(L, InputManager::getInstance().lua_isKeyHit(kc));
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioKBDown(lua_State* L) {
+    if (lua_isstring(L, 1)) {
+        std::string key = lua_tostring(L, 1);
+        SDL_Keycode kc = InputManager::stringToKeycode(key);
+        lua_pushboolean(L, InputManager::getInstance().lua_isKeyDown(kc));
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioKBUp(lua_State* L) {
+    if (lua_isstring(L, 1)) {
+        std::string key = lua_tostring(L, 1);
+        SDL_Keycode kc = InputManager::stringToKeycode(key);
+        lua_pushboolean(L, InputManager::getInstance().lua_isKeyUp(kc));
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioMousePos(lua_State* L) {
+    int x, y;
+    InputManager::getInstance().lua_getMousePos(x, y);
+    lua_pushinteger(L, x);
+    lua_pushinteger(L, y);
+    return 2;
+}
+
+int LuaScripting::lua_ioMouseMoved(lua_State* L) {
+    lua_pushboolean(L, InputManager::getInstance().lua_hasMouseMoved());
+    return 1;
+}
+
+int LuaScripting::lua_ioMouseGetMotion(lua_State* L) {
+    int rx, ry;
+    InputManager::getInstance().lua_getMouseMotion(rx, ry);
+    lua_pushinteger(L, rx);
+    lua_pushinteger(L, ry);
+    return 2;
+}
+
+int LuaScripting::lua_ioMouseBTNClicked(lua_State* L) {
+    if (lua_isinteger(L, 1)) {
+        int btn = (int)lua_tointeger(L, 1);
+        lua_pushboolean(L, InputManager::getInstance().lua_isMouseBtnHit(btn));
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioMouseBTNDown(lua_State* L) {
+    if (lua_isinteger(L, 1)) {
+        int btn = (int)lua_tointeger(L, 1);
+        lua_pushboolean(L, InputManager::getInstance().lua_isMouseBtnDown(btn));
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioMouseBTNUp(lua_State* L) {
+    if (lua_isinteger(L, 1)) {
+        int btn = (int)lua_tointeger(L, 1);
+        lua_pushboolean(L, InputManager::getInstance().lua_isMouseBtnUp(btn));
+        return 1;
+    }
+    return 0;
+}
+
 
 int LuaScripting::lua_addBouncer(lua_State* L) {
     if (lua_isstring(L, 1)) {

@@ -38,6 +38,7 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlgpu3.h"
 #include "renderer.h"
+#include "input_manager.h"
 
 #include "shplasma.h"
 
@@ -2416,16 +2417,18 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
     AppState* state = (AppState*)appstate;
     state->event_burst_cooldown = 10;
 
-    if (ev->type != SDL_EVENT_WINDOW_EXPOSED && 
-        ev->type != SDL_EVENT_WINDOW_MOUSE_ENTER && 
-        ev->type != SDL_EVENT_WINDOW_MOUSE_LEAVE) {
-        ImGui_ImplSDL3_ProcessEvent(ev);
-    } else {
-        return SDL_APP_CONTINUE; 
+    ImGui_ImplSDL3_ProcessEvent(ev);
+
+    ImGuiIO& io = ImGui::GetIO();
+    bool captured = false;
+    if (io.WantCaptureKeyboard && (ev->type >= SDL_EVENT_KEY_DOWN && ev->type <= SDL_EVENT_KEY_UP)) captured = true;
+    if (io.WantCaptureMouse && (ev->type >= SDL_EVENT_MOUSE_MOTION && ev->type <= SDL_EVENT_MOUSE_BUTTON_UP)) captured = true;
+
+    if (!captured) {
+        InputManager::getInstance().processEvent(ev);
     }
 
-    if (ev->type == SDL_EVENT_QUIT) return SDL_APP_SUCCESS;
-    if (ev->type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && ev->window.windowID == SDL_GetWindowID(window))
+    if (ev->type == SDL_EVENT_QUIT) return SDL_APP_SUCCESS;    if (ev->type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && ev->window.windowID == SDL_GetWindowID(window))
         return SDL_APP_SUCCESS;
     
     if (ev->type == SDL_EVENT_WINDOW_RESIZED) {
@@ -2464,9 +2467,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate)
-{    
+{
+    InputManager::getInstance().beginFrame();
     AppState* state = (AppState*)appstate;
-
     if (state->godot_manager) {
         state->godot_manager->iteration();
     }
