@@ -607,6 +607,8 @@ int LuaScripting::lua_godotWatchProperty(lua_State* L) {
         std::string node = lua_tostring(L, 1);
         std::string prop = lua_tostring(L, 2);
         std::string file = lua_tostring(L, 4);
+        int mode = 0;
+        if (lua_isinteger(L, 5)) mode = (int)lua_tointeger(L, 5);
 
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0,0,0};
@@ -627,6 +629,8 @@ int LuaScripting::lua_godotWatchProperty(lua_State* L) {
         } else {
             return 0;
         }
+        
+        fargs[2] = (float)mode;
 
         instance->godotCmdFunc(GCMD_WATCH_PROPERTY, combined, fargs, nullptr);
     }

@@ -17,6 +17,8 @@ var fire_delay_multiplier_per_sec = 0.99 # Multiply delays by this every second
 
 var projectile_scene = load("res://enemy_projectile.tscn")
 
+@export var vaders: int = 50
+
 func _init():
 	set_process(true)
 
@@ -52,6 +54,10 @@ func _reset_fire_timer():
 	fire_timer = 0.0
 	# Random delay between shots
 	next_fire_time = randf() * (max_fire_delay - min_fire_delay) + min_fire_delay
+
+func vaderdie():
+	vaders = vaders - 1
+	print("vaders: ", vaders)
 
 func _fire_random_projectile():
 	var alive_invaders = []

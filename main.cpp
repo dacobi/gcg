@@ -1519,6 +1519,7 @@ struct PropertyWatcher {
     std::string property_name;
     Variant target_value;
     std::string callback_file;
+    int comparison_mode = 0; // 0: ==, 1: <, 2: >, 3: <=, 4: >=
     bool fired = false;
 };
 
@@ -2919,6 +2920,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                                     else if (cmd.fargs[1] == 1.0f) w.target_value = Variant(val_str.c_str());
                                     else if (cmd.fargs[1] == 2.0f) w.target_value = Variant(cmd.fargs[0] > 0.5f);
                                     
+                                    w.comparison_mode = (int)cmd.fargs[2];
                                     state->watchers.push_back(w);
                                 }
                             }
@@ -3433,7 +3435,25 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 target_renderer = state->bg_godot;
                 Variant val = target_renderer->getProperty(w.property_name);
                 if (val.get_type() != Variant::NIL) {
-                    if (val == w.target_value) {
+                    bool triggered = false;
+                    if (w.comparison_mode == 0) triggered = (val == w.target_value);
+                    else {
+                        double v_cur = 0, v_tgt = 0;
+                        bool numeric = false;
+                        if ((val.get_type() == Variant::INT || val.get_type() == Variant::FLOAT) &&
+                            (w.target_value.get_type() == Variant::INT || w.target_value.get_type() == Variant::FLOAT)) {
+                            v_cur = (double)val;
+                            v_tgt = (double)w.target_value;
+                            numeric = true;
+                        }
+                        if (numeric) {
+                            if (w.comparison_mode == 1) triggered = (v_cur < v_tgt);
+                            else if (w.comparison_mode == 2) triggered = (v_cur > v_tgt);
+                            else if (w.comparison_mode == 3) triggered = (v_cur <= v_tgt);
+                            else if (w.comparison_mode == 4) triggered = (v_cur >= v_tgt);
+                        }
+                    }
+                    if (triggered) {
                         w.fired = true;
                         state->scriptSystem->runOneShotScript(w.callback_file);
                     }
@@ -3451,7 +3471,25 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     if (b.godot_renderer->searchNode(w.node_name)) {
                         Variant val = b.godot_renderer->getProperty(w.property_name);
                         if (val.get_type() != Variant::NIL) {
-                            if (val == w.target_value) {
+                            bool triggered = false;
+                            if (w.comparison_mode == 0) triggered = (val == w.target_value);
+                            else {
+                                double v_cur = 0, v_tgt = 0;
+                                bool numeric = false;
+                                if ((val.get_type() == Variant::INT || val.get_type() == Variant::FLOAT) &&
+                                    (w.target_value.get_type() == Variant::INT || w.target_value.get_type() == Variant::FLOAT)) {
+                                    v_cur = (double)val;
+                                    v_tgt = (double)w.target_value;
+                                    numeric = true;
+                                }
+                                if (numeric) {
+                                    if (w.comparison_mode == 1) triggered = (v_cur < v_tgt);
+                                    else if (w.comparison_mode == 2) triggered = (v_cur > v_tgt);
+                                    else if (w.comparison_mode == 3) triggered = (v_cur <= v_tgt);
+                                    else if (w.comparison_mode == 4) triggered = (v_cur >= v_tgt);
+                                }
+                            }
+                            if (triggered) {
                                 w.fired = true;
                                 state->scriptSystem->runOneShotScript(w.callback_file);
                             }

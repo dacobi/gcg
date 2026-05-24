@@ -8,6 +8,8 @@ selectGodot(-1)
 delay(200) -- give it a moment to load
 
 godotWatchProperty("Ship", "alive", false, "game_over.lua")
+godotWatchProperty("Invaders", "vaders", 0, "game_over.lua", 3)
+
 
 while true do
     -- Allow exiting via ESC
@@ -23,16 +25,6 @@ while true do
         if godotSearchNode("Ship") then
             godotMoveX(rx / 10.0) -- scale mouse movement down a bit
         end
-    end
-
-   godotSelectRoot()
-   if godotSearchNode("Invaders") then
-      local count = godotGetChildCount()
-            if count < 1 then
-		break
-            end
-    else
-	print("novaders")
     end
 
     -- Left mouse click to fire (Limit to 7 active projectiles)
