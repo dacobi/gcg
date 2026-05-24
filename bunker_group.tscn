@@ -2,712 +2,717 @@
 
 [ext_resource type="Script" path="res://hitdit.gd" id="1_hitdit"]
 
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_concrete"]
-frequency = 0.3
-fractal_octaves = 5
+[sub_resource type="FastNoiseLite" id="1"]
+frequency = 0.02
+fractal_octaves = 3
 
-[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_concrete"]
-width = 1024
-height = 1024
+[sub_resource type="Gradient" id="2"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(0.05, 0.05, 0.05, 1, 0.8, 0.8, 0.8, 1)
+
+[sub_resource type="NoiseTexture2D" id="3"]
+width = 256
+height = 256
 seamless = true
-noise = SubResource("FastNoiseLite_concrete")
+color_ramp = SubResource("2")
+noise = SubResource("1")
 
 [sub_resource type="StandardMaterial3D" id="Mat_0"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.0, 0.9, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_1"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.1, 0.9, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_2"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.2, 0.9, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_3"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.30000000000000004, 0.9, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_4"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.4, 0.9, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_5"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.5, 0.9, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_6"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.6000000000000001, 0.9, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_7"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.7000000000000001, 0.9, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_8"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.8, 0.9, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_9"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.9, 0.9, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_10"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.0, 0.8, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_11"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.1, 0.8, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_12"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.2, 0.8, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_13"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.30000000000000004, 0.8, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_14"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.4, 0.8, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_15"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.5, 0.8, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_16"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.6000000000000001, 0.8, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_17"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.7000000000000001, 0.8, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_18"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.8, 0.8, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_19"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.9, 0.8, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_20"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.0, 0.7000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_21"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.1, 0.7000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_22"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.2, 0.7000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_23"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.30000000000000004, 0.7000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_24"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.4, 0.7000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_25"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.5, 0.7000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_26"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.6000000000000001, 0.7000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_27"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.7000000000000001, 0.7000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_28"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.8, 0.7000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_29"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.9, 0.7000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_30"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.0, 0.6000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_31"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.1, 0.6000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_32"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.2, 0.6000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_33"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.30000000000000004, 0.6000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_34"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.4, 0.6000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_35"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.5, 0.6000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_36"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.6000000000000001, 0.6000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_37"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.7000000000000001, 0.6000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_38"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.8, 0.6000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_39"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.9, 0.6000000000000001, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_40"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.0, 0.5, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_41"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.1, 0.5, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_42"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.2, 0.5, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_43"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.30000000000000004, 0.5, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_44"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.4, 0.5, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_45"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.5, 0.5, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_46"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.6000000000000001, 0.5, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_47"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.7000000000000001, 0.5, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_48"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.8, 0.5, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_49"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.9, 0.5, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_50"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.0, 0.4, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_51"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.1, 0.4, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_52"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.2, 0.4, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_53"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.30000000000000004, 0.4, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_54"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.4, 0.4, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_55"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.5, 0.4, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_56"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.6000000000000001, 0.4, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_57"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.7000000000000001, 0.4, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_58"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.8, 0.4, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_59"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.9, 0.4, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_60"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.0, 0.30000000000000004, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_61"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.1, 0.30000000000000004, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_62"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.2, 0.30000000000000004, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_63"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.30000000000000004, 0.30000000000000004, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_64"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.4, 0.30000000000000004, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_65"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.5, 0.30000000000000004, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_66"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.6000000000000001, 0.30000000000000004, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_67"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.7000000000000001, 0.30000000000000004, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_68"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.8, 0.30000000000000004, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_69"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.9, 0.30000000000000004, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_70"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.0, 0.2, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_71"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.1, 0.2, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_72"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.2, 0.2, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_73"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.30000000000000004, 0.2, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_74"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.4, 0.2, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_75"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.5, 0.2, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_76"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.6000000000000001, 0.2, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_77"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.7000000000000001, 0.2, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_78"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.8, 0.2, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_79"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.9, 0.2, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_80"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.0, 0.1, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_81"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.1, 0.1, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_82"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.2, 0.1, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_83"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.30000000000000004, 0.1, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_84"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.4, 0.1, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_85"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.5, 0.1, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_86"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.6000000000000001, 0.1, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_87"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.7000000000000001, 0.1, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_88"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.8, 0.1, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_89"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.9, 0.1, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_90"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.0, 0.0, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_91"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.1, 0.0, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_92"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.2, 0.0, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_93"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.30000000000000004, 0.0, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_94"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.4, 0.0, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_95"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.5, 0.0, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_96"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.6000000000000001, 0.0, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_97"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.7000000000000001, 0.0, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_98"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.8, 0.0, 0)
 roughness = 0.9
 
 [sub_resource type="StandardMaterial3D" id="Mat_99"]
-albedo_color = Color(0.45, 0.45, 0.45, 1)
-albedo_texture = SubResource("NoiseTexture2D_concrete")
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = SubResource("3")
 uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.9, 0.0, 0)
 roughness = 0.9
