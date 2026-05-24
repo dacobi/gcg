@@ -4,9 +4,6 @@ setBG("[tscn:space_invaders_game.tscn]")
 selectGodot(-1)
 delay(200) -- give it a moment to load
 
-local projectiles = {}
-local proj_id_seq = 1
-
 while true do
     -- Allow exiting via ESC
     if ioKBClicked("SDLK_ESCAPE") then
@@ -23,36 +20,23 @@ while true do
         end
     end
 
-    -- Update active projectiles list (prune those that died in Godot)
-    for i = #projectiles, 1, -1 do
-        local pname = projectiles[i]
-        godotSelectRoot()
-        if not godotSearchNode(pname) then
-            -- Node was deleted (hit something or left screen)
-            table.remove(projectiles, i)
-	    print("projtl removed", #projectiles)
-        end
-    end
-
-    -- Left mouse click to fire (Limit to 7)
+    -- Left mouse click to fire (Limit to 7 active projectiles)
     if ioMouseBTNClicked(1) then
-        if #projectiles < 7 then
-            godotSelectRoot()
-            if godotSearchNode("Ship") then
-                local sx, sy, sz = godotGetPos()
+        godotSelectRoot()
+        if godotSearchNode("Projectiles") then
+            -- Use the new native child count for the limit
+            local count = godotGetChildCount()
+            if count < 7 then
                 godotSelectRoot()
-                if godotSearchNode("Projectiles") then
-                    -- Load and position atomically
-                    if godotLoadNode("res://projectile.tscn", sx, sy + 3, sz) then
-                        local pname = "PlayerProj_" .. proj_id_seq
-                        godotRenameNode(pname)
-                        table.insert(projectiles, pname)
-                        proj_id_seq = proj_id_seq + 1
+                if godotSearchNode("Ship") then
+                    local sx, sy, sz = godotGetPos()
+                    godotSelectRoot()
+                    if godotSearchNode("Projectiles") then
+                        -- Load and position atomically
+                        godotLoadNode("res://projectile.tscn", sx, sy + 3, sz)
                     end
                 end
             end
-        else
-            -- Optional: print("Max projectiles active!")
         end
     end
 
@@ -60,5 +44,3 @@ while true do
 end
 
 print("Space Invaders Logic Ended")
-
-appQuit()

@@ -127,6 +127,7 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     lua_register(L_reg, "godotSearchNode", lua_godotSearchNode);
     lua_register(L_reg, "godotGetNodeType", lua_godotGetNodeType);
     lua_register(L_reg, "godotGetName", lua_godotGetName);
+    lua_register(L_reg, "godotGetChildCount", lua_godotGetChildCount);
     lua_register(L_reg, "godotRenameNode", lua_godotRenameNode);
     lua_register(L_reg, "godotSetCamera", lua_godotSetCamera);
     lua_register(L_reg, "godotGetPos", lua_godotGetPos);
@@ -296,6 +297,21 @@ int LuaScripting::lua_godotGetName(lua_State* L) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
         lua_pushstring(L, sd.s_res.c_str());
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotGetChildCount(lua_State* L) {
+    if (instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_GET_CHILD_COUNT, "", fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        while (!sd.done && instance && instance->systemRunning) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
+        lua_pushinteger(L, (lua_Integer)sd.d_res);
         return 1;
     }
     return 0;

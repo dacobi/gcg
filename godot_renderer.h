@@ -23,6 +23,7 @@ public:
     bool searchNode(const std::string& name);
     std::string getNodeType();
     std::string getName();
+    int getChildCount();
     void renameNode(const std::string& name);
     bool setCamera();
     bool getPos(float& x, float& y, float& z);

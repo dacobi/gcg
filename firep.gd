@@ -14,6 +14,10 @@ func _ready():
 func _process(delta):
 	position.y += speed * delta
 	
+	if position.y > 80.0:
+		queue_free()
+		return
+
 	# Polling check for groups (like Bunkers) that we are currently inside
 	var areas = get_overlapping_areas()
 	for area in areas:

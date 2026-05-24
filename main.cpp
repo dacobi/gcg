@@ -1590,7 +1590,7 @@ struct AppState {
 
     struct LuaCommand {
         enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, CLEAR_AND_RUN,
-                    GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
+                    GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_GET_CHILD_COUNT, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
                     GODOT_MOVE_AND_COLLIDE, GODOT_GET_OVERLAPPING_AREAS, GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE,
                     GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY };
         Type type;
@@ -2512,6 +2512,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                     case LuaScripting::GCMD_SEARCH_NODE: cmd.type = AppState::LuaCommand::GODOT_SEARCH_NODE; break;
                     case LuaScripting::GCMD_GET_NODE_TYPE: cmd.type = AppState::LuaCommand::GODOT_GET_NODE_TYPE; break;
                     case LuaScripting::GCMD_GET_NAME: cmd.type = AppState::LuaCommand::GODOT_GET_NAME; break;
+                    case LuaScripting::GCMD_GET_CHILD_COUNT: cmd.type = AppState::LuaCommand::GODOT_GET_CHILD_COUNT; break;
                     case LuaScripting::GCMD_RENAME_NODE: cmd.type = AppState::LuaCommand::GODOT_RENAME_NODE; break;
                     case LuaScripting::GCMD_SET_CAMERA: cmd.type = AppState::LuaCommand::GODOT_SET_CAMERA; break;
                     case LuaScripting::GCMD_GET_POS: cmd.type = AppState::LuaCommand::GODOT_GET_POS; break;
@@ -2825,6 +2826,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         case AppState::LuaCommand::GODOT_SEARCH_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->searchNode(cmd.syntax); break;
                         case AppState::LuaCommand::GODOT_GET_NODE_TYPE: if (cmd.sync) cmd.sync->s_res = state->selected_godot->getNodeType(); break;
                         case AppState::LuaCommand::GODOT_GET_NAME: if (cmd.sync) cmd.sync->s_res = state->selected_godot->getName(); break;
+                        case AppState::LuaCommand::GODOT_GET_CHILD_COUNT: if (cmd.sync) { cmd.sync->b_res = true; cmd.sync->d_res = (double)state->selected_godot->getChildCount(); } break;
                         case AppState::LuaCommand::GODOT_RENAME_NODE: state->selected_godot->renameNode(cmd.syntax); break;
                         case AppState::LuaCommand::GODOT_SET_CAMERA: if (cmd.sync) cmd.sync->b_res = state->selected_godot->setCamera(); break;
                         case AppState::LuaCommand::GODOT_GET_POS: if (cmd.sync) cmd.sync->b_res = state->selected_godot->getPos(cmd.sync->f_res[0], cmd.sync->f_res[1], cmd.sync->f_res[2]); break;

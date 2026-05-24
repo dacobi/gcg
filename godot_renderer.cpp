@@ -138,6 +138,11 @@ std::string GodotRenderer::getName() {
     return String(current_node->get_name()).utf8().get_data();
 }
 
+int GodotRenderer::getChildCount() {
+    if (!current_node) return 0;
+    return current_node->get_child_count();
+}
+
 void GodotRenderer::renameNode(const std::string& name) {
     if (current_node) {
         current_node->set_name(String(name.c_str()));
