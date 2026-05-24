@@ -3061,6 +3061,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
         if (ImGui::BeginMenu("Godot")) {
             if (ImGui::BeginMenu("Select Godot Bouncer")) {
+                if (state->bg_godot) {
+                    if (ImGui::MenuItem("Background", NULL, state->selected_godot == state->bg_godot))
+                        state->selected_godot = state->bg_godot;
+                }
                 for (size_t i = 0; i < state->mBdisplay.size(); ++i) {
                     for (size_t j = 0; j < state->mBdisplay[i]->bouncers.size(); ++j) {
                         GodotRenderer* g = state->mBdisplay[i]->bouncers[j].godot_renderer;
