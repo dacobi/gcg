@@ -46,6 +46,7 @@ bool GodotRenderer::init(const std::string& tscn_path) {
     viewport->set_size(Size2i(width, height));
     viewport->set_update_mode(SubViewport::UPDATE_ALWAYS);
     viewport->set_transparent_background(bTransparent);
+    viewport->set_use_own_world_3d(true);
     
     // Add to the main scene tree so it gets processed
     tree->get_root()->add_child(viewport);
@@ -79,6 +80,14 @@ bool GodotRenderer::init(const std::string& tscn_path) {
         }
     }
     return false;
+}
+
+void GodotRenderer::resize(int w, int h) {
+    width = w;
+    height = h;
+    if (viewport) {
+        viewport->set_size(Size2i(width, height));
+    }
 }
 
 void GodotRenderer::render(uint8_t* out_pixels) {

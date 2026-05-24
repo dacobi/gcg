@@ -1393,6 +1393,7 @@ static MandelbrotOpenCL* myMandel = nullptr;
 static bool bUsePlasma = true;
 static bool bUseMandel = false;
 static bool bUseUSD = false;
+static bool bUseGodot = false;
 
 static SDL_GPUTexture* create_png_texture(Renderer* renderer,
                                         const char* text,
@@ -1490,6 +1491,7 @@ struct AppState {
     int cli_bg_plasma_idx = -1;
     int cli_bg_fractal_idx = -1;
     std::string cli_bg_usd_path;
+    std::string cli_bg_tscn_path;
     int cli_record_max = -1;
     bool cli_geekd = false;
     bool cli_maximize = false;
@@ -1510,6 +1512,7 @@ struct AppState {
     SDL_GPUTexture* plasma_tex = nullptr;
     SDL_GPUTexture* mandel_tex = nullptr;
     USDHydraRenderer* bg_usd = nullptr;
+    GodotRenderer* bg_godot = nullptr;
     std::unique_ptr<MediaDecoder> bg_video;
     std::unique_ptr<AudioDecoder> loop_audio;
     SDL_GPUTexture* bg_tex = nullptr;
@@ -1552,7 +1555,7 @@ struct AppState {
 
 
     struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX };
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX };
         Type type;
         std::string syntax;
         int index;
@@ -1929,6 +1932,7 @@ static void print_help() {
     std::printf("  --bg FILE             use image or video as background\n");
     std::printf("  --bg \"[plasma:#]\"     use specific plasma index (#) as background\n");
     std::printf("  --bg \"[fractal:#]\"    use specific fractal index (#) as background\n");
+    std::printf("  --bg \"[tscn:FILE]\"     use Godot scene as background\n");
     std::printf("  --record-max N        max recording length in seconds (default 59)\n");
     std::printf("  --maximize            start the window maximized\n");
     std::printf("  --geekd               show tech info / status line and record GUI\n");
@@ -1940,10 +1944,11 @@ static void print_help() {
     std::printf("Lua Scripting Functions:\n");
     std::printf("  addBouncer(syntax)         Adds a bouncer group (e.g. \"[plasma:1] Hello\")\n");
     std::printf("  delBouncer(index)          Removes a bouncer group by index\n");
-    std::printf("  setBG(path_or_tag)         Sets background to file, [plasma:#], or [fractal:#]\n");
+    std::printf("  setBG(path_or_tag)         Sets background to file, [plasma:#], [fractal:#], or [tscn:FILE]\n");
     std::printf("  selectPlasma(index)        Selects plasma instance (-1=BG, 0+=bouncer)\n");
     std::printf("  selectFractal(index)       Selects fractal instance (-1=BG, 0+=bouncer)\n");
     std::printf("  selectUSD(index)           Selects USD instance (0+=bouncer)\n");
+    std::printf("  selectGodot(index)         Selects Godot instance (-1=BG, 0+=bouncer)\n");
     std::printf("  setPlasmaParam(name, val)  Sets parameter on selected plasma\n");
     std::printf("  setFractalParam(name, val) Sets parameter on selected fractal\n");
     std::printf("  setUSDParam(name, val)     Sets parameter on selected USD\n");
@@ -2094,10 +2099,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                     state->cli_bg_plasma_idx = std::stoi(idx_str);
                     bUsePlasma = true;
                     bUseMandel = false;
+                    bUseGodot = false;
                 } catch (...) {
                     state->cli_bg_path = arg;
                     bUsePlasma = false;
                     bUseMandel = false;
+                    bUseGodot = false;
                 }
             } else if (arg.size() > 9 && arg.substr(0, 9) == "[fractal:" && arg.back() == ']') {
                 std::string idx_str = arg.substr(9, arg.size() - 10);
@@ -2106,22 +2113,32 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                     bUseMandel = true;
                     bUsePlasma = false;
                     bUseUSD = false;
+                    bUseGodot = false;
                 } catch (...) {
                     state->cli_bg_path = arg;
                     bUsePlasma = false;
                     bUseMandel = false;
                     bUseUSD = false;
+                    bUseGodot = false;
                 }
             } else if (arg.size() > 5 && arg.substr(0, 5) == "[usd:" && arg.back() == ']') {
                 state->cli_bg_usd_path = arg.substr(5, arg.size() - 6);
                 bUseUSD = true;
                 bUsePlasma = false;
                 bUseMandel = false;
+                bUseGodot = false;
+            } else if (arg.size() > 6 && arg.substr(0, 6) == "[tscn:" && arg.back() == ']') {
+                state->cli_bg_tscn_path = arg.substr(6, arg.size() - 7);
+                bUseGodot = true;
+                bUsePlasma = false;
+                bUseMandel = false;
+                bUseUSD = false;
             } else {
                 state->cli_bg_path = arg;
                 bUsePlasma = false;
                 bUseMandel = false;
                 bUseUSD = false;
+                bUseGodot = false;
             }
         } else if (std::strcmp(argv[i], "--record-max") == 0 && i + 1 < argc) {
             state->cli_record_max = std::atoi(argv[++i]);
@@ -2206,6 +2223,19 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             delete state->bg_usd;
             state->bg_usd = nullptr;
             bUseUSD = false;
+        }
+        state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
+    }
+    if (bUseGodot) {
+        SDL_Log("Creating Godot Background...");
+        state->bg_godot = new GodotRenderer(cur_w, cur_h);
+        if (state->bg_godot->init(state->cli_bg_tscn_path)) {
+            state->selected_godot = state->bg_godot;
+        } else {
+            SDL_Log("Godot background initialization failed!");
+            delete state->bg_godot;
+            state->bg_godot = nullptr;
+            bUseGodot = false;
         }
         state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
     }
@@ -2364,11 +2394,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                 return (myNvec != nullptr);
             },
             [state](int index) {
-                std::lock_guard<std::mutex> lock(state->lua_mutex);
-                state->lua_commands.push({AppState::LuaCommand::SELECT_USD, "", index, 0.0});
+               std::lock_guard<std::mutex> lock(state->lua_mutex);
+               state->lua_commands.push({AppState::LuaCommand::SELECT_USD, "", index, 0.0});
             },
-            [state](const std::string& name, double value) {
-                std::lock_guard<std::mutex> lock(state->lua_mutex);
+            [state](int index) {
+               std::lock_guard<std::mutex> lock(state->lua_mutex);
+               state->lua_commands.push({AppState::LuaCommand::SELECT_GODOT, "", index, 0.0});
+            },
+            [state](const std::string& name, double value) {                std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({AppState::LuaCommand::SET_USD_PARAM, name, 0, value});
             }
         );
@@ -2413,6 +2446,11 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
             }
             if (bUseUSD && state->bg_usd) {
                 state->bg_usd->resize(cur_w, cur_h);
+                if (state->bg_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->bg_tex);
+                state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
+            }
+            if (bUseGodot && state->bg_godot) {
+                state->bg_godot->resize(cur_w, cur_h);
                 if (state->bg_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->bg_tex);
                 state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
             }
@@ -2472,6 +2510,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     if (state->selected_usd == state->bg_usd) state->selected_usd = nullptr;
                     delete state->bg_usd; state->bg_usd = nullptr; bUseUSD = false;
                 }
+                if (state->bg_godot) {
+                    if (state->selected_godot == state->bg_godot) state->selected_godot = nullptr;
+                    delete state->bg_godot; state->bg_godot = nullptr; bUseGodot = false;
+                }
                 if (myPlasma) { 
                     if (state->selected_plasma == myPlasma) state->selected_plasma = nullptr;
                     delete myPlasma; myPlasma = nullptr; bUsePlasma = false; 
@@ -2482,6 +2524,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 }
                 state->cli_bg_path = "";
                 state->cli_bg_usd_path = "";
+                state->cli_bg_tscn_path = "";
 
                 if (arg.size() > 8 && arg.substr(0, 8) == "[plasma:" && arg.back() == ']') {
                     std::string idx_str = arg.substr(8, arg.size() - 9);
@@ -2498,6 +2541,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 } else if (arg.size() > 5 && arg.substr(0, 5) == "[usd:" && arg.back() == ']') {
                     state->cli_bg_usd_path = arg.substr(5, arg.size() - 6);
                     bUseUSD = true;
+                } else if (arg.size() > 6 && arg.substr(0, 6) == "[tscn:" && arg.back() == ']') {
+                    state->cli_bg_tscn_path = arg.substr(6, arg.size() - 7);
+                    bUseGodot = true;
                 } else {
                     state->cli_bg_path = arg;
                 }
@@ -2524,6 +2570,15 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         state->selected_usd = state->bg_usd;
                     } else {
                         delete state->bg_usd; state->bg_usd = nullptr; bUseUSD = false;
+                    }
+                    state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
+                }
+                if (bUseGodot) {
+                    state->bg_godot = new GodotRenderer(cur_w, cur_h);
+                    if (state->bg_godot->init(state->cli_bg_tscn_path)) {
+                        state->selected_godot = state->bg_godot;
+                    } else {
+                        delete state->bg_godot; state->bg_godot = nullptr; bUseGodot = false;
                     }
                     state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
                 }
@@ -2592,6 +2647,21 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     }
                 }
                 found_usd:;
+            } else if (cmd.type == AppState::LuaCommand::SELECT_GODOT) {
+                if (cmd.index == -1) {
+                    state->selected_godot = state->bg_godot;
+                } else {
+                    int count = 0;
+                    for (auto& bd : state->mBdisplay) {
+                        for (auto& b : bd->bouncers) {
+                            if (b.godot_renderer) {
+                                if (count == cmd.index) { state->selected_godot = b.godot_renderer; goto found_godot; }
+                                count++;
+                            }
+                        }
+                    }
+                }
+                found_godot:;
             } else if (cmd.type == AppState::LuaCommand::SET_USD_PARAM) {
                 if (state->selected_usd) {
                     if (cmd.syntax == "rot_x") state->selected_usd->sceneRotation[0] = (float)cmd.value;
@@ -3085,6 +3155,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         state->bg_usd->render(pixels.data());
         g_renderer->updateTexture(state->bg_tex, cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, pixels.data(), cur_w * 4);
     }
+    if (bUseGodot && state->bg_godot && state->bg_tex) {
+        std::vector<uint8_t> pixels(cur_w * cur_h * 4);
+        state->bg_godot->render(pixels.data());
+        g_renderer->updateTexture(state->bg_tex, cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, pixels.data(), cur_w * 4);
+    }
 
     g_renderer->beginFrame();
 
@@ -3145,6 +3220,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         if (bUsePlasma && myPlasma) { /* myPlasma->stop(); */ }
         if (bUseMandel && myMandel) myMandel->stop();
         if (state->bg_usd) delete state->bg_usd;
+        if (state->bg_godot) delete state->bg_godot;
         if (state->bg_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->bg_tex);
         for (auto* et : state->extra_textures) SDL_ReleaseGPUTexture(g_renderer->getDevice(), et);
         for (auto& e : state->cli_entries) { if (e.tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), e.tex); }

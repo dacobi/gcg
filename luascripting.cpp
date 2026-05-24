@@ -4,8 +4,8 @@
 
 LuaScripting* LuaScripting::instance = nullptr;
 
-LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SetUSDParamFunc setUSDParamFunc)
-    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc), selectUSDFunc(selectUSDFunc), setUSDParamFunc(setUSDParamFunc) {
+LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc)
+    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc), selectUSDFunc(selectUSDFunc), selectGodotFunc(selectGodotFunc), setUSDParamFunc(setUSDParamFunc) {
     instance = this;
 }
 
@@ -41,6 +41,7 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     lua_register(L, "selectPlasma", lua_selectPlasma);
     lua_register(L, "selectFractal", lua_selectFractal);
     lua_register(L, "selectUSD", lua_selectUSD);
+    lua_register(L, "selectGodot", lua_selectGodot);
     lua_register(L, "setPlasmaParam", lua_setPlasmaParam);
     lua_register(L, "setFractalParam", lua_setFractalParam);
     lua_register(L, "setUSDParam", lua_setUSDParam);
@@ -129,6 +130,16 @@ int LuaScripting::lua_selectUSD(lua_State* L) {
         int index = (int)lua_tointeger(L, 1);
         if (instance && instance->selectUSDFunc) {
             instance->selectUSDFunc(index);
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_selectGodot(lua_State* L) {
+    if (lua_isinteger(L, 1)) {
+        int index = (int)lua_tointeger(L, 1);
+        if (instance && instance->selectGodotFunc) {
+            instance->selectGodotFunc(index);
         }
     }
     return 0;

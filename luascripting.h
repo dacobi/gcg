@@ -1,18 +1,13 @@
-#pragma once
+#ifndef LUASCRIPTING_H
+#define LUASCRIPTING_H
 
+#include <lua5.4/lua.hpp>
 #include <string>
-#include <vector>
+#include <functional>
 #include <thread>
 #include <atomic>
 #include <mutex>
-#include <functional>
 #include <queue>
-
-extern "C" {
-#include <lua.h>
-#include <lualib.h>
-#include <lauxlib.h>
-}
 
 class LuaScripting {
 public:
@@ -26,9 +21,10 @@ public:
     using RecordFunc = std::function<void(int type, const std::string& path, int val)>;
     using IsRecordingFunc = std::function<bool()>;
     using SelectUSDFunc = std::function<void(int index)>;
+    using SelectGodotFunc = std::function<void(int index)>;
     using SetUSDParamFunc = std::function<void(const std::string& name, double value)>;
 
-    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SetUSDParamFunc setUSDParamFunc);
+    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
@@ -41,6 +37,7 @@ private:
     static int lua_selectPlasma(lua_State* L);
     static int lua_selectFractal(lua_State* L);
     static int lua_selectUSD(lua_State* L);
+    static int lua_selectGodot(lua_State* L);
     static int lua_setPlasmaParam(lua_State* L);
     static int lua_setFractalParam(lua_State* L);
     static int lua_setUSDParam(lua_State* L);
@@ -70,7 +67,10 @@ private:
     RecordFunc recordFunc;
     IsRecordingFunc isRecFunc;
     SelectUSDFunc selectUSDFunc;
+    SelectGodotFunc selectGodotFunc;
     SetUSDParamFunc setUSDParamFunc;
 
     static LuaScripting* instance;
 };
+
+#endif
