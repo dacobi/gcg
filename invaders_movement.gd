@@ -5,11 +5,15 @@ var direction = 1
 var boundary_x = 30.0
 var drop_height = 5.0
 
-# Firing parameters
+# Firing parameters (Starting at double the previous rate)
 var fire_timer = 0.0
-var min_fire_delay = 0.5
-var max_fire_delay = 2.0
-var next_fire_time = 1.0
+var min_fire_delay = 0.25
+var max_fire_delay = 1.0
+var next_fire_time = 0.5
+
+# Difficulty scaling over time
+var speed_increase_per_sec = 0.05
+var fire_delay_multiplier_per_sec = 0.99 # Multiply delays by this every second
 
 var projectile_scene = load("res://enemy_projectile.tscn")
 
@@ -20,6 +24,11 @@ func _ready():
 	_reset_fire_timer()
 
 func _process(delta):
+	# --- Difficulty Scaling ---
+	speed += speed_increase_per_sec * delta
+	min_fire_delay *= pow(fire_delay_multiplier_per_sec, delta)
+	max_fire_delay *= pow(fire_delay_multiplier_per_sec, delta)
+
 	# --- Movement Logic ---
 	position.x += direction * speed * delta
 	
@@ -30,7 +39,7 @@ func _process(delta):
 		direction *= -1
 		# Drop down one step
 		position.y -= drop_height
-		# Optionally increase speed slightly
+		# Classic drop speed boost
 		speed += 0.5
 
 	# --- Firing Logic ---
@@ -47,24 +56,16 @@ func _reset_fire_timer():
 func _fire_random_projectile():
 	var alive_invaders = []
 	for child in get_children():
-		# All active children of the Invaders node are invaders
 		if child is Area3D:
 			alive_invaders.append(child)
 	
 	if alive_invaders.size() > 0:
-		# Pick a random surviving invader
 		var shooter = alive_invaders[randi() % alive_invaders.size()]
-		
-		# Instance the red projectile
 		var proj = projectile_scene.instantiate()
-		
-		# Add to the EnemyProjectiles group node (sibling of Invaders)
 		var container = get_node_or_null("../EnemyProjectiles")
 		if container:
 			container.add_child(proj)
-			# Set position atomically
 			proj.global_position = shooter.global_position
 		else:
-			# Fallback if container missing
 			get_parent().add_child(proj)
 			proj.global_position = shooter.global_position
