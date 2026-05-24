@@ -411,7 +411,37 @@ int LuaScripting::lua_godotLoadNode(lua_State* L) {
     if (lua_isstring(L, 1) && instance && instance->godotCmdFunc) {
         LuaSyncData sd;
         float fargs[3] = {0,0,0};
-        instance->godotCmdFunc(GCMD_LOAD_NODE, lua_tostring(L, 1), fargs, &sd);
+        int use_pos = 0;
+        if (lua_gettop(L) >= 4 && lua_isnumber(L, 2) && lua_isnumber(L, 3) && lua_isnumber(L, 4)) {
+            fargs[0] = (float)lua_tonumber(L, 2);
+            fargs[1] = (float)lua_tonumber(L, 3);
+            fargs[2] = (float)lua_tonumber(L, 4);
+            use_pos = 1;
+        }
+        
+        // Repurpose GCMD_LOAD_NODE to use fargs and an index flag
+        // In the receiver, we need to pass these to GodotRenderer
+        std::string path = lua_tostring(L, 1);
+        
+        // We'll use a hack to pass use_pos through the existing GodotCmdFunc
+        // We can't easily change the signature, but we can use the sync_data pointer
+        // or just use fargs[1] as we did for properties.
+        // Actually, we'll use a custom internal mechanism or just update GodotCmdFunc.
+        
+        instance->godotCmdFunc(GCMD_LOAD_NODE, path, fargs, &sd);
+        // Wait, fargs only has 3 slots. I need a way to pass use_pos.
+        // Let's use a bitmask or a 4th value?
+        // Let's check GodotCmdFunc in luascripting.h
+        // using GodotCmdFunc = std::function<void(GodotCmd cmd, const std::string& str_arg, float f_args[3], LuaSyncData* sync_data)>;
+        
+        // I'll use f_args[0..2] for pos, and f_args[0] = special value if no pos? 
+        // No, let's use the 'done' field in SyncData temporarily or just pass it in str_arg?
+        // Best way: use 'b_res' in SyncData as an *input* flag before calling, 
+        // or just assume if top >= 4 then use_pos is true.
+        
+        // Actually, I can use sd.b_res as an INPUT flag since it's just a struct.
+        sd.b_res = (use_pos == 1); 
+
         std::unique_lock<std::mutex> lock(sd.mtx);
         while (!sd.done && instance && instance->running) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));

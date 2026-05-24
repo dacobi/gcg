@@ -222,12 +222,18 @@ bool GodotRenderer::createNode(const std::string& name) {
     return false;
 }
 
-bool GodotRenderer::loadNode(const std::string& path) {
+bool GodotRenderer::loadNode(const std::string& path, float x, float y, float z, bool use_pos) {
     if (!current_node) return false;
     Ref<PackedScene> scene = ResourceLoader::load(String(path.c_str()));
     if (scene.is_valid()) {
         Node* instance = scene->instantiate();
         if (instance) {
+            if (use_pos) {
+                Node3D* n3d = Object::cast_to<Node3D>(instance);
+                if (n3d) {
+                    n3d->set_position(Vector3(x, y, z));
+                }
+            }
             current_node->add_child(instance);
             current_node = instance;
             return true;

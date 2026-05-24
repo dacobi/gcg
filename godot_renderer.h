@@ -32,7 +32,7 @@ public:
     std::vector<std::string> getOverlappingAreas();
 
     bool createNode(const std::string& name);
-    bool loadNode(const std::string& path);
+    bool loadNode(const std::string& path, float x = 0, float y = 0, float z = 0, bool use_pos = false);
     void deleteNode();
 
     bool attachScript(const std::string& path);

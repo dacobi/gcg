@@ -2750,7 +2750,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         case AppState::LuaCommand::GODOT_MOVE_AND_COLLIDE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->moveAndCollide(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2]); break;
                         case AppState::LuaCommand::GODOT_GET_OVERLAPPING_AREAS: if (cmd.sync) cmd.sync->vs_res = state->selected_godot->getOverlappingAreas(); break;
                         case AppState::LuaCommand::GODOT_CREATE_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->createNode(cmd.syntax); break;
-                        case AppState::LuaCommand::GODOT_LOAD_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->loadNode(cmd.syntax); break;
+                        case AppState::LuaCommand::GODOT_LOAD_NODE: 
+                            if (cmd.sync) {
+                                cmd.sync->b_res = state->selected_godot->loadNode(cmd.syntax, cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.sync->b_res);
+                            }
+                            break;
                         case AppState::LuaCommand::GODOT_DELETE_NODE: state->selected_godot->deleteNode(); break;
                         case AppState::LuaCommand::GODOT_ATTACH_SCRIPT: if (cmd.sync) cmd.sync->b_res = state->selected_godot->attachScript(cmd.syntax); break;
                         case AppState::LuaCommand::GODOT_SET_PROPERTY: 

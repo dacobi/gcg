@@ -27,11 +27,8 @@ while true do
             local sx, sy, sz = godotGetPos()
             godotSelectRoot()
             if godotSearchNode("Projectiles") then
-                -- Projectiles now move and collide automatically via firep.gd
-                if godotLoadNode("res://projectile.tscn") then
-                    godotSetPos(sx, sy + 3, sz)
-                    -- We don't need to track them in Lua anymore!
-                end
+                -- Load and position atomically to avoid center-flash
+                godotLoadNode("res://projectile.tscn", sx, sy + 3, sz)
             end
         end
     end
