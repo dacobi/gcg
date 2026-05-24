@@ -1,4 +1,6 @@
-[gd_scene format=3 uid="uid://b8r9t0y1u2i3o"]
+[gd_scene load_steps=4 format=3 uid="uid://b8r9t0y1u2i3o"]
+
+[ext_resource type="Script" path="res://player.gd" id="1_player"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_ship"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -22,6 +24,7 @@ roughness = 0.3
 size = Vector3(7, 3, 2)
 
 [node name="PlayerShip" type="CharacterBody3D"]
+script = ExtResource("1_player")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0)

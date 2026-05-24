@@ -1,6 +1,6 @@
 extends Area3D
 
-var speed = 10.0
+var speed = 40.0
 
 func _init():
 	set_process(true)
