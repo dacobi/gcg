@@ -18,6 +18,19 @@ public:
     void renderTree();
     void resize(int w, int h);
 
+    void selectRoot();
+    bool selectNode(const std::string& name);
+    bool searchNode(const std::string& name);
+    std::string getNodeType();
+    bool setCamera();
+    bool getPos(float& x, float& y, float& z);
+    void setPos(float x, float y, float z);
+    void move(float x, float y, float z);
+
+    bool createNode(const std::string& name);
+    bool loadNode(const std::string& path);
+    void deleteNode();
+
     int getWidth() const { return width; }
     int getHeight() const { return height; }
 
@@ -28,4 +41,7 @@ private:
     
     SubViewport* viewport = nullptr;
     Node* scene_instance = nullptr;
+    Node* current_node = nullptr;
+
+    Node* _searchNodeRecursive(Node* current, const std::string& name);
 };

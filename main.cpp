@@ -1556,11 +1556,15 @@ struct AppState {
 
 
     struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX };
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX,
+                    GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
+                    GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE };
         Type type;
         std::string syntax;
         int index;
         double value;
+        float fargs[3];
+        LuaSyncData* sync = nullptr;
     };
     std::queue<LuaCommand> lua_commands;
     std::mutex lua_mutex;
@@ -1961,6 +1965,30 @@ static void print_help() {
     std::printf("  stopRecord(wait)           Stops recording (wait=1 to wait for max-time)\n");
     std::printf("  setRecordMax(seconds)      Sets auto-stop duration for recording\n");
     std::printf("  delay(ms)                  Pauses script for ms milliseconds\n\n");
+
+    std::printf("Input Framework Functions:\n");
+    std::printf("  ioKBClicked(key)           Returns true if key (\"SDLK_...\") was clicked\n");
+    std::printf("  ioKBDown(key)              Returns true if key is held down\n");
+    std::printf("  ioKBUp(key)                Returns true if key was released\n");
+    std::printf("  ioMousePos()               Returns x, y mouse coordinates\n");
+    std::printf("  ioMouseMoved()             Returns true if mouse moved since last call\n");
+    std::printf("  ioMouseGetMotion()         Returns rx, ry relative movement\n");
+    std::printf("  ioMouseBTNClicked(btn)     Returns true if mouse button (1-3) clicked\n");
+    std::printf("  ioMouseBTNDown(btn)        Returns true if mouse button is down\n");
+    std::printf("  ioMouseBTNUp(btn)          Returns true if mouse button was released\n\n");
+
+    std::printf("Godot Manipulation Functions:\n");
+    std::printf("  godotSelectRoot()          Selects scene root\n");
+    std::printf("  godotSelectNode(name)      Selects direct child node (returns success)\n");
+    std::printf("  godotSearchNode(name)      Searches tree for node (returns success)\n");
+    std::printf("  godotGetNodeType()         Returns type string of selected node\n");
+    std::printf("  godotSetCamera()           Sets selected node as active camera\n");
+    std::printf("  godotGetPos()              Returns x, y, z of selected node\n");
+    std::printf("  godotSetPos(x, y, z)       Sets position of selected node\n");
+    std::printf("  godotMoveX(v), godotMoveY, godotMoveZ  Relative movement\n");
+    std::printf("  godotCreateNode(name)      Creates Node3D as child of current node\n");
+    std::printf("  godotLoadNode(path)        Instances scene as child of current node\n");
+    std::printf("  godotDeleteNode()          Deletes selected node and selects parent\n\n");
 
     std::printf("Supported Plasma Parameters (for setPlasmaParam):\n");
     std::printf("  drift_amp, drift_speed_x, drift_speed_y, rot_speed,\n");
@@ -2402,8 +2430,33 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                std::lock_guard<std::mutex> lock(state->lua_mutex);
                state->lua_commands.push({AppState::LuaCommand::SELECT_GODOT, "", index, 0.0});
             },
-            [state](const std::string& name, double value) {                std::lock_guard<std::mutex> lock(state->lua_mutex);
+            [state](const std::string& name, double value) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({AppState::LuaCommand::SET_USD_PARAM, name, 0, value});
+            },
+            [state](LuaScripting::GodotCmd gcmd, const std::string& str_arg, float f_args[3], LuaSyncData* sync_data) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                AppState::LuaCommand cmd;
+                cmd.syntax = str_arg;
+                if (f_args) { cmd.fargs[0] = f_args[0]; cmd.fargs[1] = f_args[1]; cmd.fargs[2] = f_args[2]; }
+                cmd.sync = sync_data;
+                switch (gcmd) {
+                    case LuaScripting::GCMD_SELECT_ROOT: cmd.type = AppState::LuaCommand::GODOT_SELECT_ROOT; break;
+                    case LuaScripting::GCMD_SELECT_NODE: cmd.type = AppState::LuaCommand::GODOT_SELECT_NODE; break;
+                    case LuaScripting::GCMD_SEARCH_NODE: cmd.type = AppState::LuaCommand::GODOT_SEARCH_NODE; break;
+                    case LuaScripting::GCMD_GET_NODE_TYPE: cmd.type = AppState::LuaCommand::GODOT_GET_NODE_TYPE; break;
+                    case LuaScripting::GCMD_SET_CAMERA: cmd.type = AppState::LuaCommand::GODOT_SET_CAMERA; break;
+                    case LuaScripting::GCMD_GET_POS: cmd.type = AppState::LuaCommand::GODOT_GET_POS; break;
+                    case LuaScripting::GCMD_SET_POS: cmd.type = AppState::LuaCommand::GODOT_SET_POS; break;
+                    case LuaScripting::GCMD_MOVE_X: cmd.type = AppState::LuaCommand::GODOT_MOVE_X; break;
+                    case LuaScripting::GCMD_MOVE_Y: cmd.type = AppState::LuaCommand::GODOT_MOVE_Y; break;
+                    case LuaScripting::GCMD_MOVE_Z: cmd.type = AppState::LuaCommand::GODOT_MOVE_Z; break;
+                    case LuaScripting::GCMD_CREATE_NODE: cmd.type = AppState::LuaCommand::GODOT_CREATE_NODE; break;
+                    case LuaScripting::GCMD_LOAD_NODE: cmd.type = AppState::LuaCommand::GODOT_LOAD_NODE; break;
+                    case LuaScripting::GCMD_DELETE_NODE: cmd.type = AppState::LuaCommand::GODOT_DELETE_NODE; break;
+                    default: return;
+                }
+                state->lua_commands.push(cmd);
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);
@@ -2665,6 +2718,29 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     }
                 }
                 found_godot:;
+            } else if (cmd.type >= AppState::LuaCommand::GODOT_SELECT_ROOT && cmd.type <= AppState::LuaCommand::GODOT_DELETE_NODE) {
+                if (state->selected_godot) {
+                    switch (cmd.type) {
+                        case AppState::LuaCommand::GODOT_SELECT_ROOT: state->selected_godot->selectRoot(); break;
+                        case AppState::LuaCommand::GODOT_SELECT_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->selectNode(cmd.syntax); break;
+                        case AppState::LuaCommand::GODOT_SEARCH_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->searchNode(cmd.syntax); break;
+                        case AppState::LuaCommand::GODOT_GET_NODE_TYPE: if (cmd.sync) cmd.sync->s_res = state->selected_godot->getNodeType(); break;
+                        case AppState::LuaCommand::GODOT_SET_CAMERA: if (cmd.sync) cmd.sync->b_res = state->selected_godot->setCamera(); break;
+                        case AppState::LuaCommand::GODOT_GET_POS: if (cmd.sync) cmd.sync->b_res = state->selected_godot->getPos(cmd.sync->f_res[0], cmd.sync->f_res[1], cmd.sync->f_res[2]); break;
+                        case AppState::LuaCommand::GODOT_SET_POS: state->selected_godot->setPos(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2]); break;
+                        case AppState::LuaCommand::GODOT_MOVE_X: state->selected_godot->move(cmd.fargs[0], 0, 0); break;
+                        case AppState::LuaCommand::GODOT_MOVE_Y: state->selected_godot->move(0, cmd.fargs[1], 0); break;
+                        case AppState::LuaCommand::GODOT_MOVE_Z: state->selected_godot->move(0, 0, cmd.fargs[2]); break;
+                        case AppState::LuaCommand::GODOT_CREATE_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->createNode(cmd.syntax); break;
+                        case AppState::LuaCommand::GODOT_LOAD_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->loadNode(cmd.syntax); break;
+                        case AppState::LuaCommand::GODOT_DELETE_NODE: state->selected_godot->deleteNode(); break;
+                    }
+                }
+                if (cmd.sync) {
+                    std::lock_guard<std::mutex> lock(cmd.sync->mtx);
+                    cmd.sync->done = true;
+                    cmd.sync->cv.notify_one();
+                }
             } else if (cmd.type == AppState::LuaCommand::SET_USD_PARAM) {
                 if (state->selected_usd) {
                     if (cmd.syntax == "rot_x") state->selected_usd->sceneRotation[0] = (float)cmd.value;

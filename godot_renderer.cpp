@@ -8,7 +8,10 @@
 #include "scene/resources/packed_scene.h"
 #include "scene/main/window.h"
 #include "scene/main/node.h"
+#include "scene/3d/node_3d.h"
 #include "scene/3d/camera_3d.h"
+#include "core/object/object.h"
+#include "core/os/memory.h"
 #include "servers/rendering/rendering_server.h"
 #include "modules/gltf/gltf_document.h"
 #include "modules/gltf/gltf_state.h"
@@ -64,6 +67,7 @@ bool GodotRenderer::init(const std::string& tscn_path) {
             scene_instance = gltf_doc->generate_scene(gltf_state);
             if (scene_instance) {
                 viewport->add_child(scene_instance);
+                current_node = scene_instance;
                 return true;
             }
         }
@@ -76,10 +80,125 @@ bool GodotRenderer::init(const std::string& tscn_path) {
         scene_instance = scene->instantiate();
         if (scene_instance) {
             viewport->add_child(scene_instance);
+            current_node = scene_instance;
             return true;
         }
     }
     return false;
+}
+
+void GodotRenderer::selectRoot() {
+    current_node = scene_instance;
+}
+
+bool GodotRenderer::selectNode(const std::string& name) {
+    if (!current_node) return false;
+    String name_str = String(name.c_str());
+    for (int i = 0; i < current_node->get_child_count(); i++) {
+        Node* child = current_node->get_child(i);
+        if (child->get_name() == name_str) {
+            current_node = child;
+            return true;
+        }
+    }
+    return false;
+}
+
+Node* GodotRenderer::_searchNodeRecursive(Node* current, const std::string& name) {
+    if (!current) return nullptr;
+    String name_str = String(name.c_str());
+    if (current->get_name() == name_str) return current;
+    for (int i = 0; i < current->get_child_count(); i++) {
+        Node* found = _searchNodeRecursive(current->get_child(i), name);
+        if (found) return found;
+    }
+    return nullptr;
+}
+
+bool GodotRenderer::searchNode(const std::string& name) {
+    if (!current_node) return false;
+    Node* found = _searchNodeRecursive(current_node, name);
+    if (found) {
+        current_node = found;
+        return true;
+    }
+    return false;
+}
+
+std::string GodotRenderer::getNodeType() {
+    if (!current_node) return "None";
+    return current_node->get_class().utf8().get_data();
+}
+
+bool GodotRenderer::setCamera() {
+    if (!current_node) return false;
+    Camera3D* cam = Object::cast_to<Camera3D>(current_node);
+    if (cam) {
+        cam->make_current();
+        return true;
+    }
+    return false;
+}
+
+bool GodotRenderer::getPos(float& x, float& y, float& z) {
+    if (!current_node) return false;
+    Node3D* n3d = Object::cast_to<Node3D>(current_node);
+    if (n3d) {
+        Vector3 pos = n3d->get_position();
+        x = pos.x; y = pos.y; z = pos.z;
+        return true;
+    }
+    return false;
+}
+
+void GodotRenderer::setPos(float x, float y, float z) {
+    if (!current_node || current_node == scene_instance) return;
+    Node3D* n3d = Object::cast_to<Node3D>(current_node);
+    if (n3d) {
+        n3d->set_position(Vector3(x, y, z));
+    }
+}
+
+void GodotRenderer::move(float x, float y, float z) {
+    if (!current_node) return;
+    Node3D* n3d = Object::cast_to<Node3D>(current_node);
+    if (n3d) {
+        n3d->translate(Vector3(x, y, z));
+    }
+}
+
+bool GodotRenderer::createNode(const std::string& name) {
+    if (!current_node) return false;
+    Node3D* new_node = memnew(Node3D);
+    if (new_node) {
+        new_node->set_name(String(name.c_str()));
+        current_node->add_child(new_node);
+        current_node = new_node;
+        return true;
+    }
+    return false;
+}
+
+bool GodotRenderer::loadNode(const std::string& path) {
+    if (!current_node) return false;
+    Ref<PackedScene> scene = ResourceLoader::load(String(path.c_str()));
+    if (scene.is_valid()) {
+        Node* instance = scene->instantiate();
+        if (instance) {
+            current_node->add_child(instance);
+            current_node = instance;
+            return true;
+        }
+    }
+    return false;
+}
+
+void GodotRenderer::deleteNode() {
+    if (!current_node || current_node == scene_instance) return;
+    Node* to_delete = current_node;
+    current_node = to_delete->get_parent();
+    if (!current_node) current_node = scene_instance;
+    to_delete->queue_free();
 }
 
 void GodotRenderer::resize(int w, int h) {

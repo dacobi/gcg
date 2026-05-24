@@ -5,8 +5,8 @@
 
 LuaScripting* LuaScripting::instance = nullptr;
 
-LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc)
-    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc), selectUSDFunc(selectUSDFunc), selectGodotFunc(selectGodotFunc), setUSDParamFunc(setUSDParamFunc) {
+LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotFunc)
+    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc), selectUSDFunc(selectUSDFunc), selectGodotFunc(selectGodotFunc), setUSDParamFunc(setUSDParamFunc), godotCmdFunc(godotFunc) {
     instance = this;
 }
 
@@ -65,6 +65,21 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     lua_register(L, "ioMouseBTNClicked", lua_ioMouseBTNClicked);
     lua_register(L, "ioMouseBTNDown", lua_ioMouseBTNDown);
     lua_register(L, "ioMouseBTNUp", lua_ioMouseBTNUp);
+
+    // Godot Manipulation
+    lua_register(L, "godotSelectRoot", lua_godotSelectRoot);
+    lua_register(L, "godotSelectNode", lua_godotSelectNode);
+    lua_register(L, "godotSearchNode", lua_godotSearchNode);
+    lua_register(L, "godotGetNodeType", lua_godotGetNodeType);
+    lua_register(L, "godotSetCamera", lua_godotSetCamera);
+    lua_register(L, "godotGetPos", lua_godotGetPos);
+    lua_register(L, "godotSetPos", lua_godotSetPos);
+    lua_register(L, "godotMoveX", lua_godotMoveX);
+    lua_register(L, "godotMoveY", lua_godotMoveY);
+    lua_register(L, "godotMoveZ", lua_godotMoveZ);
+    lua_register(L, "godotCreateNode", lua_godotCreateNode);
+    lua_register(L, "godotLoadNode", lua_godotLoadNode);
+    lua_register(L, "godotDeleteNode", lua_godotDeleteNode);
 
     // Set a hook to abort execution if stop() is called
     lua_sethook(L, lua_hook, LUA_MASKCOUNT, 100);
@@ -161,6 +176,165 @@ int LuaScripting::lua_ioMouseBTNUp(lua_State* L) {
         int btn = (int)lua_tointeger(L, 1);
         lua_pushboolean(L, InputManager::getInstance().lua_isMouseBtnUp(btn));
         return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotSelectRoot(lua_State* L) {
+    if (instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_SELECT_ROOT, "", fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        sd.cv.wait(lock, [&sd]{ return sd.done; });
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotSelectNode(lua_State* L) {
+    if (lua_isstring(L, 1) && instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_SELECT_NODE, lua_tostring(L, 1), fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        lua_pushboolean(L, sd.b_res);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotSearchNode(lua_State* L) {
+    if (lua_isstring(L, 1) && instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_SEARCH_NODE, lua_tostring(L, 1), fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        lua_pushboolean(L, sd.b_res);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotGetNodeType(lua_State* L) {
+    if (instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_GET_NODE_TYPE, "", fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        lua_pushstring(L, sd.s_res.c_str());
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotSetCamera(lua_State* L) {
+    if (instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_SET_CAMERA, "", fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        lua_pushboolean(L, sd.b_res);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotGetPos(lua_State* L) {
+    if (instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_GET_POS, "", fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        lua_pushnumber(L, sd.f_res[0]);
+        lua_pushnumber(L, sd.f_res[1]);
+        lua_pushnumber(L, sd.f_res[2]);
+        return 3;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotSetPos(lua_State* L) {
+    if (lua_isnumber(L, 1) && lua_isnumber(L, 2) && lua_isnumber(L, 3) && instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {(float)lua_tonumber(L, 1), (float)lua_tonumber(L, 2), (float)lua_tonumber(L, 3)};
+        instance->godotCmdFunc(GCMD_SET_POS, "", fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        sd.cv.wait(lock, [&sd]{ return sd.done; });
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotMoveX(lua_State* L) {
+    if (lua_isnumber(L, 1) && instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {(float)lua_tonumber(L, 1), 0, 0};
+        instance->godotCmdFunc(GCMD_MOVE_X, "", fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        sd.cv.wait(lock, [&sd]{ return sd.done; });
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotMoveY(lua_State* L) {
+    if (lua_isnumber(L, 1) && instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0, (float)lua_tonumber(L, 1), 0};
+        instance->godotCmdFunc(GCMD_MOVE_Y, "", fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        sd.cv.wait(lock, [&sd]{ return sd.done; });
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotMoveZ(lua_State* L) {
+    if (lua_isnumber(L, 1) && instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0, 0, (float)lua_tonumber(L, 1)};
+        instance->godotCmdFunc(GCMD_MOVE_Z, "", fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        sd.cv.wait(lock, [&sd]{ return sd.done; });
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotCreateNode(lua_State* L) {
+    if (lua_isstring(L, 1) && instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_CREATE_NODE, lua_tostring(L, 1), fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        lua_pushboolean(L, sd.b_res);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotLoadNode(lua_State* L) {
+    if (lua_isstring(L, 1) && instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_LOAD_NODE, lua_tostring(L, 1), fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        sd.cv.wait(lock, [&sd]{ return sd.done; });
+        lua_pushboolean(L, sd.b_res);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotDeleteNode(lua_State* L) {
+    if (instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_DELETE_NODE, "", fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        sd.cv.wait(lock, [&sd]{ return sd.done; });
     }
     return 0;
 }
