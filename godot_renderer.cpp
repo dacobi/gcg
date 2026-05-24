@@ -10,6 +10,8 @@
 #include "scene/main/node.h"
 #include "scene/3d/node_3d.h"
 #include "scene/3d/camera_3d.h"
+#include "scene/3d/physics/physics_body_3d.h"
+#include "scene/3d/physics/area_3d.h"
 #include "core/object/object.h"
 #include "core/os/memory.h"
 #include "servers/rendering/rendering_server.h"
@@ -176,6 +178,35 @@ void GodotRenderer::move(float x, float y, float z) {
     if (n3d) {
         n3d->translate(Vector3(x, y, z));
     }
+}
+
+bool GodotRenderer::moveAndCollide(float x, float y, float z) {
+    if (!current_node) return false;
+    PhysicsBody3D* body = Object::cast_to<PhysicsBody3D>(current_node);
+    if (body) {
+        PhysicsServer3D::MotionParameters params;
+        params.from = body->get_global_transform();
+        params.motion = Vector3(x, y, z);
+        PhysicsServer3D::MotionResult result;
+        return body->move_and_collide(params, result);
+    }
+    return false;
+}
+
+std::vector<std::string> GodotRenderer::getOverlappingAreas() {
+    std::vector<std::string> overlaps;
+    if (!current_node) return overlaps;
+    Area3D* area = Object::cast_to<Area3D>(current_node);
+    if (area) {
+        TypedArray<Area3D> overlapping = area->get_overlapping_areas();
+        for (int i = 0; i < overlapping.size(); i++) {
+            Area3D* other = Object::cast_to<Area3D>(overlapping[i]);
+            if (other) {
+                overlaps.push_back(String(other->get_name()).utf8().get_data());
+            }
+        }
+    }
+    return overlaps;
 }
 
 bool GodotRenderer::createNode(const std::string& name) {

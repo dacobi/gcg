@@ -17,6 +17,7 @@ struct LuaSyncData {
     bool b_res = false;
     std::string s_res;
     float f_res[3] = {0.0f, 0.0f, 0.0f};
+    std::vector<std::string> vs_res;
 };
 
 class LuaScripting {
@@ -34,6 +35,8 @@ public:
         GCMD_MOVE_X,
         GCMD_MOVE_Y,
         GCMD_MOVE_Z,
+        GCMD_MOVE_AND_COLLIDE,
+        GCMD_GET_OVERLAPPING_AREAS,
         GCMD_CREATE_NODE,
         GCMD_LOAD_NODE,
         GCMD_DELETE_NODE
@@ -103,6 +106,8 @@ private:
     static int lua_godotMoveX(lua_State* L);
     static int lua_godotMoveY(lua_State* L);
     static int lua_godotMoveZ(lua_State* L);
+    static int lua_godotMoveAndCollide(lua_State* L);
+    static int lua_godotGetOverlappingAreas(lua_State* L);
     static int lua_godotCreateNode(lua_State* L);
     static int lua_godotLoadNode(lua_State* L);
     static int lua_godotDeleteNode(lua_State* L);

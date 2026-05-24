@@ -79,6 +79,8 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     lua_register(L, "godotMoveX", lua_godotMoveX);
     lua_register(L, "godotMoveY", lua_godotMoveY);
     lua_register(L, "godotMoveZ", lua_godotMoveZ);
+    lua_register(L, "godotMoveAndCollide", lua_godotMoveAndCollide);
+    lua_register(L, "godotGetOverlappingAreas", lua_godotGetOverlappingAreas);
     lua_register(L, "godotCreateNode", lua_godotCreateNode);
     lua_register(L, "godotLoadNode", lua_godotLoadNode);
     lua_register(L, "godotDeleteNode", lua_godotDeleteNode);
@@ -348,6 +350,41 @@ int LuaScripting::lua_godotMoveZ(lua_State* L) {
         while (!sd.done && instance && instance->running) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotMoveAndCollide(lua_State* L) {
+    if (lua_isnumber(L, 1) && lua_isnumber(L, 2) && lua_isnumber(L, 3) && instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {(float)lua_tonumber(L, 1), (float)lua_tonumber(L, 2), (float)lua_tonumber(L, 3)};
+        instance->godotCmdFunc(GCMD_MOVE_AND_COLLIDE, "", fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
+        lua_pushboolean(L, sd.b_res);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotGetOverlappingAreas(lua_State* L) {
+    if (instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_GET_OVERLAPPING_AREAS, "", fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
+        lua_newtable(L);
+        for (size_t i = 0; i < sd.vs_res.size(); ++i) {
+            lua_pushinteger(L, i + 1);
+            lua_pushstring(L, sd.vs_res[i].c_str());
+            lua_settable(L, -3);
+        }
+        return 1;
     }
     return 0;
 }

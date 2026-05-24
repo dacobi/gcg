@@ -22,7 +22,13 @@ glow_intensity = 1.0
 glow_strength = 1.2
 glow_bloom = 0.5
 
-[node name="Projectile" type="Node3D"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_proj"]
+size = Vector3(0.4, 2, 0.4)
+
+[node name="Projectile" type="Area3D"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_proj")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_proj")

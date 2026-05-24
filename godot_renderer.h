@@ -28,6 +28,8 @@ public:
     bool getPos(float& x, float& y, float& z);
     void setPos(float x, float y, float z);
     void move(float x, float y, float z);
+    bool moveAndCollide(float x, float y, float z);
+    std::vector<std::string> getOverlappingAreas();
 
     bool createNode(const std::string& name);
     bool loadNode(const std::string& path);

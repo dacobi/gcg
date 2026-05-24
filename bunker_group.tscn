@@ -710,7 +710,14 @@ uv1_scale = Vector3(0.1, 0.1, 0.1)
 uv1_offset = Vector3(0.9, 0.0, 0)
 roughness = 0.9
 
-[node name="BunkerGroup" type="Node3D"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_bunker"]
+size = Vector3(10, 6, 2)
+
+[node name="BunkerGroup" type="Area3D"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+shape = SubResource("BoxShape3D_bunker")
 
 [node name="P1_1" type="CSGBox3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 4.5, 0)

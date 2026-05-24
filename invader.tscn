@@ -4,7 +4,14 @@
 albedo_color = Color(1, 0, 0, 1)
 roughness = 0.5
 
-[node name="SpaceInvader" type="Node3D"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_invader"]
+size = Vector3(9, 8, 1.5)
+
+[node name="SpaceInvader" type="Area3D"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("BoxShape3D_invader")
 
 [node name="Geometry" type="CSGCombiner3D" parent="."]
 material_override = SubResource("StandardMaterial3D_red")
