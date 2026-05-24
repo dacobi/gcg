@@ -21,6 +21,7 @@ bool LuaScripting::runScript(const std::string& filename) {
         std::cerr << "Script already running" << std::endl;
         return false;
     }
+    systemRunning = true;
     primaryRunning = true;
     scriptThread = std::thread(&LuaScripting::scriptThreadFunc, this, filename);
     return true;
@@ -37,6 +38,7 @@ void LuaScripting::stop() {
         if (t.joinable()) t.join();
     }
     detachedThreads.clear();
+    primaryRunning = false;
 }
 
 void LuaScripting::scriptThreadFunc(std::string filename) {
@@ -65,9 +67,10 @@ void LuaScripting::runOneShotScript(const std::string& filename) {
         lua_State* L_one = luaL_newstate();
         luaL_openlibs(L_one);
         registerFunctions(L_one);
+        lua_sethook(L_one, lua_hook, LUA_MASKCOUNT, 100);
         if (luaL_dofile(L_one, filename.c_str()) != LUA_OK) {
             std::string err = lua_tostring(L_one, -1);
-            if (err != "Script terminated") {
+            if (err != "Script terminated" && err != "Script aborted") {
                 std::cerr << "Lua One-Shot Error: " << err << std::endl;
             }
         }
@@ -664,7 +667,12 @@ int LuaScripting::lua_selectPlasma(lua_State* L) {
     if (lua_isinteger(L, 1)) {
         int index = (int)lua_tointeger(L, 1);
         if (instance && instance->selectFunc) {
-            instance->selectFunc(true, index);
+            auto sd = std::make_shared<LuaSyncData>();
+            instance->selectFunc(true, index, sd);
+            std::unique_lock<std::mutex> lock(sd->mtx);
+            while (!sd->done && instance && instance->systemRunning) {
+                sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+            }
         }
     }
     return 0;
@@ -674,7 +682,12 @@ int LuaScripting::lua_selectFractal(lua_State* L) {
     if (lua_isinteger(L, 1)) {
         int index = (int)lua_tointeger(L, 1);
         if (instance && instance->selectFunc) {
-            instance->selectFunc(false, index);
+            auto sd = std::make_shared<LuaSyncData>();
+            instance->selectFunc(false, index, sd);
+            std::unique_lock<std::mutex> lock(sd->mtx);
+            while (!sd->done && instance && instance->systemRunning) {
+                sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+            }
         }
     }
     return 0;
@@ -684,7 +697,12 @@ int LuaScripting::lua_selectUSD(lua_State* L) {
     if (lua_isinteger(L, 1)) {
         int index = (int)lua_tointeger(L, 1);
         if (instance && instance->selectUSDFunc) {
-            instance->selectUSDFunc(index);
+            auto sd = std::make_shared<LuaSyncData>();
+            instance->selectUSDFunc(index, sd);
+            std::unique_lock<std::mutex> lock(sd->mtx);
+            while (!sd->done && instance && instance->systemRunning) {
+                sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+            }
         }
     }
     return 0;
@@ -694,7 +712,12 @@ int LuaScripting::lua_selectGodot(lua_State* L) {
     if (lua_isinteger(L, 1)) {
         int index = (int)lua_tointeger(L, 1);
         if (instance && instance->selectGodotFunc) {
-            instance->selectGodotFunc(index);
+            auto sd = std::make_shared<LuaSyncData>();
+            instance->selectGodotFunc(index, sd);
+            std::unique_lock<std::mutex> lock(sd->mtx);
+            while (!sd->done && instance && instance->systemRunning) {
+                sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+            }
         }
     }
     return 0;
@@ -815,14 +838,24 @@ int LuaScripting::lua_delay(lua_State* L) {
 
 int LuaScripting::lua_appQuit(lua_State* L) {
     if (instance && instance->quitFunc) {
-        instance->quitFunc();
+        auto sd = std::make_shared<LuaSyncData>();
+        instance->quitFunc(sd);
+        std::unique_lock<std::mutex> lock(sd->mtx);
+        while (!sd->done && instance && instance->systemRunning) {
+            sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
     }
     return 0;
 }
 
 int LuaScripting::lua_luaClearAndRun(lua_State* L) {
     if (lua_isstring(L, 1) && instance && instance->clearAndRunFunc) {
-        instance->clearAndRunFunc(lua_tostring(L, 1));
+        auto sd = std::make_shared<LuaSyncData>();
+        instance->clearAndRunFunc(lua_tostring(L, 1), sd);
+        std::unique_lock<std::mutex> lock(sd->mtx);
+        while (!sd->done && instance && instance->systemRunning) {
+            sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
     }
     return 0;
 }

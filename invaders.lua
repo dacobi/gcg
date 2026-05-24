@@ -25,6 +25,16 @@ while true do
         end
     end
 
+   godotSelectRoot()
+   if godotSearchNode("Invaders") then
+      local count = godotGetChildCount()
+            if count < 1 then
+		break
+            end
+    else
+	print("novaders")
+    end
+
     -- Left mouse click to fire (Limit to 7 active projectiles)
     if ioMouseBTNClicked(1) then
         godotSelectRoot()

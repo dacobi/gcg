@@ -1591,6 +1591,7 @@ struct AppState {
     bool record_gui = false;
 
     std::vector<PropertyWatcher> watchers;
+    std::string pending_lua_path;
 
     Uint64 last_ticks;
     Uint64 freq;
@@ -2469,9 +2470,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({AppState::LuaCommand::SET_BG, bg, 0, 0.0});
             },
-            [state](bool isPlasma, int index) {
+            [state](bool isPlasma, int index, std::shared_ptr<LuaSyncData> sync_data) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
-                state->lua_commands.push({isPlasma ? AppState::LuaCommand::SELECT_PLASMA : AppState::LuaCommand::SELECT_FRACTAL, "", index, 0.0});
+                state->lua_commands.push({isPlasma ? AppState::LuaCommand::SELECT_PLASMA : AppState::LuaCommand::SELECT_FRACTAL, "", index, 0.0, {0,0,0}, sync_data});
             },
             [state](bool isPlasma, const std::string& name, double value) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
@@ -2499,13 +2500,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             []() {
                 return (myNvec != nullptr);
             },
-            [state](int index) {
+            [state](int index, std::shared_ptr<LuaSyncData> sync_data) {
                std::lock_guard<std::mutex> lock(state->lua_mutex);
-               state->lua_commands.push({AppState::LuaCommand::SELECT_USD, "", index, 0.0});
+               state->lua_commands.push({AppState::LuaCommand::SELECT_USD, "", index, 0.0, {0,0,0}, sync_data});
             },
-            [state](int index) {
+            [state](int index, std::shared_ptr<LuaSyncData> sync_data) {
                std::lock_guard<std::mutex> lock(state->lua_mutex);
-               state->lua_commands.push({AppState::LuaCommand::SELECT_GODOT, "", index, 0.0});
+               state->lua_commands.push({AppState::LuaCommand::SELECT_GODOT, "", index, 0.0, {0,0,0}, sync_data});
             },
             [state](const std::string& name, double value) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
@@ -2545,17 +2546,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                 }
                 state->lua_commands.push(cmd);
             },
-            [state]() {
+            [state](std::shared_ptr<LuaSyncData> sync_data) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
-                state->lua_commands.push({AppState::LuaCommand::QUIT_APP, "", 0, 0.0});
+                state->lua_commands.push({AppState::LuaCommand::QUIT_APP, "", 0, 0.0, {0,0,0}, sync_data});
             },
             [state](bool visible) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({visible ? AppState::LuaCommand::IMGUI_SHOW : AppState::LuaCommand::IMGUI_HIDE, "", 0, 0.0});
             },
-            [state](const std::string& filename) {
+            [state](const std::string& filename, std::shared_ptr<LuaSyncData> sync_data) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
-                state->lua_commands.push({AppState::LuaCommand::CLEAR_AND_RUN, filename, 0, 0.0});
+                state->lua_commands.push({AppState::LuaCommand::CLEAR_AND_RUN, filename, 0, 0.0, {0,0,0}, sync_data});
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);
@@ -2769,8 +2770,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         state->bg_tex = create_png_texture(g_renderer, state->cli_bg_path.c_str(), &bw, &bh);
                     }
                 }
-            }
- else if (cmd.type == AppState::LuaCommand::SELECT_PLASMA) {
+            } else if (cmd.type == AppState::LuaCommand::SELECT_PLASMA) {
                 if (cmd.index == -1) {
                     state->selected_plasma = myPlasma;
                 } else {
@@ -2784,6 +2784,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         }
                     }
                     found_p:;
+                }
+                if (cmd.sync) {
+                    std::lock_guard<std::mutex> lock(cmd.sync->mtx);
+                    cmd.sync->done = true;
+                    cmd.sync->cv.notify_one();
                 }
             } else if (cmd.type == AppState::LuaCommand::SELECT_FRACTAL) {
                 if (cmd.index == -1) {
@@ -2800,6 +2805,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     }
                     found_f:;
                 }
+                if (cmd.sync) {
+                    std::lock_guard<std::mutex> lock(cmd.sync->mtx);
+                    cmd.sync->done = true;
+                    cmd.sync->cv.notify_one();
+                }
             } else if (cmd.type == AppState::LuaCommand::SELECT_USD) {
                 if (cmd.index == -1) {
                     state->selected_usd = state->bg_usd;
@@ -2815,6 +2825,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     }
                 }
                 found_usd:;
+                if (cmd.sync) {
+                    std::lock_guard<std::mutex> lock(cmd.sync->mtx);
+                    cmd.sync->done = true;
+                    cmd.sync->cv.notify_one();
+                }
             } else if (cmd.type == AppState::LuaCommand::SELECT_GODOT) {
                 if (cmd.index == -1) {
                     state->selected_godot = state->bg_godot;
@@ -2830,6 +2845,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     }
                 }
                 found_godot:;
+                if (cmd.sync) {
+                    std::lock_guard<std::mutex> lock(cmd.sync->mtx);
+                    cmd.sync->done = true;
+                    cmd.sync->cv.notify_one();
+                }
             } else if (cmd.type >= AppState::LuaCommand::GODOT_SELECT_ROOT && cmd.type <= AppState::LuaCommand::WATCH_PROPERTY) {
                 if (state->selected_godot) {
                     switch (cmd.type) {
@@ -2911,23 +2931,23 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     cmd.sync->cv.notify_one();
                 }
             } else if (cmd.type == AppState::LuaCommand::QUIT_APP) {
+                if (cmd.sync) {
+                    std::lock_guard<std::mutex> lock(cmd.sync->mtx);
+                    cmd.sync->done = true;
+                    cmd.sync->cv.notify_one();
+                }
                 return SDL_APP_SUCCESS;
             } else if (cmd.type == AppState::LuaCommand::IMGUI_HIDE) {
                 state->show_imgui = false;
             } else if (cmd.type == AppState::LuaCommand::IMGUI_SHOW) {
                 state->show_imgui = true;
             } else if (cmd.type == AppState::LuaCommand::CLEAR_AND_RUN) {
-                // Clear all bouncers
-                for (auto& bd : state->mBdisplay) {
-                    for (auto& b : bd->bouncers) {
-                        if (state->selected_plasma == b.plasma) state->selected_plasma = myPlasma;
-                        if (state->selected_mandel == b.mandel) state->selected_mandel = myMandel;
-                        if (state->selected_usd == b.usd_renderer) state->selected_usd = nullptr;
-                        if (state->selected_godot == b.godot_renderer) state->selected_godot = nullptr;
-                    }
+                state->pending_lua_path = cmd.syntax;
+                if (cmd.sync) {
+                    std::lock_guard<std::mutex> lock(cmd.sync->mtx);
+                    cmd.sync->done = true;
+                    cmd.sync->cv.notify_one();
                 }
-                state->mBdisplay.clear();
-                state->scriptSystem->runOneShotScript(cmd.syntax);
             } else if (cmd.type == AppState::LuaCommand::SET_USD_PARAM) {
                 if (state->selected_usd) {
                     if (cmd.syntax == "rot_x") state->selected_usd->sceneRotation[0] = (float)cmd.value;
@@ -3446,6 +3466,24 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     }
     // Prune fired watchers
     state->watchers.erase(std::remove_if(state->watchers.begin(), state->watchers.end(), [](const PropertyWatcher& w){ return w.fired; }), state->watchers.end());
+
+    if (!state->pending_lua_path.empty()) {
+        std::printf("Performing deferred transition to: %s\n", state->pending_lua_path.c_str());
+        
+        state->scriptSystem->stop();
+        
+        // Reset selections
+        state->selected_plasma = myPlasma;
+        state->selected_mandel = myMandel;
+        state->selected_usd = nullptr;
+        state->selected_godot = nullptr;
+        
+        state->mBdisplay.clear();
+        state->watchers.clear();
+        
+        state->scriptSystem->runScript(state->pending_lua_path);
+        state->pending_lua_path = "";
+    }
 
     for (auto it = state->mBdisplay.begin(); it != state->mBdisplay.end(); ) {
         (*it)->update(dt, cur_w, cur_h, state);

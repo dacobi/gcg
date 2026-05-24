@@ -53,19 +53,19 @@ public:
     using AddBouncerFunc = std::function<void(const std::string&)>;
     using DelBouncerFunc = std::function<void(int)>;
     using SetBGFunc = std::function<void(const std::string&)>;
-    using SelectFunc = std::function<void(bool isPlasma, int index)>;
+    using SelectFunc = std::function<void(bool isPlasma, int index, std::shared_ptr<LuaSyncData> sync_data)>;
     using SetParamFunc = std::function<void(bool isPlasma, const std::string& name, double value)>;
     using RandomizeFunc = std::function<void(bool isPlasma, bool isXY)>;
     using SetAudioFunc = std::function<void(const std::string&)>;
     using RecordFunc = std::function<void(int type, const std::string& path, int val)>;
     using IsRecordingFunc = std::function<bool()>;
-    using SelectUSDFunc = std::function<void(int index)>;
-    using SelectGodotFunc = std::function<void(int index)>;
+    using SelectUSDFunc = std::function<void(int index, std::shared_ptr<LuaSyncData> sync_data)>;
+    using SelectGodotFunc = std::function<void(int index, std::shared_ptr<LuaSyncData> sync_data)>;
     using SetUSDParamFunc = std::function<void(const std::string& name, double value)>;
     using GodotCmdFunc = std::function<void(GodotCmd cmd, const std::string& str_arg, float f_args[3], std::shared_ptr<LuaSyncData> sync_data)>;
-    using QuitFunc = std::function<void()>;
+    using QuitFunc = std::function<void(std::shared_ptr<LuaSyncData> sync_data)>;
     using SetImGuiVisibleFunc = std::function<void(bool visible)>;
-    using ClearAndRunFunc = std::function<void(const std::string& filename)>;
+    using ClearAndRunFunc = std::function<void(const std::string& filename, std::shared_ptr<LuaSyncData> sync_data)>;
 
     LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc);
     ~LuaScripting();
