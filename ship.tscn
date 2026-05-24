@@ -15,8 +15,21 @@ sky = SubResource("Sky_ship")
 tonemap_mode = 2
 glow_enabled = true
 
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_ship"]
+frequency = 0.05
+
+[sub_resource type="Gradient" id="Gradient_ship"]
+colors = PackedColorArray(0, 0, 0.5, 1, 0, 0.8, 1, 1)
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_ship"]
+width = 256
+height = 256
+seamless = true
+color_ramp = SubResource("Gradient_ship")
+noise = SubResource("FastNoiseLite_ship")
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_blue_metal"]
-albedo_color = Color(0, 0.5, 1, 1)
+albedo_texture = SubResource("NoiseTexture2D_ship")
 metallic = 0.8
 roughness = 0.3
 
