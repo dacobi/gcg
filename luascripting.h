@@ -61,8 +61,9 @@ public:
     using GodotCmdFunc = std::function<void(GodotCmd cmd, const std::string& str_arg, float f_args[3], LuaSyncData* sync_data)>;
     using QuitFunc = std::function<void()>;
     using SetImGuiVisibleFunc = std::function<void(bool visible)>;
+    using ClearAndRunFunc = std::function<void(const std::string& filename)>;
 
-    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc);
+    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
@@ -89,6 +90,7 @@ private:
     static int lua_setRecordMax(lua_State* L);
     static int lua_delay(lua_State* L);
     static int lua_appQuit(lua_State* L);
+    static int lua_luaClearAndRun(lua_State* L);
     static int lua_imGuiHide(lua_State* L);
     static int lua_imGuiShow(lua_State* L);
     
@@ -129,10 +131,14 @@ private:
 
     void scriptThreadFunc(std::string filename);
     void registerFunctions(lua_State* L);
+    void pruneThreads();
 
     lua_State* L = nullptr;
     std::thread scriptThread;
-    std::atomic<bool> running{false};
+    std::vector<std::thread> detachedThreads;
+    std::mutex threadsMutex;
+    std::atomic<bool> systemRunning{true};
+    std::atomic<bool> primaryRunning{false};
 
     AddBouncerFunc addBouncerFunc;
     DelBouncerFunc delBouncerFunc;
@@ -149,6 +155,7 @@ private:
     GodotCmdFunc godotCmdFunc;
     QuitFunc quitFunc;
     SetImGuiVisibleFunc setImGuiVisibleFunc;
+    ClearAndRunFunc clearAndRunFunc;
 
     static LuaScripting* instance;
 };

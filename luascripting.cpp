@@ -5,9 +5,10 @@
 
 LuaScripting* LuaScripting::instance = nullptr;
 
-LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc)
-    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc), selectUSDFunc(selectUSDFunc), selectGodotFunc(selectGodotFunc), setUSDParamFunc(setUSDParamFunc), godotCmdFunc(godotFunc), quitFunc(quitFunc), setImGuiVisibleFunc(setImGuiVisibleFunc) {
+LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc)
+    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc), selectUSDFunc(selectUSDFunc), selectGodotFunc(selectGodotFunc), setUSDParamFunc(setUSDParamFunc), godotCmdFunc(godotFunc), quitFunc(quitFunc), setImGuiVisibleFunc(setImGuiVisibleFunc), clearAndRunFunc(clearAndRunFunc) {
     instance = this;
+    systemRunning = true;
 }
 
 LuaScripting::~LuaScripting() {
@@ -16,20 +17,26 @@ LuaScripting::~LuaScripting() {
 }
 
 bool LuaScripting::runScript(const std::string& filename) {
-    if (running) {
+    if (primaryRunning) {
         std::cerr << "Script already running" << std::endl;
         return false;
     }
-    running = true;
+    primaryRunning = true;
     scriptThread = std::thread(&LuaScripting::scriptThreadFunc, this, filename);
     return true;
 }
 
 void LuaScripting::stop() {
-    running = false;
+    systemRunning = false;
     if (scriptThread.joinable()) {
         scriptThread.join();
     }
+    
+    std::lock_guard<std::mutex> lock(threadsMutex);
+    for (auto& t : detachedThreads) {
+        if (t.joinable()) t.join();
+    }
+    detachedThreads.clear();
 }
 
 void LuaScripting::scriptThreadFunc(std::string filename) {
@@ -49,21 +56,34 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     }
 
     lua_close(L);
-    L = nullptr;
-    running = false;
 }
 
 void LuaScripting::runOneShotScript(const std::string& filename) {
-    std::thread([this, filename]() {
+    pruneThreads();
+    std::lock_guard<std::mutex> lock(threadsMutex);
+    detachedThreads.emplace_back([this, filename]() {
         lua_State* L_one = luaL_newstate();
         luaL_openlibs(L_one);
         registerFunctions(L_one);
         if (luaL_dofile(L_one, filename.c_str()) != LUA_OK) {
             std::string err = lua_tostring(L_one, -1);
-            std::cerr << "Lua One-Shot Error: " << err << std::endl;
+            if (err != "Script terminated") {
+                std::cerr << "Lua One-Shot Error: " << err << std::endl;
+            }
         }
         lua_close(L_one);
-    }).detach();
+    });
+}
+
+void LuaScripting::pruneThreads() {
+    std::lock_guard<std::mutex> lock(threadsMutex);
+    for (auto it = detachedThreads.begin(); it != detachedThreads.end(); ) {
+        // Unfortunately, C++ std::thread doesn't have an easy "is_finished"
+        // but since they are small scripts, joining them in stop() is the priority.
+        // For pruning, we can use a more complex approach later if needed.
+        // For now, let's just let them accumulate and clear them at stop().
+        ++it;
+    }
 }
 
 void LuaScripting::registerFunctions(lua_State* L_reg) {
@@ -86,6 +106,7 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     lua_register(L_reg, "setRecordMax", lua_setRecordMax);
     lua_register(L_reg, "delay", lua_delay);
     lua_register(L_reg, "appQuit", lua_appQuit);
+    lua_register(L_reg, "luaClearAndRun", lua_luaClearAndRun);
     lua_register(L_reg, "imGuiHide", lua_imGuiHide);
     lua_register(L_reg, "imGuiShow", lua_imGuiShow);
 
@@ -124,7 +145,7 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
 }
 
 void LuaScripting::lua_hook(lua_State* L, lua_Debug* ar) {
-    if (instance && !instance->running) {
+    if (instance && !instance->systemRunning) {
         luaL_error(L, "Script aborted");
     }
 }
@@ -213,7 +234,7 @@ int LuaScripting::lua_godotSelectRoot(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_SELECT_ROOT, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
     }
@@ -226,7 +247,7 @@ int LuaScripting::lua_godotSelectNode(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_SELECT_NODE, lua_tostring(L, 1), fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
         lua_pushboolean(L, sd.b_res);
@@ -241,7 +262,7 @@ int LuaScripting::lua_godotSearchNode(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_SEARCH_NODE, lua_tostring(L, 1), fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
         lua_pushboolean(L, sd.b_res);
@@ -256,7 +277,7 @@ int LuaScripting::lua_godotGetNodeType(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_GET_NODE_TYPE, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
         lua_pushstring(L, sd.s_res.c_str());
@@ -271,7 +292,7 @@ int LuaScripting::lua_godotGetName(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_GET_NAME, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
         lua_pushstring(L, sd.s_res.c_str());
@@ -286,7 +307,7 @@ int LuaScripting::lua_godotRenameNode(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_RENAME_NODE, lua_tostring(L, 1), fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
     }
@@ -299,7 +320,7 @@ int LuaScripting::lua_godotSetCamera(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_SET_CAMERA, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
         lua_pushboolean(L, sd.b_res);
@@ -314,7 +335,7 @@ int LuaScripting::lua_godotGetPos(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_GET_POS, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
         lua_pushnumber(L, sd.f_res[0]);
@@ -331,7 +352,7 @@ int LuaScripting::lua_godotSetPos(lua_State* L) {
         float fargs[3] = {(float)lua_tonumber(L, 1), (float)lua_tonumber(L, 2), (float)lua_tonumber(L, 3)};
         instance->godotCmdFunc(GCMD_SET_POS, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
     }
@@ -344,7 +365,7 @@ int LuaScripting::lua_godotMoveX(lua_State* L) {
         float fargs[3] = {(float)lua_tonumber(L, 1), 0, 0};
         instance->godotCmdFunc(GCMD_MOVE_X, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
     }
@@ -357,7 +378,7 @@ int LuaScripting::lua_godotMoveY(lua_State* L) {
         float fargs[3] = {0, (float)lua_tonumber(L, 1), 0};
         instance->godotCmdFunc(GCMD_MOVE_Y, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
     }
@@ -370,7 +391,7 @@ int LuaScripting::lua_godotMoveZ(lua_State* L) {
         float fargs[3] = {0, 0, (float)lua_tonumber(L, 1)};
         instance->godotCmdFunc(GCMD_MOVE_Z, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
     }
@@ -383,7 +404,7 @@ int LuaScripting::lua_godotMoveAndCollide(lua_State* L) {
         float fargs[3] = {(float)lua_tonumber(L, 1), (float)lua_tonumber(L, 2), (float)lua_tonumber(L, 3)};
         instance->godotCmdFunc(GCMD_MOVE_AND_COLLIDE, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
         lua_pushboolean(L, sd.b_res);
@@ -398,7 +419,7 @@ int LuaScripting::lua_godotGetOverlappingAreas(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_GET_OVERLAPPING_AREAS, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
         lua_newtable(L);
@@ -418,7 +439,7 @@ int LuaScripting::lua_godotCreateNode(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_CREATE_NODE, lua_tostring(L, 1), fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
         lua_pushboolean(L, sd.b_res);
@@ -463,7 +484,7 @@ int LuaScripting::lua_godotLoadNode(lua_State* L) {
         sd.b_res = (use_pos == 1); 
 
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
         lua_pushboolean(L, sd.b_res);
@@ -478,7 +499,7 @@ int LuaScripting::lua_godotDeleteNode(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_DELETE_NODE, "", fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
     }
@@ -491,7 +512,7 @@ int LuaScripting::lua_godotAttachScript(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_ATTACH_SCRIPT, lua_tostring(L, 1), fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
         lua_pushboolean(L, sd.b_res);
@@ -521,7 +542,7 @@ int LuaScripting::lua_godotSetProperty(lua_State* L) {
             return 0;
         }
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
     }
@@ -534,7 +555,7 @@ int LuaScripting::lua_godotGetProperty(lua_State* L) {
         float fargs[3] = {0,0,0};
         instance->godotCmdFunc(GCMD_GET_PROPERTY, lua_tostring(L, 1), fargs, &sd);
         std::unique_lock<std::mutex> lock(sd.mtx);
-        while (!sd.done && instance && instance->running) {
+        while (!sd.done && instance && instance->systemRunning) {
             sd.cv.wait_for(lock, std::chrono::milliseconds(10));
         }
         if (sd.b_res) { // Use b_res to signal if it was a number or string?
@@ -698,7 +719,7 @@ int LuaScripting::lua_stopRecord(lua_State* L) {
 
     if (wait && instance && instance->isRecFunc) {
         // Loop while recording is active
-        while (instance->running && instance->isRecFunc()) {
+        while (instance->systemRunning && instance->isRecFunc()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     } else if (instance && instance->recordFunc) {
@@ -721,7 +742,7 @@ int LuaScripting::lua_delay(lua_State* L) {
     if (lua_isinteger(L, 1)) {
         int ms = (int)lua_tointeger(L, 1);
         int remaining = ms;
-        while (remaining > 0 && instance && instance->running) {
+        while (remaining > 0 && instance && instance->systemRunning) {
             int chunk = std::min(remaining, 100);
             std::this_thread::sleep_for(std::chrono::milliseconds(chunk));
             remaining -= chunk;
@@ -733,6 +754,13 @@ int LuaScripting::lua_delay(lua_State* L) {
 int LuaScripting::lua_appQuit(lua_State* L) {
     if (instance && instance->quitFunc) {
         instance->quitFunc();
+    }
+    return 0;
+}
+
+int LuaScripting::lua_luaClearAndRun(lua_State* L) {
+    if (lua_isstring(L, 1) && instance && instance->clearAndRunFunc) {
+        instance->clearAndRunFunc(lua_tostring(L, 1));
     }
     return 0;
 }

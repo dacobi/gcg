@@ -1589,7 +1589,7 @@ struct AppState {
 
 
     struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW,
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, CLEAR_AND_RUN,
                     GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
                     GODOT_MOVE_AND_COLLIDE, GODOT_GET_OVERLAPPING_AREAS, GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE,
                     GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY };
@@ -2021,6 +2021,7 @@ static void print_help() {
     std::printf("  setRecordMax(seconds)      Sets auto-stop duration for recording\n");
     std::printf("  delay(ms)                  Pauses script for ms milliseconds\n");
     std::printf("  appQuit()                  Closes the application\n");
+    std::printf("  luaClearAndRun(file)       Deletes all bouncers and runs Lua script\n");
     std::printf("  imGuiHide()                Hides the ImGui overlay\n");
     std::printf("  imGuiShow()                Shows the ImGui overlay\n\n");
 
@@ -2537,6 +2538,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             [state](bool visible) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({visible ? AppState::LuaCommand::IMGUI_SHOW : AppState::LuaCommand::IMGUI_HIDE, "", 0, 0.0});
+            },
+            [state](const std::string& filename) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::CLEAR_AND_RUN, filename, 0, 0.0});
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);
@@ -2874,6 +2879,18 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 state->show_imgui = false;
             } else if (cmd.type == AppState::LuaCommand::IMGUI_SHOW) {
                 state->show_imgui = true;
+            } else if (cmd.type == AppState::LuaCommand::CLEAR_AND_RUN) {
+                // Clear all bouncers
+                for (auto& bd : state->mBdisplay) {
+                    for (auto& b : bd->bouncers) {
+                        if (state->selected_plasma == b.plasma) state->selected_plasma = myPlasma;
+                        if (state->selected_mandel == b.mandel) state->selected_mandel = myMandel;
+                        if (state->selected_usd == b.usd_renderer) state->selected_usd = nullptr;
+                        if (state->selected_godot == b.godot_renderer) state->selected_godot = nullptr;
+                    }
+                }
+                state->mBdisplay.clear();
+                state->scriptSystem->runOneShotScript(cmd.syntax);
             } else if (cmd.type == AppState::LuaCommand::SET_USD_PARAM) {
                 if (state->selected_usd) {
                     if (cmd.syntax == "rot_x") state->selected_usd->sceneRotation[0] = (float)cmd.value;
