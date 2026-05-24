@@ -130,6 +130,17 @@ std::string GodotRenderer::getNodeType() {
     return current_node->get_class().utf8().get_data();
 }
 
+std::string GodotRenderer::getName() {
+    if (!current_node) return "";
+    return String(current_node->get_name()).utf8().get_data();
+}
+
+void GodotRenderer::renameNode(const std::string& name) {
+    if (current_node) {
+        current_node->set_name(String(name.c_str()));
+    }
+}
+
 bool GodotRenderer::setCamera() {
     if (!current_node) return false;
     Camera3D* cam = Object::cast_to<Camera3D>(current_node);

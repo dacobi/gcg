@@ -71,6 +71,8 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     lua_register(L, "godotSelectNode", lua_godotSelectNode);
     lua_register(L, "godotSearchNode", lua_godotSearchNode);
     lua_register(L, "godotGetNodeType", lua_godotGetNodeType);
+    lua_register(L, "godotGetName", lua_godotGetName);
+    lua_register(L, "godotRenameNode", lua_godotRenameNode);
     lua_register(L, "godotSetCamera", lua_godotSetCamera);
     lua_register(L, "godotGetPos", lua_godotGetPos);
     lua_register(L, "godotSetPos", lua_godotSetPos);
@@ -234,6 +236,34 @@ int LuaScripting::lua_godotGetNodeType(lua_State* L) {
         }
         lua_pushstring(L, sd.s_res.c_str());
         return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotGetName(lua_State* L) {
+    if (instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_GET_NAME, "", fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
+        lua_pushstring(L, sd.s_res.c_str());
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotRenameNode(lua_State* L) {
+    if (lua_isstring(L, 1) && instance && instance->godotCmdFunc) {
+        LuaSyncData sd;
+        float fargs[3] = {0,0,0};
+        instance->godotCmdFunc(GCMD_RENAME_NODE, lua_tostring(L, 1), fargs, &sd);
+        std::unique_lock<std::mutex> lock(sd.mtx);
+        while (!sd.done && instance && instance->running) {
+            sd.cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
     }
     return 0;
 }

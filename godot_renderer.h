@@ -22,6 +22,8 @@ public:
     bool selectNode(const std::string& name);
     bool searchNode(const std::string& name);
     std::string getNodeType();
+    std::string getName();
+    void renameNode(const std::string& name);
     bool setCamera();
     bool getPos(float& x, float& y, float& z);
     void setPos(float x, float y, float z);

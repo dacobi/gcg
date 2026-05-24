@@ -26,6 +26,8 @@ public:
         GCMD_SELECT_NODE,
         GCMD_SEARCH_NODE,
         GCMD_GET_NODE_TYPE,
+        GCMD_GET_NAME,
+        GCMD_RENAME_NODE,
         GCMD_SET_CAMERA,
         GCMD_GET_POS,
         GCMD_SET_POS,
@@ -93,6 +95,8 @@ private:
     static int lua_godotSelectNode(lua_State* L);
     static int lua_godotSearchNode(lua_State* L);
     static int lua_godotGetNodeType(lua_State* L);
+    static int lua_godotGetName(lua_State* L);
+    static int lua_godotRenameNode(lua_State* L);
     static int lua_godotSetCamera(lua_State* L);
     static int lua_godotGetPos(lua_State* L);
     static int lua_godotSetPos(lua_State* L);
