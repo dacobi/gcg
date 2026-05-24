@@ -1514,6 +1514,14 @@ static SDL_GPUTexture* create_text_texture(Renderer* renderer,
     return texture;
 }
 
+struct PropertyWatcher {
+    std::string node_name;
+    std::string property_name;
+    Variant target_value;
+    std::string callback_file;
+    bool fired = false;
+};
+
 struct AppState {
     std::vector<std::string> cli_texts;
     std::string cli_record_path;
@@ -1582,6 +1590,8 @@ struct AppState {
     int record_max_seconds = 59;
     bool record_gui = false;
 
+    std::vector<PropertyWatcher> watchers;
+
     Uint64 last_ticks;
     Uint64 freq;
     Uint64 last_time;
@@ -1590,15 +1600,15 @@ struct AppState {
 
     struct LuaCommand {
         enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, CLEAR_AND_RUN,
-                    GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_GET_CHILD_COUNT, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
+                    GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_GET_CHILD_COUNT, GODOT_PRINT_HIERARCHY, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
                     GODOT_MOVE_AND_COLLIDE, GODOT_GET_OVERLAPPING_AREAS, GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE,
-                    GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY };
+                    GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY, WATCH_PROPERTY };
         Type type;
         std::string syntax;
         int index;
         double value;
         float fargs[3];
-        LuaSyncData* sync = nullptr;
+        std::shared_ptr<LuaSyncData> sync;
     };
     std::queue<LuaCommand> lua_commands;
     std::mutex lua_mutex;
@@ -2052,7 +2062,8 @@ static void print_help() {
     std::printf("  godotDeleteNode()          Deletes selected node and selects parent\n");
     std::printf("  godotAttachScript(path)    Attaches GDScript to selected node\n");
     std::printf("  godotSetProperty(name, v)  Sets property/variable on selected node\n");
-    std::printf("  godotGetProperty(name)     Gets property/variable from selected node\n\n");
+    std::printf("  godotGetProperty(name)     Gets property/variable from selected node\n");
+    std::printf("  godotWatchProperty(node, prop, target, file) Runs file when prop == target\n\n");
 
     std::printf("Supported Plasma Parameters (for setPlasmaParam):\n");
     std::printf("  drift_amp, drift_speed_x, drift_speed_y, rot_speed,\n");
@@ -2500,7 +2511,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({AppState::LuaCommand::SET_USD_PARAM, name, 0, value});
             },
-            [state](LuaScripting::GodotCmd gcmd, const std::string& str_arg, float f_args[3], LuaSyncData* sync_data) {
+            [state](LuaScripting::GodotCmd gcmd, const std::string& str_arg, float f_args[3], std::shared_ptr<LuaSyncData> sync_data) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 AppState::LuaCommand cmd;
                 cmd.syntax = str_arg;
@@ -2513,6 +2524,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                     case LuaScripting::GCMD_GET_NODE_TYPE: cmd.type = AppState::LuaCommand::GODOT_GET_NODE_TYPE; break;
                     case LuaScripting::GCMD_GET_NAME: cmd.type = AppState::LuaCommand::GODOT_GET_NAME; break;
                     case LuaScripting::GCMD_GET_CHILD_COUNT: cmd.type = AppState::LuaCommand::GODOT_GET_CHILD_COUNT; break;
+                    case LuaScripting::GCMD_PRINT_HIERARCHY: cmd.type = AppState::LuaCommand::GODOT_PRINT_HIERARCHY; break;
                     case LuaScripting::GCMD_RENAME_NODE: cmd.type = AppState::LuaCommand::GODOT_RENAME_NODE; break;
                     case LuaScripting::GCMD_SET_CAMERA: cmd.type = AppState::LuaCommand::GODOT_SET_CAMERA; break;
                     case LuaScripting::GCMD_GET_POS: cmd.type = AppState::LuaCommand::GODOT_GET_POS; break;
@@ -2528,6 +2540,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                     case LuaScripting::GCMD_ATTACH_SCRIPT: cmd.type = AppState::LuaCommand::GODOT_ATTACH_SCRIPT; break;
                     case LuaScripting::GCMD_SET_PROPERTY: cmd.type = AppState::LuaCommand::GODOT_SET_PROPERTY; break;
                     case LuaScripting::GCMD_GET_PROPERTY: cmd.type = AppState::LuaCommand::GODOT_GET_PROPERTY; break;
+                    case LuaScripting::GCMD_WATCH_PROPERTY: cmd.type = AppState::LuaCommand::WATCH_PROPERTY; break;
                     default: return;
                 }
                 state->lua_commands.push(cmd);
@@ -2557,6 +2570,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
     state->event_burst_cooldown = 10;
 
     ImGui_ImplSDL3_ProcessEvent(ev);
+    InputManager::getInstance().processEvent(ev);
 
     ImGuiIO& io = ImGui::GetIO();
     bool captured = false;
@@ -2564,8 +2578,6 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
     if (io.WantCaptureMouse && (ev->type >= SDL_EVENT_MOUSE_MOTION && ev->type <= SDL_EVENT_MOUSE_BUTTON_UP)) captured = true;
 
     if (!captured) {
-        InputManager::getInstance().processEvent(ev);
-
         if (ev->type == SDL_EVENT_MOUSE_BUTTON_DOWN && ev->button.button == SDL_BUTTON_LEFT) {
             float mx = ev->button.x;
             float my = ev->button.y;
@@ -2818,7 +2830,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     }
                 }
                 found_godot:;
-            } else if (cmd.type >= AppState::LuaCommand::GODOT_SELECT_ROOT && cmd.type <= AppState::LuaCommand::GODOT_GET_PROPERTY) {
+            } else if (cmd.type >= AppState::LuaCommand::GODOT_SELECT_ROOT && cmd.type <= AppState::LuaCommand::WATCH_PROPERTY) {
                 if (state->selected_godot) {
                     switch (cmd.type) {
                         case AppState::LuaCommand::GODOT_SELECT_ROOT: state->selected_godot->selectRoot(); break;
@@ -2827,6 +2839,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         case AppState::LuaCommand::GODOT_GET_NODE_TYPE: if (cmd.sync) cmd.sync->s_res = state->selected_godot->getNodeType(); break;
                         case AppState::LuaCommand::GODOT_GET_NAME: if (cmd.sync) cmd.sync->s_res = state->selected_godot->getName(); break;
                         case AppState::LuaCommand::GODOT_GET_CHILD_COUNT: if (cmd.sync) { cmd.sync->b_res = true; cmd.sync->d_res = (double)state->selected_godot->getChildCount(); } break;
+                        case AppState::LuaCommand::GODOT_PRINT_HIERARCHY: state->selected_godot->printHierarchy(); break;
                         case AppState::LuaCommand::GODOT_RENAME_NODE: state->selected_godot->renameNode(cmd.syntax); break;
                         case AppState::LuaCommand::GODOT_SET_CAMERA: if (cmd.sync) cmd.sync->b_res = state->selected_godot->setCamera(); break;
                         case AppState::LuaCommand::GODOT_GET_POS: if (cmd.sync) cmd.sync->b_res = state->selected_godot->getPos(cmd.sync->f_res[0], cmd.sync->f_res[1], cmd.sync->f_res[2]); break;
@@ -2865,6 +2878,28 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                                 } else {
                                     cmd.sync->b_res = false;
                                     cmd.sync->s_res = String(v).utf8().get_data();
+                                }
+                            }
+                            break;
+                        case AppState::LuaCommand::WATCH_PROPERTY:
+                            {
+                                // node|prop|file|val
+                                std::string s = cmd.syntax;
+                                size_t p1 = s.find('|');
+                                size_t p2 = s.find('|', p1+1);
+                                size_t p3 = s.find('|', p2+1);
+                                if (p1 != std::string::npos && p2 != std::string::npos && p3 != std::string::npos) {
+                                    PropertyWatcher w;
+                                    w.node_name = s.substr(0, p1);
+                                    w.property_name = s.substr(p1+1, p2-p1-1);
+                                    w.callback_file = s.substr(p2+1, p3-p2-1);
+                                    std::string val_str = s.substr(p3+1);
+                                    
+                                    if (cmd.fargs[1] == 0.0f) w.target_value = Variant(cmd.fargs[0]);
+                                    else if (cmd.fargs[1] == 1.0f) w.target_value = Variant(val_str.c_str());
+                                    else if (cmd.fargs[1] == 2.0f) w.target_value = Variant(cmd.fargs[0] > 0.5f);
+                                    
+                                    state->watchers.push_back(w);
                                 }
                             }
                             break;
@@ -3365,6 +3400,52 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     }
 
     if (state->bg_video && state->bg_tex) state->bg_video->updateTexture(g_renderer, state->bg_tex);
+
+    // --- Property Watchers Polling ---
+    for (auto& w : state->watchers) {
+        if (w.fired) continue;
+        
+        GodotRenderer* target_renderer = nullptr;
+        if (state->bg_godot) {
+            Node* saved = state->bg_godot->getCurrentNode();
+            state->bg_godot->selectRoot();
+            if (state->bg_godot->searchNode(w.node_name)) {
+                target_renderer = state->bg_godot;
+                Variant val = target_renderer->getProperty(w.property_name);
+                if (val.get_type() != Variant::NIL) {
+                    if (val == w.target_value) {
+                        w.fired = true;
+                        state->scriptSystem->runOneShotScript(w.callback_file);
+                    }
+                }
+            }
+            state->bg_godot->setCurrentNode(saved);
+        }
+        if (w.fired) goto next_watcher;
+
+        for (auto& bd : state->mBdisplay) {
+            for (auto& b : bd->bouncers) {
+                if (b.godot_renderer) {
+                    Node* saved = b.godot_renderer->getCurrentNode();
+                    b.godot_renderer->selectRoot();
+                    if (b.godot_renderer->searchNode(w.node_name)) {
+                        Variant val = b.godot_renderer->getProperty(w.property_name);
+                        if (val.get_type() != Variant::NIL) {
+                            if (val == w.target_value) {
+                                w.fired = true;
+                                state->scriptSystem->runOneShotScript(w.callback_file);
+                            }
+                        }
+                    }
+                    b.godot_renderer->setCurrentNode(saved);
+                    if (w.fired) goto next_watcher;
+                }
+            }
+        }
+        next_watcher:;
+    }
+    // Prune fired watchers
+    state->watchers.erase(std::remove_if(state->watchers.begin(), state->watchers.end(), [](const PropertyWatcher& w){ return w.fired; }), state->watchers.end());
 
     for (auto it = state->mBdisplay.begin(); it != state->mBdisplay.end(); ) {
         (*it)->update(dt, cur_w, cur_h, state);

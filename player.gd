@@ -1,5 +1,9 @@
 extends CharacterBody3D
 
+var alive: bool = true
+
 func hit()->void:
-	print("Player Hit!")
-	queue_free()
+	if not alive: return
+	print("Player Hit! SETTING ALIVE=FALSE")
+	alive = false
+	# queue_free()

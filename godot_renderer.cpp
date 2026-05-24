@@ -143,6 +143,23 @@ int GodotRenderer::getChildCount() {
     return current_node->get_child_count();
 }
 
+static void _print_node_recursive(Node* n, int depth) {
+    if (!n) return;
+    for (int i=0; i<depth; ++i) std::printf("  ");
+    std::printf("- %s (%s)\n", String(n->get_name()).utf8().get_data(), n->get_class().utf8().get_data());
+    for (int i=0; i<n->get_child_count(); ++i) {
+        _print_node_recursive(n->get_child(i), depth+1);
+    }
+}
+
+void GodotRenderer::printHierarchy() {
+    if (scene_instance) {
+        std::printf("--- Godot Hierarchy ---\n");
+        _print_node_recursive(scene_instance, 0);
+        std::printf("-----------------------\n");
+    }
+}
+
 void GodotRenderer::renameNode(const std::string& name) {
     if (current_node) {
         current_node->set_name(String(name.c_str()));

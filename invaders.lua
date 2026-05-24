@@ -2,7 +2,12 @@ print("Space Invaders Logic Started (GDScript Optimized)")
 
 setBG("[tscn:space_invaders_game.tscn]")
 selectGodot(-1)
+
+
+
 delay(200) -- give it a moment to load
+
+godotWatchProperty("Ship", "alive", false, "game_over.lua")
 
 while true do
     -- Allow exiting via ESC

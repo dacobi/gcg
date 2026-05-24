@@ -9,6 +9,7 @@
 #include <mutex>
 #include <queue>
 #include <condition_variable>
+#include <memory>
 
 struct LuaSyncData {
     std::mutex mtx;
@@ -30,6 +31,7 @@ public:
         GCMD_GET_NODE_TYPE,
         GCMD_GET_NAME,
         GCMD_GET_CHILD_COUNT,
+        GCMD_PRINT_HIERARCHY,
         GCMD_RENAME_NODE,
         GCMD_SET_CAMERA,
         GCMD_GET_POS,
@@ -44,7 +46,8 @@ public:
         GCMD_DELETE_NODE,
         GCMD_ATTACH_SCRIPT,
         GCMD_SET_PROPERTY,
-        GCMD_GET_PROPERTY
+        GCMD_GET_PROPERTY,
+        GCMD_WATCH_PROPERTY
     };
 
     using AddBouncerFunc = std::function<void(const std::string&)>;
@@ -59,7 +62,7 @@ public:
     using SelectUSDFunc = std::function<void(int index)>;
     using SelectGodotFunc = std::function<void(int index)>;
     using SetUSDParamFunc = std::function<void(const std::string& name, double value)>;
-    using GodotCmdFunc = std::function<void(GodotCmd cmd, const std::string& str_arg, float f_args[3], LuaSyncData* sync_data)>;
+    using GodotCmdFunc = std::function<void(GodotCmd cmd, const std::string& str_arg, float f_args[3], std::shared_ptr<LuaSyncData> sync_data)>;
     using QuitFunc = std::function<void()>;
     using SetImGuiVisibleFunc = std::function<void(bool visible)>;
     using ClearAndRunFunc = std::function<void(const std::string& filename)>;
@@ -113,6 +116,7 @@ private:
     static int lua_godotGetNodeType(lua_State* L);
     static int lua_godotGetName(lua_State* L);
     static int lua_godotGetChildCount(lua_State* L);
+    static int lua_godotPrintHierarchy(lua_State* L);
     static int lua_godotRenameNode(lua_State* L);
     static int lua_godotSetCamera(lua_State* L);
     static int lua_godotGetPos(lua_State* L);
@@ -128,6 +132,7 @@ private:
     static int lua_godotAttachScript(lua_State* L);
     static int lua_godotSetProperty(lua_State* L);
     static int lua_godotGetProperty(lua_State* L);
+    static int lua_godotWatchProperty(lua_State* L);
 
     static void lua_hook(lua_State* L, lua_Debug* ar);
 

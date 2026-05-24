@@ -24,6 +24,7 @@ public:
     std::string getNodeType();
     std::string getName();
     int getChildCount();
+    void printHierarchy();
     void renameNode(const std::string& name);
     bool setCamera();
     bool getPos(float& x, float& y, float& z);
@@ -35,6 +36,9 @@ public:
     bool createNode(const std::string& name);
     bool loadNode(const std::string& path, float x = 0, float y = 0, float z = 0, bool use_pos = false);
     void deleteNode();
+
+    Node* getCurrentNode() const { return current_node; }
+    void setCurrentNode(Node* n) { current_node = n; }
 
     bool attachScript(const std::string& path);
     void setProperty(const std::string& name, const class Variant& value);
