@@ -59,11 +59,14 @@ public:
     using SelectGodotFunc = std::function<void(int index)>;
     using SetUSDParamFunc = std::function<void(const std::string& name, double value)>;
     using GodotCmdFunc = std::function<void(GodotCmd cmd, const std::string& str_arg, float f_args[3], LuaSyncData* sync_data)>;
+    using QuitFunc = std::function<void()>;
+    using SetImGuiVisibleFunc = std::function<void(bool visible)>;
 
-    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotCmdFunc);
+    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
+    void runOneShotScript(const std::string& filename);
     void stop();
 
 private:
@@ -85,6 +88,9 @@ private:
     static int lua_stopRecord(lua_State* L);
     static int lua_setRecordMax(lua_State* L);
     static int lua_delay(lua_State* L);
+    static int lua_appQuit(lua_State* L);
+    static int lua_imGuiHide(lua_State* L);
+    static int lua_imGuiShow(lua_State* L);
     
     // Input Framework
     static int lua_ioKBClicked(lua_State* L);
@@ -122,6 +128,7 @@ private:
     static void lua_hook(lua_State* L, lua_Debug* ar);
 
     void scriptThreadFunc(std::string filename);
+    void registerFunctions(lua_State* L);
 
     lua_State* L = nullptr;
     std::thread scriptThread;
@@ -140,6 +147,8 @@ private:
     SelectGodotFunc selectGodotFunc;
     SetUSDParamFunc setUSDParamFunc;
     GodotCmdFunc godotCmdFunc;
+    QuitFunc quitFunc;
+    SetImGuiVisibleFunc setImGuiVisibleFunc;
 
     static LuaScripting* instance;
 };

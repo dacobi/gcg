@@ -5,8 +5,8 @@
 
 LuaScripting* LuaScripting::instance = nullptr;
 
-LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotFunc)
-    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc), selectUSDFunc(selectUSDFunc), selectGodotFunc(selectGodotFunc), setUSDParamFunc(setUSDParamFunc), godotCmdFunc(godotFunc) {
+LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc)
+    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc), selectUSDFunc(selectUSDFunc), selectGodotFunc(selectGodotFunc), setUSDParamFunc(setUSDParamFunc), godotCmdFunc(godotFunc), quitFunc(quitFunc), setImGuiVisibleFunc(setImGuiVisibleFunc) {
     instance = this;
 }
 
@@ -36,57 +36,7 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     L = luaL_newstate();
     luaL_openlibs(L);
 
-    lua_register(L, "addBouncer", lua_addBouncer);
-    lua_register(L, "delBouncer", lua_delBouncer);
-    lua_register(L, "setBG", lua_setBG);
-    lua_register(L, "selectPlasma", lua_selectPlasma);
-    lua_register(L, "selectFractal", lua_selectFractal);
-    lua_register(L, "selectUSD", lua_selectUSD);
-    lua_register(L, "selectGodot", lua_selectGodot);
-    lua_register(L, "setPlasmaParam", lua_setPlasmaParam);
-    lua_register(L, "setFractalParam", lua_setFractalParam);
-    lua_register(L, "setUSDParam", lua_setUSDParam);
-    lua_register(L, "randomizePlasmaPalette", lua_randomizePlasmaPalette);
-    lua_register(L, "randomizePlasmaXY", lua_randomizePlasmaXY);
-    lua_register(L, "randomizeFractalPalette", lua_randomizeFractalPalette);
-    lua_register(L, "setAudio", lua_setAudio);
-    lua_register(L, "startRecord", lua_startRecord);
-    lua_register(L, "stopRecord", lua_stopRecord);
-    lua_register(L, "setRecordMax", lua_setRecordMax);
-    lua_register(L, "delay", lua_delay);
-
-    // Input Framework
-    lua_register(L, "ioKBClicked", lua_ioKBClicked);
-    lua_register(L, "ioKBDown", lua_ioKBDown);
-    lua_register(L, "ioKBUp", lua_ioKBUp);
-    lua_register(L, "ioMousePos", lua_ioMousePos);
-    lua_register(L, "ioMouseMoved", lua_ioMouseMoved);
-    lua_register(L, "ioMouseGetMotion", lua_ioMouseGetMotion);
-    lua_register(L, "ioMouseBTNClicked", lua_ioMouseBTNClicked);
-    lua_register(L, "ioMouseBTNDown", lua_ioMouseBTNDown);
-    lua_register(L, "ioMouseBTNUp", lua_ioMouseBTNUp);
-
-    // Godot Manipulation
-    lua_register(L, "godotSelectRoot", lua_godotSelectRoot);
-    lua_register(L, "godotSelectNode", lua_godotSelectNode);
-    lua_register(L, "godotSearchNode", lua_godotSearchNode);
-    lua_register(L, "godotGetNodeType", lua_godotGetNodeType);
-    lua_register(L, "godotGetName", lua_godotGetName);
-    lua_register(L, "godotRenameNode", lua_godotRenameNode);
-    lua_register(L, "godotSetCamera", lua_godotSetCamera);
-    lua_register(L, "godotGetPos", lua_godotGetPos);
-    lua_register(L, "godotSetPos", lua_godotSetPos);
-    lua_register(L, "godotMoveX", lua_godotMoveX);
-    lua_register(L, "godotMoveY", lua_godotMoveY);
-    lua_register(L, "godotMoveZ", lua_godotMoveZ);
-    lua_register(L, "godotMoveAndCollide", lua_godotMoveAndCollide);
-    lua_register(L, "godotGetOverlappingAreas", lua_godotGetOverlappingAreas);
-    lua_register(L, "godotCreateNode", lua_godotCreateNode);
-    lua_register(L, "godotLoadNode", lua_godotLoadNode);
-    lua_register(L, "godotDeleteNode", lua_godotDeleteNode);
-    lua_register(L, "godotAttachScript", lua_godotAttachScript);
-    lua_register(L, "godotSetProperty", lua_godotSetProperty);
-    lua_register(L, "godotGetProperty", lua_godotGetProperty);
+    registerFunctions(L);
 
     // Set a hook to abort execution if stop() is called
     lua_sethook(L, lua_hook, LUA_MASKCOUNT, 100);
@@ -101,6 +51,76 @@ void LuaScripting::scriptThreadFunc(std::string filename) {
     lua_close(L);
     L = nullptr;
     running = false;
+}
+
+void LuaScripting::runOneShotScript(const std::string& filename) {
+    std::thread([this, filename]() {
+        lua_State* L_one = luaL_newstate();
+        luaL_openlibs(L_one);
+        registerFunctions(L_one);
+        if (luaL_dofile(L_one, filename.c_str()) != LUA_OK) {
+            std::string err = lua_tostring(L_one, -1);
+            std::cerr << "Lua One-Shot Error: " << err << std::endl;
+        }
+        lua_close(L_one);
+    }).detach();
+}
+
+void LuaScripting::registerFunctions(lua_State* L_reg) {
+    lua_register(L_reg, "addBouncer", lua_addBouncer);
+    lua_register(L_reg, "delBouncer", lua_delBouncer);
+    lua_register(L_reg, "setBG", lua_setBG);
+    lua_register(L_reg, "selectPlasma", lua_selectPlasma);
+    lua_register(L_reg, "selectFractal", lua_selectFractal);
+    lua_register(L_reg, "selectUSD", lua_selectUSD);
+    lua_register(L_reg, "selectGodot", lua_selectGodot);
+    lua_register(L_reg, "setPlasmaParam", lua_setPlasmaParam);
+    lua_register(L_reg, "setFractalParam", lua_setFractalParam);
+    lua_register(L_reg, "setUSDParam", lua_setUSDParam);
+    lua_register(L_reg, "randomizePlasmaPalette", lua_randomizePlasmaPalette);
+    lua_register(L_reg, "randomizePlasmaXY", lua_randomizePlasmaXY);
+    lua_register(L_reg, "randomizeFractalPalette", lua_randomizeFractalPalette);
+    lua_register(L_reg, "setAudio", lua_setAudio);
+    lua_register(L_reg, "startRecord", lua_startRecord);
+    lua_register(L_reg, "stopRecord", lua_stopRecord);
+    lua_register(L_reg, "setRecordMax", lua_setRecordMax);
+    lua_register(L_reg, "delay", lua_delay);
+    lua_register(L_reg, "appQuit", lua_appQuit);
+    lua_register(L_reg, "imGuiHide", lua_imGuiHide);
+    lua_register(L_reg, "imGuiShow", lua_imGuiShow);
+
+    // Input Framework
+    lua_register(L_reg, "ioKBClicked", lua_ioKBClicked);
+    lua_register(L_reg, "ioKBDown", lua_ioKBDown);
+    lua_register(L_reg, "ioKBUp", lua_ioKBUp);
+    lua_register(L_reg, "ioMousePos", lua_ioMousePos);
+    lua_register(L_reg, "ioMouseMoved", lua_ioMouseMoved);
+    lua_register(L_reg, "ioMouseGetMotion", lua_ioMouseGetMotion);
+    lua_register(L_reg, "ioMouseBTNClicked", lua_ioMouseBTNClicked);
+    lua_register(L_reg, "ioMouseBTNDown", lua_ioMouseBTNDown);
+    lua_register(L_reg, "ioMouseBTNUp", lua_ioMouseBTNUp);
+
+    // Godot Manipulation
+    lua_register(L_reg, "godotSelectRoot", lua_godotSelectRoot);
+    lua_register(L_reg, "godotSelectNode", lua_godotSelectNode);
+    lua_register(L_reg, "godotSearchNode", lua_godotSearchNode);
+    lua_register(L_reg, "godotGetNodeType", lua_godotGetNodeType);
+    lua_register(L_reg, "godotGetName", lua_godotGetName);
+    lua_register(L_reg, "godotRenameNode", lua_godotRenameNode);
+    lua_register(L_reg, "godotSetCamera", lua_godotSetCamera);
+    lua_register(L_reg, "godotGetPos", lua_godotGetPos);
+    lua_register(L_reg, "godotSetPos", lua_godotSetPos);
+    lua_register(L_reg, "godotMoveX", lua_godotMoveX);
+    lua_register(L_reg, "godotMoveY", lua_godotMoveY);
+    lua_register(L_reg, "godotMoveZ", lua_godotMoveZ);
+    lua_register(L_reg, "godotMoveAndCollide", lua_godotMoveAndCollide);
+    lua_register(L_reg, "godotGetOverlappingAreas", lua_godotGetOverlappingAreas);
+    lua_register(L_reg, "godotCreateNode", lua_godotCreateNode);
+    lua_register(L_reg, "godotLoadNode", lua_godotLoadNode);
+    lua_register(L_reg, "godotDeleteNode", lua_godotDeleteNode);
+    lua_register(L_reg, "godotAttachScript", lua_godotAttachScript);
+    lua_register(L_reg, "godotSetProperty", lua_godotSetProperty);
+    lua_register(L_reg, "godotGetProperty", lua_godotGetProperty);
 }
 
 void LuaScripting::lua_hook(lua_State* L, lua_Debug* ar) {
@@ -706,6 +726,27 @@ int LuaScripting::lua_delay(lua_State* L) {
             std::this_thread::sleep_for(std::chrono::milliseconds(chunk));
             remaining -= chunk;
         }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_appQuit(lua_State* L) {
+    if (instance && instance->quitFunc) {
+        instance->quitFunc();
+    }
+    return 0;
+}
+
+int LuaScripting::lua_imGuiHide(lua_State* L) {
+    if (instance && instance->setImGuiVisibleFunc) {
+        instance->setImGuiVisibleFunc(false);
+    }
+    return 0;
+}
+
+int LuaScripting::lua_imGuiShow(lua_State* L) {
+    if (instance && instance->setImGuiVisibleFunc) {
+        instance->setImGuiVisibleFunc(true);
     }
     return 0;
 }

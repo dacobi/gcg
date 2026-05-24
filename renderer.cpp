@@ -67,6 +67,9 @@ bool Renderer::init(SDL_Window* win) {
     sampler_info.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
     sampler_info.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
     sampler = SDL_CreateGPUSampler(device, &sampler_info);
+
+    Uint32 white_pixel = 0xFFFFFFFF;
+    white_tex = createAndUploadTexture(1, 1, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, &white_pixel, 4);
     
     return true;
 }
@@ -184,7 +187,11 @@ void Renderer::shutdown() {
         SDL_ReleaseGPUSampler(device, sampler);
         sampler = nullptr;
     }
-    if (pipeline_base) {
+    if (white_tex) {
+        SDL_ReleaseGPUTexture(device, white_tex);
+        white_tex = nullptr;
+    }
+    if (depth_texture) {
         SDL_ReleaseGPUGraphicsPipeline(device, pipeline_base);
         pipeline_base = nullptr;
     }
@@ -596,6 +603,11 @@ void Renderer::drawBackground(SDL_GPUTexture* tex) {
     
     SDL_PushGPUVertexUniformData(current_cmd_buf, 0, &t, sizeof(t));
     SDL_DrawGPUPrimitives(current_render_pass, 6, 1, 0, 0);
+}
+
+void Renderer::drawRect(const SDL_FRect& rect, Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
+    if (!current_render_pass || !white_tex) return;
+    drawBouncer(white_tex, rect, r, g, b, a);
 }
 
 void Renderer::drawBouncer(SDL_GPUTexture* tex, const SDL_FRect& dst, Uint8 r, Uint8 g, Uint8 b, Uint8 a, SDL_GPUTexture* stencil_tex, bool transparent) {

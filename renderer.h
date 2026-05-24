@@ -34,6 +34,9 @@ public:
     // Background drawing
     void drawBackground(SDL_GPUTexture* tex);
 
+    // Solid color rectangle
+    void drawRect(const SDL_FRect& rect, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
+
     // Current pass and command buffer for ImGui or other direct usage
     SDL_GPUCommandBuffer* getCommandBuffer() const { return current_cmd_buf; }
     SDL_GPURenderPass* getRenderPass() const { return current_render_pass; }
@@ -59,6 +62,7 @@ private:
     SDL_GPUGraphicsPipeline* pipeline_3d = nullptr;
 
     SDL_GPUSampler* sampler = nullptr;
+    SDL_GPUTexture* white_tex = nullptr;
     SDL_GPUTextureFormat swapchain_format = SDL_GPU_TEXTUREFORMAT_INVALID;
 
     bool initPipelines();

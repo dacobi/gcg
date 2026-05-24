@@ -1189,6 +1189,12 @@ struct ParsedSegment {
     bool hasPhys = false;
     bool noAudio = false;
     int layer = 1;
+
+    bool hasHover = false;
+    Uint8 hover_r=255, hover_g=255, hover_b=255;
+    int hover_w=0;
+    bool hasClicked = false;
+    std::string clicked_lua;
 };
 
 class ContentParser {
@@ -1203,15 +1209,21 @@ public:
         int ttl = -1;
         int line_breaks = 0;
         float p_vx = 0, p_vy = 0, p_sx = 0, p_sy = 0, p_mass = 1.0f, p_bouncy = 1.0f;
-        bool hasP = false;
+        bool hasPhys = false;
         bool bIsStatic = false;
         bool next_is_new_group = true; // First segment always starts a group
         std::string stencil_path = "";
         int layer = 1;
 
+        bool hasHover = false;
+        Uint8 hr=255, hg=255, hb=255;
+        int hw=0;
+        bool hasClicked = false;
+        std::string clua = "";
+
         // Scan string for tags
         std::string body = input;
-        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys|layer|usd|tusd|tscn|ttscn)(?::\s*([^\]]*))?\])", std::regex::icase);
+        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys|layer|usd|tusd|tscn|ttscn|hover|clicked)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -1222,7 +1234,7 @@ public:
 
             // Text segment before a tag
             if (matchPos > lastPos) {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
                 line_breaks = 0; next_is_new_group = false;
                 stencil_path = "";
             }
@@ -1263,7 +1275,7 @@ public:
                         p_vx = std::stof(tokens[0]); p_vy = std::stof(tokens[1]);
                         p_sx = std::stof(tokens[2]); p_sy = std::stof(tokens[3]);
                         p_mass = std::stof(tokens[4]); p_bouncy = std::stof(tokens[5]);
-                        hasP = true;
+                        hasPhys = true;
                         vx = (int)p_vx; vy = (int)p_vy;
                         px = (int)p_sx; py = (int)p_sy;
                     } catch(...) {}
@@ -1271,7 +1283,7 @@ public:
                     try {
                         p_vx = std::stof(tokens[0]); p_vy = std::stof(tokens[1]);
                         p_mass = std::stof(tokens[2]); p_bouncy = std::stof(tokens[3]);
-                        hasP = true;
+                        hasPhys = true;
                         vx = (int)p_vx; vy = (int)p_vy;
                     } catch(...) {}
                 }
@@ -1285,7 +1297,7 @@ public:
             } else if (tagType == "lf") {
                 line_breaks++;
             } else if (tagType == "image") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "video") {
                 std::vector<std::string> tokens = tokenize(tagContent);
@@ -1295,7 +1307,7 @@ public:
                     path = tokens[0];
                     noAudio = (tokens[1] == "1");
                 }
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, noAudio, layer});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, noAudio, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "tvid") {
                 std::vector<std::string> tokens = tokenize(tagContent);
@@ -1305,26 +1317,38 @@ public:
                     path = tokens[0];
                     noAudio = (tokens[1] == "1");
                 }
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 5, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, noAudio, layer});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 5, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, noAudio, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "plasma") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "fractal") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "usd") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 6, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 6, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "tusd") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 7, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 7, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "tscn") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 8, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 8, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "ttscn") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 9, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 9, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
+            } else if (tagType == "hover") {
+                std::vector<std::string> tokens = tokenize(tagContent);
+                if (tokens.size() >= 4) {
+                    hr = std::stoi(tokens[0]);
+                    hg = std::stoi(tokens[1]);
+                    hb = std::stoi(tokens[2]);
+                    hw = std::stoi(tokens[3]);
+                    hasHover = true;
+                }
+            } else if (tagType == "clicked") {
+                clua = tagContent;
+                hasClicked = true;
             }
 
             lastPos = matchPos + match.length();
@@ -1332,7 +1356,7 @@ public:
 
         // 3. Final trailing text
         if (lastPos < body.length()) {
-            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasP, false, layer});
+            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
         }
 
         return results;
@@ -1387,6 +1411,12 @@ struct Bouncer {
     float ttl_remaining_ms = -1.0f;
     int layer = 1;
     bool bTransparent = false;
+
+    bool hasHover = false;
+    Uint8 hover_r=255, hover_g=255, hover_b=255;
+    int hover_w=0;
+    bool hasClicked = false;
+    std::string clicked_lua;
 };
 
 static ContentParser mParser;
@@ -1536,6 +1566,8 @@ struct AppState {
 
     GodotManager* godot_manager = nullptr;
 
+    bool show_imgui = true;
+
     float time_acc = 0.0f;
     bool roll_palette = false;
     float roll_palette_speed = 0.5f;
@@ -1557,7 +1589,7 @@ struct AppState {
 
 
     struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX,
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW,
                     GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
                     GODOT_MOVE_AND_COLLIDE, GODOT_GET_OVERLAPPING_AREAS, GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE,
                     GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY };
@@ -1843,9 +1875,16 @@ public:
         newB.b = pd.b;
         newB.tex = tex;
         newB.ttl_remaining_ms = (float)pd.ttl_ms;
-        
-        if (bouncers.empty()) {
-            // Initial spawn point
+
+        newB.hasHover = pd.hasHover;
+        newB.hover_r = pd.hover_r;
+        newB.hover_g = pd.hover_g;
+        newB.hover_b = pd.hover_b;
+        newB.hover_w = pd.hover_w;
+        newB.hasClicked = pd.hasClicked;
+        newB.clicked_lua = pd.clicked_lua;
+
+        if (bouncers.empty()) {            // Initial spawn point
             newB.x = pd.posx;
             newB.y = pd.posy;
             initialStartX = pd.posx;
@@ -1882,11 +1921,25 @@ public:
 
 
     void draw(Renderer* renderer, int target_layer) {
+        int mx, my;
+        InputManager::getInstance().lua_getMousePos(mx, my);
+
         for (auto& b : bouncers) {
             if (b.layer != target_layer) continue;
             SDL_FRect dst = { b.x, b.y, static_cast<float>(b.tw), static_cast<float>(b.th) };
 
             renderer->drawBouncer(b.tex, dst, b.r, b.g, b.b, 255, b.stencil_tex, b.bTransparent);
+
+            if (b.hasHover) {
+                if (mx >= b.x && mx <= b.x + b.tw && my >= b.y && my <= b.y + b.th) {
+                    float w = (float)b.hover_w;
+                    // Draw 4 rectangles for the frame
+                    renderer->drawRect({b.x - w, b.y - w, (float)b.tw + 2*w, w}, b.hover_r, b.hover_g, b.hover_b, 255); // Top
+                    renderer->drawRect({b.x - w, b.y + b.th, (float)b.tw + 2*w, w}, b.hover_r, b.hover_g, b.hover_b, 255); // Bottom
+                    renderer->drawRect({b.x - w, b.y, w, (float)b.th}, b.hover_r, b.hover_g, b.hover_b, 255); // Left
+                    renderer->drawRect({b.x + b.tw, b.y, w, (float)b.th}, b.hover_r, b.hover_g, b.hover_b, 255); // Right
+                }
+            }
         }
     }
     const SDL_FRect& getBounds() const {
@@ -1966,7 +2019,10 @@ static void print_help() {
     std::printf("  startRecord(path)          Starts video recording to path\n");
     std::printf("  stopRecord(wait)           Stops recording (wait=1 to wait for max-time)\n");
     std::printf("  setRecordMax(seconds)      Sets auto-stop duration for recording\n");
-    std::printf("  delay(ms)                  Pauses script for ms milliseconds\n\n");
+    std::printf("  delay(ms)                  Pauses script for ms milliseconds\n");
+    std::printf("  appQuit()                  Closes the application\n");
+    std::printf("  imGuiHide()                Hides the ImGui overlay\n");
+    std::printf("  imGuiShow()                Shows the ImGui overlay\n\n");
 
     std::printf("Input Framework Functions:\n");
     std::printf("  ioKBClicked(key)           Returns true if key (\"SDLK_...\") was clicked\n");
@@ -2026,6 +2082,8 @@ static void print_help() {
     std::printf("  [ttl:ms]                   Self-destruct timer\n");
     std::printf("  [phys:vx,vy,sx,sy,m,b]     Advanced physics and spawn point\n");
     std::printf("  [layer:#]                  Rendering layer (0=Foreground, 1=Middle, 2=Background)\n");
+    std::printf("  [hover:r,g,b,w]            Draw RGB frame of width W when hovered\n");
+    std::printf("  [clicked:file.lua]         Run Lua script when clicked\n");
 }
 
 static void randomise_mandel_palette(CLMandelbrotParams& p) {
@@ -2471,6 +2529,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                     default: return;
                 }
                 state->lua_commands.push(cmd);
+            },
+            [state]() {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::QUIT_APP, "", 0, 0.0});
+            },
+            [state](bool visible) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({visible ? AppState::LuaCommand::IMGUI_SHOW : AppState::LuaCommand::IMGUI_HIDE, "", 0, 0.0});
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);
@@ -2493,6 +2559,20 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
 
     if (!captured) {
         InputManager::getInstance().processEvent(ev);
+
+        if (ev->type == SDL_EVENT_MOUSE_BUTTON_DOWN && ev->button.button == SDL_BUTTON_LEFT) {
+            float mx = ev->button.x;
+            float my = ev->button.y;
+            for (auto& bd : state->mBdisplay) {
+                for (auto& b : bd->bouncers) {
+                    if (b.hasClicked) {
+                        if (mx >= b.x && mx <= b.x + b.tw && my >= b.y && my <= b.y + b.th) {
+                            state->scriptSystem->runOneShotScript(b.clicked_lua);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     if (ev->type == SDL_EVENT_QUIT) return SDL_APP_SUCCESS;    if (ev->type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && ev->window.windowID == SDL_GetWindowID(window))
@@ -2788,6 +2868,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     cmd.sync->done = true;
                     cmd.sync->cv.notify_one();
                 }
+            } else if (cmd.type == AppState::LuaCommand::QUIT_APP) {
+                return SDL_APP_SUCCESS;
+            } else if (cmd.type == AppState::LuaCommand::IMGUI_HIDE) {
+                state->show_imgui = false;
+            } else if (cmd.type == AppState::LuaCommand::IMGUI_SHOW) {
+                state->show_imgui = true;
             } else if (cmd.type == AppState::LuaCommand::SET_USD_PARAM) {
                 if (state->selected_usd) {
                     if (cmd.syntax == "rot_x") state->selected_usd->sceneRotation[0] = (float)cmd.value;
@@ -2927,11 +3013,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         if (state->selected_mandel == myMandel) mandel_params = p;
     }
 
-    ImGui_ImplSDLGPU3_NewFrame();
-    ImGui_ImplSDL3_NewFrame();
-    ImGui::NewFrame();
+    if (state->show_imgui) {
+        ImGui_ImplSDLGPU3_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
+        ImGui::NewFrame();
 
-    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Bouncers")) {
             ImGui::Text("Bouncer Texts (%d):", static_cast<int>(state->mBdisplay.size()));
             int del_text_idx = -1;
@@ -3256,6 +3343,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         ImGui::Text("%.1f FPS",  1.0f / delta_time);//(io.Framerate);
         ImGui::EndMainMenuBar();
     }
+    }
 
     if (state->bg_video && state->bg_tex) state->bg_video->updateTexture(g_renderer, state->bg_tex);
 
@@ -3293,8 +3381,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     g_renderer->beginFrame();
 
-    ImGui::Render();
-    ImGui_ImplSDLGPU3_PrepareDrawData(ImGui::GetDrawData(), g_renderer->getCommandBuffer());
+    if (state->show_imgui) {
+        ImGui::Render();
+        ImGui_ImplSDLGPU3_PrepareDrawData(ImGui::GetDrawData(), g_renderer->getCommandBuffer());
+    }
 
     g_renderer->beginRenderPass();
     
@@ -3312,7 +3402,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
     }
 
-    if (state->record_gui) {
+    if (state->show_imgui && state->record_gui) {
         ImGui_ImplSDLGPU3_RenderDrawData(ImGui::GetDrawData(), g_renderer->getCommandBuffer(), g_renderer->getRenderPass());
     }
 
@@ -3320,7 +3410,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     g_renderer->blitToSwapchain();
 
-    if (!state->record_gui) {
+    if (state->show_imgui && !state->record_gui) {
         g_renderer->beginSwapchainRenderPass();
         if (g_renderer->getRenderPass()) {
             ImGui_ImplSDLGPU3_RenderDrawData(ImGui::GetDrawData(), g_renderer->getCommandBuffer(), g_renderer->getRenderPass());
