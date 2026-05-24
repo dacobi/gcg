@@ -5,6 +5,7 @@
 #include "scene/main/scene_tree.h"
 #include "scene/main/window.h"
 #include "core/os/os.h"
+#include "resource_format_loader_gltf.h"
 #include <iostream>
 
 GodotManager::GodotManager() {
@@ -39,6 +40,10 @@ bool GodotManager::init(int argc, char* argv[]) {
         godot_instance = nullptr;
         return false;
     }
+    
+    Ref<ResourceFormatLoaderGLTF> gltf_loader;
+    gltf_loader.instantiate();
+    ResourceLoader::add_resource_format_loader(gltf_loader);
     
     is_running = true;
     return true;

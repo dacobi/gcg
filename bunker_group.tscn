@@ -1,0 +1,1214 @@
+[gd_scene format=3]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_concrete"]
+frequency = 0.3
+fractal_octaves = 5
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_concrete"]
+width = 1024
+height = 1024
+seamless = true
+noise = SubResource("FastNoiseLite_concrete")
+
+[sub_resource type="StandardMaterial3D" id="Mat_0"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.0, 0.9, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_1"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.1, 0.9, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_2"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.2, 0.9, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_3"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.30000000000000004, 0.9, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_4"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.4, 0.9, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_5"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.5, 0.9, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_6"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.6000000000000001, 0.9, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_7"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.7000000000000001, 0.9, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_8"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.8, 0.9, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_9"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.9, 0.9, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_10"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.0, 0.8, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_11"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.1, 0.8, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_12"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.2, 0.8, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_13"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.30000000000000004, 0.8, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_14"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.4, 0.8, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_15"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.5, 0.8, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_16"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.6000000000000001, 0.8, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_17"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.7000000000000001, 0.8, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_18"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.8, 0.8, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_19"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.9, 0.8, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_20"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.0, 0.7000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_21"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.1, 0.7000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_22"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.2, 0.7000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_23"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.30000000000000004, 0.7000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_24"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.4, 0.7000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_25"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.5, 0.7000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_26"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.6000000000000001, 0.7000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_27"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.7000000000000001, 0.7000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_28"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.8, 0.7000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_29"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.9, 0.7000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_30"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.0, 0.6000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_31"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.1, 0.6000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_32"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.2, 0.6000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_33"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.30000000000000004, 0.6000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_34"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.4, 0.6000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_35"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.5, 0.6000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_36"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.6000000000000001, 0.6000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_37"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.7000000000000001, 0.6000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_38"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.8, 0.6000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_39"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.9, 0.6000000000000001, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_40"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.0, 0.5, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_41"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.1, 0.5, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_42"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.2, 0.5, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_43"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.30000000000000004, 0.5, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_44"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.4, 0.5, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_45"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.5, 0.5, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_46"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.6000000000000001, 0.5, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_47"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.7000000000000001, 0.5, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_48"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.8, 0.5, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_49"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.9, 0.5, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_50"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.0, 0.4, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_51"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.1, 0.4, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_52"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.2, 0.4, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_53"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.30000000000000004, 0.4, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_54"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.4, 0.4, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_55"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.5, 0.4, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_56"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.6000000000000001, 0.4, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_57"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.7000000000000001, 0.4, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_58"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.8, 0.4, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_59"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.9, 0.4, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_60"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.0, 0.30000000000000004, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_61"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.1, 0.30000000000000004, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_62"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.2, 0.30000000000000004, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_63"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.30000000000000004, 0.30000000000000004, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_64"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.4, 0.30000000000000004, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_65"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.5, 0.30000000000000004, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_66"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.6000000000000001, 0.30000000000000004, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_67"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.7000000000000001, 0.30000000000000004, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_68"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.8, 0.30000000000000004, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_69"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.9, 0.30000000000000004, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_70"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.0, 0.2, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_71"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.1, 0.2, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_72"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.2, 0.2, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_73"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.30000000000000004, 0.2, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_74"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.4, 0.2, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_75"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.5, 0.2, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_76"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.6000000000000001, 0.2, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_77"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.7000000000000001, 0.2, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_78"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.8, 0.2, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_79"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.9, 0.2, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_80"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.0, 0.1, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_81"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.1, 0.1, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_82"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.2, 0.1, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_83"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.30000000000000004, 0.1, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_84"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.4, 0.1, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_85"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.5, 0.1, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_86"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.6000000000000001, 0.1, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_87"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.7000000000000001, 0.1, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_88"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.8, 0.1, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_89"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.9, 0.1, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_90"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.0, 0.0, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_91"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.1, 0.0, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_92"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.2, 0.0, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_93"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.30000000000000004, 0.0, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_94"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.4, 0.0, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_95"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.5, 0.0, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_96"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.6000000000000001, 0.0, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_97"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.7000000000000001, 0.0, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_98"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.8, 0.0, 0)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_99"]
+albedo_color = Color(0.45, 0.45, 0.45, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+uv1_scale = Vector3(0.1, 0.1, 0.1)
+uv1_offset = Vector3(0.9, 0.0, 0)
+roughness = 0.9
+
+[node name="BunkerGroup" type="Node3D"]
+
+[node name="P1_1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_0")
+
+[node name="P1_2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, 4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_1")
+
+[node name="P1_3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_2")
+
+[node name="P1_4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_3")
+
+[node name="P1_5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_4")
+
+[node name="P1_6" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_5")
+
+[node name="P1_7" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_6")
+
+[node name="P1_8" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_7")
+
+[node name="P1_9" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_8")
+
+[node name="P1_10" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_9")
+
+[node name="P2_1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_10")
+
+[node name="P2_2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, 3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_11")
+
+[node name="P2_3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_12")
+
+[node name="P2_4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_13")
+
+[node name="P2_5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_14")
+
+[node name="P2_6" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_15")
+
+[node name="P2_7" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_16")
+
+[node name="P2_8" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_17")
+
+[node name="P2_9" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_18")
+
+[node name="P2_10" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_19")
+
+[node name="P3_1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_20")
+
+[node name="P3_2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, 2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_21")
+
+[node name="P3_3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_22")
+
+[node name="P3_4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_23")
+
+[node name="P3_5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_24")
+
+[node name="P3_6" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_25")
+
+[node name="P3_7" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_26")
+
+[node name="P3_8" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_27")
+
+[node name="P3_9" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_28")
+
+[node name="P3_10" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_29")
+
+[node name="P4_1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_30")
+
+[node name="P4_2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, 1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_31")
+
+[node name="P4_3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_32")
+
+[node name="P4_4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_33")
+
+[node name="P4_5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_34")
+
+[node name="P4_6" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_35")
+
+[node name="P4_7" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_36")
+
+[node name="P4_8" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_37")
+
+[node name="P4_9" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_38")
+
+[node name="P4_10" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_39")
+
+[node name="P5_1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_40")
+
+[node name="P5_2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, 0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_41")
+
+[node name="P5_3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_42")
+
+[node name="P5_4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_43")
+
+[node name="P5_5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_44")
+
+[node name="P5_6" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_45")
+
+[node name="P5_7" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_46")
+
+[node name="P5_8" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_47")
+
+[node name="P5_9" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_48")
+
+[node name="P5_10" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_49")
+
+[node name="P6_1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, -0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_50")
+
+[node name="P6_2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, -0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_51")
+
+[node name="P6_3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, -0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_52")
+
+[node name="P6_4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, -0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_53")
+
+[node name="P6_5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, -0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_54")
+
+[node name="P6_6" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, -0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_55")
+
+[node name="P6_7" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, -0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_56")
+
+[node name="P6_8" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, -0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_57")
+
+[node name="P6_9" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, -0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_58")
+
+[node name="P6_10" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, -0.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_59")
+
+[node name="P7_1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, -1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_60")
+
+[node name="P7_2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, -1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_61")
+
+[node name="P7_3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, -1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_62")
+
+[node name="P7_4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, -1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_63")
+
+[node name="P7_5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, -1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_64")
+
+[node name="P7_6" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, -1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_65")
+
+[node name="P7_7" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, -1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_66")
+
+[node name="P7_8" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, -1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_67")
+
+[node name="P7_9" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, -1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_68")
+
+[node name="P7_10" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, -1.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_69")
+
+[node name="P8_1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, -2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_70")
+
+[node name="P8_2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, -2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_71")
+
+[node name="P8_3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, -2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_72")
+
+[node name="P8_4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, -2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_73")
+
+[node name="P8_5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, -2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_74")
+
+[node name="P8_6" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, -2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_75")
+
+[node name="P8_7" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, -2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_76")
+
+[node name="P8_8" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, -2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_77")
+
+[node name="P8_9" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, -2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_78")
+
+[node name="P8_10" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, -2.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_79")
+
+[node name="P9_1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, -3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_80")
+
+[node name="P9_2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, -3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_81")
+
+[node name="P9_3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, -3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_82")
+
+[node name="P9_4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, -3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_83")
+
+[node name="P9_5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, -3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_84")
+
+[node name="P9_6" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, -3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_85")
+
+[node name="P9_7" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, -3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_86")
+
+[node name="P9_8" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, -3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_87")
+
+[node name="P9_9" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, -3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_88")
+
+[node name="P9_10" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, -3.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_89")
+
+[node name="P10_1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, -4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_90")
+
+[node name="P10_2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, -4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_91")
+
+[node name="P10_3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, -4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_92")
+
+[node name="P10_4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, -4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_93")
+
+[node name="P10_5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, -4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_94")
+
+[node name="P10_6" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, -4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_95")
+
+[node name="P10_7" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, -4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_96")
+
+[node name="P10_8" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, -4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_97")
+
+[node name="P10_9" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, -4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_98")
+
+[node name="P10_10" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, -4.5, 0)
+size = Vector3(1, 1, 1)
+material = SubResource("Mat_99")
+

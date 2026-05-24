@@ -1,0 +1,44 @@
+[gd_scene format=3 uid="uid://d1e2f3g4h5i6j"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_concrete"]
+frequency = 0.05
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_concrete"]
+width = 256
+height = 256
+seamless = true
+noise = SubResource("FastNoiseLite_concrete")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_concrete"]
+albedo_color = Color(0.6, 0.6, 0.6, 1)
+albedo_texture = SubResource("NoiseTexture2D_concrete")
+roughness = 0.9
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_bunker"]
+sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+ground_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+
+[sub_resource type="Sky" id="Sky_bunker"]
+sky_material = SubResource("ProceduralSkyMaterial_bunker")
+
+[sub_resource type="Environment" id="Environment_bunker"]
+background_mode = 2
+sky = SubResource("Sky_bunker")
+tonemap_mode = 2
+
+[node name="Bunker" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_bunker")
+
+[node name="Geometry" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+size = Vector3(2, 2, 2)
+material = SubResource("StandardMaterial3D_concrete")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 2.5, 3.5, 4.5)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
+shadow_enabled = true

@@ -10,6 +10,8 @@
 #include "scene/main/node.h"
 #include "scene/3d/camera_3d.h"
 #include "servers/rendering/rendering_server.h"
+#include "modules/gltf/gltf_document.h"
+#include "modules/gltf/gltf_state.h"
 #include "imgui.h"
 #include <cstring>
 
@@ -48,8 +50,27 @@ bool GodotRenderer::init(const std::string& tscn_path) {
     // Add to the main scene tree so it gets processed
     tree->get_root()->add_child(viewport);
 
-    // Load the scene
-    Ref<PackedScene> scene = ResourceLoader::load(String(tscn_path.c_str()));
+    String path_str = String(tscn_path.c_str());
+
+    if (path_str.get_extension().to_lower() == "glb" || path_str.get_extension().to_lower() == "gltf") {
+        Ref<GLTFDocument> gltf_doc;
+        gltf_doc.instantiate();
+        Ref<GLTFState> gltf_state;
+        gltf_state.instantiate();
+
+        Error err = gltf_doc->append_from_file(path_str, gltf_state);
+        if (err == OK) {
+            scene_instance = gltf_doc->generate_scene(gltf_state);
+            if (scene_instance) {
+                viewport->add_child(scene_instance);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Load the scene as a generic resource
+    Ref<PackedScene> scene = ResourceLoader::load(path_str);
     if (scene.is_valid()) {
         scene_instance = scene->instantiate();
         if (scene_instance) {
