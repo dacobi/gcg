@@ -13,6 +13,7 @@ public:
 
     void beginFrame();
     void processEvent(const SDL_Event* event);
+    void clearAccumulatedState();
 
     // Lua API - These consume "Hit/Released/Moved" state
     bool lua_isKeyHit(SDL_Keycode key);

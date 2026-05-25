@@ -3534,6 +3534,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         
         state->scriptSystem->stop();
         SDL_SetWindowRelativeMouseMode(window, false);
+        InputManager::getInstance().clearAccumulatedState();
         
         // Reset selections
         state->selected_plasma = myPlasma;

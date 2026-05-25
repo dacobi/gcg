@@ -18,6 +18,7 @@ var fire_delay_multiplier_per_sec = 0.99 # Multiply delays by this every second
 var projectile_scene = load("res://enemy_projectile.tscn")
 
 @export var vaders: int = 50
+@export var bAdvance: bool = true
 
 func _init():
 	set_process(true)
@@ -39,16 +40,19 @@ func _process(delta):
 		position.x = boundary_x * (1 if position.x > 0 else -1)
 		# Reverse direction
 		direction *= -1
-		# Drop down one step
-		position.y -= drop_height
-		# Classic drop speed boost
-		speed += 0.5
+		
+		if bAdvance:
+			# Drop down one step
+			position.y -= drop_height
+			# Classic drop speed boost
+			speed += 0.5
 
 	# --- Firing Logic ---
-	fire_timer += delta
-	if fire_timer >= next_fire_time:
-		_fire_random_projectile()
-		_reset_fire_timer()
+	if bAdvance:
+		fire_timer += delta
+		if fire_timer >= next_fire_time:
+			_fire_random_projectile()
+			_reset_fire_timer()
 
 func _reset_fire_timer():
 	fire_timer = 0.0

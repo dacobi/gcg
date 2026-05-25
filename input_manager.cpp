@@ -13,6 +13,17 @@ void InputManager::beginFrame() {
     // what Lua hasn't read yet.
 }
 
+void InputManager::clearAccumulatedState() {
+    std::lock_guard<std::mutex> lock(inputMutex);
+    keysClickedAccum.clear();
+    keysReleasedAccum.clear();
+    mouseBtnsClickedAccum.clear();
+    mouseBtnsReleasedAccum.clear();
+    mouseDeltaXAccum = 0;
+    mouseDeltaYAccum = 0;
+    mouseMovedAccum = false;
+}
+
 void InputManager::processEvent(const SDL_Event* event) {
     std::lock_guard<std::mutex> lock(inputMutex);
     

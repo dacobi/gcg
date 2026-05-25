@@ -35,8 +35,21 @@ function onLiveLost()
     print("***************************")
     
     godotSelectRoot()
+    if godotSearchNode("Invaders") then
+        godotSetProperty("bAdvance", false) -- Disable advancing and firing
+    end
+
+    -- remove all enemy projectiles
+    godotSelectRoot()
+    if godotSearchNode("EnemyProjectiles") then
+        godotDeleteNode()
+        godotSelectRoot()
+        godotCreateNode("EnemyProjectiles")
+    end
+
+    godotSelectRoot()
         if godotSearchNode("Ship") then     
-            local int livesleft = godotGetProperty("lives")
+            local livesleft = godotGetProperty("lives")
             print("livesleft: ",livesleft)
             if livesleft == 2 then
                 delBouncer(2)
@@ -53,6 +66,10 @@ function onLiveLost()
             godotSetProperty("livelost", false)
             godotWatchProperty("Ship", "livelost", true, "onLiveLost")
             delay(3000)
+            godotSelectRoot()
+            if godotSearchNode("Invaders") then
+                godotSetProperty("bAdvance", true) -- Disable advancing and firing
+            end
         end
 
     
