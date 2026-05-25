@@ -11,7 +11,7 @@ local shipX = 0.0
 local minX = -55.0
 local maxX = 55.0
 
-addBouncer("[layer:1][fontsize:0.4][pos:50,50]Level [global:\"level\"]")
+addBouncer("[layer:1][fontsize:0.2][pos:20,20][rgb: 0,255,255]Level [global:\"level\"]")
 
 addBouncer("[layer:1][pos:20,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
 addBouncer("[layer:1][pos:80,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
