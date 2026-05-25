@@ -153,6 +153,9 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("godotSetCamera", lua_godotSetCamera);
     reg("godotGetPos", lua_godotGetPos);
     reg("godotSetPos", lua_godotSetPos);
+    reg("godotSetVisible", lua_godotSetVisible);
+    reg("godotGetScale", lua_godotGetScale);
+    reg("godotSetScale", lua_godotSetScale);
     reg("godotMoveX", lua_godotMoveX);
     reg("godotMoveY", lua_godotMoveY);
     reg("godotMoveZ", lua_godotMoveZ);
@@ -692,6 +695,52 @@ int LuaScripting::lua_godotSetPos(lua_State* L) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {(float)lua_tonumber(L, 1), (float)lua_tonumber(L, 2), (float)lua_tonumber(L, 3)};
         self->godotCmdFunc(GCMD_SET_POS, "", fargs, sd, self);
+        std::unique_lock<std::mutex> lock(sd->mtx);
+        while (!sd->done && self && self->systemRunning) {
+            sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotSetVisible(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isboolean(L, 1) && self && self->godotCmdFunc) {
+        auto sd = std::make_shared<LuaSyncData>();
+        float fargs[3] = {lua_toboolean(L, 1) ? 1.0f : 0.0f, 0, 0};
+        self->godotCmdFunc(GCMD_SET_VISIBLE, "", fargs, sd, self);
+        std::unique_lock<std::mutex> lock(sd->mtx);
+        while (!sd->done && self && self->systemRunning) {
+            sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotGetScale(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (self && self->godotCmdFunc) {
+        auto sd = std::make_shared<LuaSyncData>();
+        float fargs[3] = {0,0,0};
+        self->godotCmdFunc(GCMD_GET_SCALE, "", fargs, sd, self);
+        std::unique_lock<std::mutex> lock(sd->mtx);
+        while (!sd->done && self && self->systemRunning) {
+            sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
+        lua_pushnumber(L, sd->f_res[0]);
+        lua_pushnumber(L, sd->f_res[1]);
+        lua_pushnumber(L, sd->f_res[2]);
+        return 3;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotSetScale(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isnumber(L, 1) && lua_isnumber(L, 2) && lua_isnumber(L, 3) && self && self->godotCmdFunc) {
+        auto sd = std::make_shared<LuaSyncData>();
+        float fargs[3] = {(float)lua_tonumber(L, 1), (float)lua_tonumber(L, 2), (float)lua_tonumber(L, 3)};
+        self->godotCmdFunc(GCMD_SET_SCALE, "", fargs, sd, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
             sd->cv.wait_for(lock, std::chrono::milliseconds(10));

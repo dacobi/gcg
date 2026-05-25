@@ -29,6 +29,9 @@ public:
     bool setCamera();
     bool getPos(float& x, float& y, float& z);
     void setPos(float x, float y, float z);
+    void setVisible(bool visible);
+    bool getScale(float& x, float& y, float& z);
+    void setScale(float x, float y, float z);
     void move(float x, float y, float z);
     bool moveAndCollide(float x, float y, float z);
     std::vector<std::string> getOverlappingAreas();

@@ -1605,7 +1605,7 @@ struct AppState {
 
     struct LuaCommand {
         enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, CLEAR_AND_RUN, MOUSE_CAPTURE, MOUSE_RELEASE,
-                    GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_GET_CHILD_COUNT, GODOT_PRINT_HIERARCHY, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
+                    GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_GET_CHILD_COUNT, GODOT_PRINT_HIERARCHY, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_SET_VISIBLE, GODOT_GET_SCALE, GODOT_SET_SCALE, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
                     GODOT_MOVE_AND_COLLIDE, GODOT_GET_OVERLAPPING_AREAS, GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE,
                     GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY, WATCH_PROPERTY };
         Type type;
@@ -2062,6 +2062,9 @@ static void print_help() {
     std::printf("  godotSetCamera()           Sets selected node as active camera\n");
     std::printf("  godotGetPos()              Returns x, y, z of selected node\n");
     std::printf("  godotSetPos(x, y, z)       Sets position of selected node\n");
+    std::printf("  godotSetVisible(bool)      Sets node visibility\n");
+    std::printf("  godotGetScale()            Returns sx, sy, sz scale\n");
+    std::printf("  godotSetScale(sx, sy, sz)  Sets absolute scale\n");
     std::printf("  godotMoveX(v), godotMoveY, godotMoveZ  Relative movement\n");
     std::printf("  godotMoveAndCollide(x, y, z)  Move PhysicsBody and return collision\n");
     std::printf("  godotGetOverlappingAreas()  Returns list of overlapping Area3D names\n");
@@ -2538,6 +2541,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                     case LuaScripting::GCMD_SET_CAMERA: cmd.type = AppState::LuaCommand::GODOT_SET_CAMERA; break;
                     case LuaScripting::GCMD_GET_POS: cmd.type = AppState::LuaCommand::GODOT_GET_POS; break;
                     case LuaScripting::GCMD_SET_POS: cmd.type = AppState::LuaCommand::GODOT_SET_POS; break;
+                    case LuaScripting::GCMD_SET_VISIBLE: cmd.type = AppState::LuaCommand::GODOT_SET_VISIBLE; break;
+                    case LuaScripting::GCMD_GET_SCALE: cmd.type = AppState::LuaCommand::GODOT_GET_SCALE; break;
+                    case LuaScripting::GCMD_SET_SCALE: cmd.type = AppState::LuaCommand::GODOT_SET_SCALE; break;
                     case LuaScripting::GCMD_MOVE_X: cmd.type = AppState::LuaCommand::GODOT_MOVE_X; break;
                     case LuaScripting::GCMD_MOVE_Y: cmd.type = AppState::LuaCommand::GODOT_MOVE_Y; break;
                     case LuaScripting::GCMD_MOVE_Z: cmd.type = AppState::LuaCommand::GODOT_MOVE_Z; break;
@@ -2876,6 +2882,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         case AppState::LuaCommand::GODOT_SET_CAMERA: if (cmd.sync) cmd.sync->b_res = state->selected_godot->setCamera(); break;
                         case AppState::LuaCommand::GODOT_GET_POS: if (cmd.sync) cmd.sync->b_res = state->selected_godot->getPos(cmd.sync->f_res[0], cmd.sync->f_res[1], cmd.sync->f_res[2]); break;
                         case AppState::LuaCommand::GODOT_SET_POS: state->selected_godot->setPos(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2]); break;
+                        case AppState::LuaCommand::GODOT_SET_VISIBLE: state->selected_godot->setVisible(cmd.fargs[0] > 0.5f); break;
+                        case AppState::LuaCommand::GODOT_GET_SCALE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->getScale(cmd.sync->f_res[0], cmd.sync->f_res[1], cmd.sync->f_res[2]); break;
+                        case AppState::LuaCommand::GODOT_SET_SCALE: state->selected_godot->setScale(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2]); break;
                         case AppState::LuaCommand::GODOT_MOVE_X: state->selected_godot->move(cmd.fargs[0], 0, 0); break;
                         case AppState::LuaCommand::GODOT_MOVE_Y: state->selected_godot->move(0, cmd.fargs[1], 0); break;
                         case AppState::LuaCommand::GODOT_MOVE_Z: state->selected_godot->move(0, 0, cmd.fargs[2]); break;

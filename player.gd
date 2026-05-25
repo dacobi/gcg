@@ -9,6 +9,7 @@ func hit()->void:
 	lives -= 1
 	if lives == 0:
 		alive = false
+		livelost = true
 		print("Player Hit! SETTING ALIVE=FALSE")
 	else:
 		livelost = true

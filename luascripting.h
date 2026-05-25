@@ -36,6 +36,9 @@ public:
         GCMD_SET_CAMERA,
         GCMD_GET_POS,
         GCMD_SET_POS,
+        GCMD_SET_VISIBLE,
+        GCMD_GET_SCALE,
+        GCMD_SET_SCALE,
         GCMD_MOVE_X,
         GCMD_MOVE_Y,
         GCMD_MOVE_Z,
@@ -126,6 +129,9 @@ private:
     static int lua_godotSetCamera(lua_State* L);
     static int lua_godotGetPos(lua_State* L);
     static int lua_godotSetPos(lua_State* L);
+    static int lua_godotSetVisible(lua_State* L);
+    static int lua_godotGetScale(lua_State* L);
+    static int lua_godotSetScale(lua_State* L);
     static int lua_godotMoveX(lua_State* L);
     static int lua_godotMoveY(lua_State* L);
     static int lua_godotMoveZ(lua_State* L);

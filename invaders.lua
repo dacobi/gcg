@@ -47,10 +47,29 @@ function onLiveLost()
         godotCreateNode("EnemyProjectiles")
     end
 
+    -- remove all player projectiles
     godotSelectRoot()
-        if godotSearchNode("Ship") then     
+    if godotSearchNode("Projectiles") then
+        godotDeleteNode()
+        godotSelectRoot()
+        godotCreateNode("Projectiles")
+    end
+
+    godotSelectRoot()
+        if godotSearchNode("Ship") then
+
+
             local livesleft = godotGetProperty("lives")
             print("livesleft: ",livesleft)
+            for i = 1,10 do
+                godotSetVisible(true)
+                godotSetScale(1.2, 1.2, 1.2)
+                delay(40)
+                godotSetScale(1.0, 1.0, 1.0)
+                delay(40)
+                godotSetVisible(false)
+                delay(40)
+            end            
             if livesleft == 2 then
                 delBouncer(2)
             end
@@ -59,16 +78,20 @@ function onLiveLost()
             end
             if livesleft == 0 then
                 delBouncer(0)
+                onGameOver()
             end
+
+            delay(900)
+            
             local _, sy, sz = godotGetPos()
             shipX = 0.0
             godotSetPos(shipX, sy, sz)
+            godotSetVisible(true)
             godotSetProperty("livelost", false)
-            godotWatchProperty("Ship", "livelost", true, "onLiveLost")
-            delay(3000)
+            godotWatchProperty("Ship", "livelost", true, "onLiveLost")            
             godotSelectRoot()
             if godotSearchNode("Invaders") then
-                godotSetProperty("bAdvance", true) -- Disable advancing and firing
+                godotSetProperty("bAdvance", true) -- Enable advancing and firing
             end
         end
 
@@ -76,7 +99,7 @@ function onLiveLost()
 end
 
 
-godotWatchProperty("Ship", "alive", false, "onGameOver")
+--godotWatchProperty("Ship", "alive", false, "onGameOver")
 godotWatchProperty("Ship", "livelost", true, "onLiveLost")
 godotWatchProperty("Invaders", "vaders", 0, "onGameWon", 3)
 

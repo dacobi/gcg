@@ -195,6 +195,33 @@ void GodotRenderer::setPos(float x, float y, float z) {
     }
 }
 
+void GodotRenderer::setVisible(bool visible) {
+    if (current_node) {
+        if (current_node->has_method("set_visible")) {
+            current_node->call("set_visible", visible);
+        }
+    }
+}
+
+bool GodotRenderer::getScale(float& x, float& y, float& z) {
+    if (!current_node) return false;
+    Node3D* n3d = Object::cast_to<Node3D>(current_node);
+    if (n3d) {
+        Vector3 s = n3d->get_scale();
+        x = s.x; y = s.y; z = s.z;
+        return true;
+    }
+    return false;
+}
+
+void GodotRenderer::setScale(float x, float y, float z) {
+    if (!current_node) return;
+    Node3D* n3d = Object::cast_to<Node3D>(current_node);
+    if (n3d) {
+        n3d->set_scale(Vector3(x, y, z));
+    }
+}
+
 void GodotRenderer::move(float x, float y, float z) {
     if (!current_node) return;
     Node3D* n3d = Object::cast_to<Node3D>(current_node);
