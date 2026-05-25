@@ -5,7 +5,7 @@ addBouncer("[phys: 600,100,300,400,1,1][rgb: 255,0,255]Chicken")
 addBouncer("[phys: 600,600,300,400,1,1][rgb: 255,255,255]WDinner[image:ckitt.png]")
 
 
-delay(3500)
+delay(5000)
 
 luaClearAndRun("startspace.lua")
 

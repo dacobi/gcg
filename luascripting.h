@@ -62,17 +62,20 @@ public:
     using SelectUSDFunc = std::function<void(int index, std::shared_ptr<LuaSyncData> sync_data)>;
     using SelectGodotFunc = std::function<void(int index, std::shared_ptr<LuaSyncData> sync_data)>;
     using SetUSDParamFunc = std::function<void(const std::string& name, double value)>;
-    using GodotCmdFunc = std::function<void(GodotCmd cmd, const std::string& str_arg, float f_args[3], std::shared_ptr<LuaSyncData> sync_data)>;
+    using GodotCmdFunc = std::function<void(GodotCmd cmd, const std::string& str_arg, float f_args[3], std::shared_ptr<LuaSyncData> sync_data, LuaScripting* owner)>;
     using QuitFunc = std::function<void(std::shared_ptr<LuaSyncData> sync_data)>;
     using SetImGuiVisibleFunc = std::function<void(bool visible)>;
     using ClearAndRunFunc = std::function<void(const std::string& filename, std::shared_ptr<LuaSyncData> sync_data)>;
+    using SetMouseCaptureFunc = std::function<void(bool captured)>;
 
-    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc);
+    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
     void runOneShotScript(const std::string& filename);
     void stop();
+
+    void triggerCallback(const std::string& name);
 
 private:
     static int lua_addBouncer(lua_State* L);
@@ -97,6 +100,8 @@ private:
     static int lua_luaClearAndRun(lua_State* L);
     static int lua_imGuiHide(lua_State* L);
     static int lua_imGuiShow(lua_State* L);
+    static int lua_ioMouseCapture(lua_State* L);
+    static int lua_ioMouseRelease(lua_State* L);
     
     // Input Framework
     static int lua_ioKBClicked(lua_State* L);
@@ -147,6 +152,9 @@ private:
     std::atomic<bool> systemRunning{true};
     std::atomic<bool> primaryRunning{false};
 
+    std::queue<std::string> pendingCallbacks;
+    std::mutex callbackMutex;
+
     AddBouncerFunc addBouncerFunc;
     DelBouncerFunc delBouncerFunc;
     SetBGFunc setBGFunc;
@@ -163,6 +171,7 @@ private:
     QuitFunc quitFunc;
     SetImGuiVisibleFunc setImGuiVisibleFunc;
     ClearAndRunFunc clearAndRunFunc;
+    SetMouseCaptureFunc setMouseCaptureFunc;
 
     static LuaScripting* instance;
 };

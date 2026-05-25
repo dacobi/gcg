@@ -1,10 +1,10 @@
 setBG("[plasma: 4]")
-addBouncer("[phys: 100,100,300,400,1,1][rgb: 255,255,0]You Snooze")
-addBouncer("[phys: 100,600,300,400,1,1][rgb: 0,255,255]You Looze")
-addBouncer("[phys: 600,600,300,400,1,1][image:kitt.png]")
+addBouncer("[phys: 600,600,30,40,10,0.7][rgb: 255,255,0]You Snooze")
+addBouncer("[phys: 600,600,30,169,10,0.7][rgb: 0,255,255]You Looze")
+addBouncer("[phys: 600,600,30,40,10,0.9][image:kitt.png]")
 
 
-delay(3500)
+delay(5000)
 
 luaClearAndRun("startspace.lua")
 

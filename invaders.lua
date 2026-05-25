@@ -2,14 +2,36 @@ print("Space Invaders Logic Started (GDScript Optimized)")
 
 setBG("[tscn:space_invaders_game.tscn]")
 selectGodot(-1)
-
-
-
 delay(200) -- give it a moment to load
 
-godotWatchProperty("Ship", "alive", false, "game_over.lua")
-godotWatchProperty("Invaders", "vaders", 0, "game_won.lua", 3)
+-- Capture mouse for consistent relative control
+ioMouseCapture()
 
+local shipX = 0.0
+local minX = -55.0
+local maxX = 55.0
+
+addBouncer("[layer:1][pos:20,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
+addBouncer("[layer:1][pos:80,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
+addBouncer("[layer:1][pos:140,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
+
+function onGameOver()
+    print("***************************")
+    print("*        GAME OVER        *")
+    print("***************************")
+    luaClearAndRun("loozer.lua")
+end
+
+function onGameWon()
+    print("***************************")
+    print("*        GAME WON!        *")
+    print("***************************")
+    luaClearAndRun("winwin.lua")
+end
+
+godotWatchProperty("Ship", "alive", false, "onGameOver")
+--godotWatchProperty("Invaders", "vaders", 45, "onGameOver", 3)
+godotWatchProperty("Invaders", "vaders", 0, "onGameWon", 3)
 
 while true do
     -- Allow exiting via ESC
@@ -21,9 +43,15 @@ while true do
     -- Mouse movement to control ship
     local rx, ry = ioMouseGetMotion()
     if rx ~= 0 then
+        shipX = shipX + (rx / 10.0)
+        -- Clamp ship position
+        if shipX < minX then shipX = minX end
+        if shipX > maxX then shipX = maxX end
+
         godotSelectRoot()
         if godotSearchNode("Ship") then
-            godotMoveX(rx / 10.0) -- scale mouse movement down a bit
+            local _, sy, sz = godotGetPos()
+            godotSetPos(shipX, sy, sz)
         end
     end
 
@@ -31,7 +59,6 @@ while true do
     if ioMouseBTNClicked(1) then
         godotSelectRoot()
         if godotSearchNode("Projectiles") then
-            -- Use the new native child count for the limit
             local count = godotGetChildCount()
             if count < 7 then
                 godotSelectRoot()
@@ -49,5 +76,8 @@ while true do
 
     delay(16) -- run at roughly 60 fps
 end
+
+-- Release mouse on exit
+ioMouseRelease()
 
 print("Space Invaders Logic Ended")

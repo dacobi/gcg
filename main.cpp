@@ -1514,6 +1514,8 @@ static SDL_GPUTexture* create_text_texture(Renderer* renderer,
     return texture;
 }
 
+class LuaScripting;
+
 struct PropertyWatcher {
     std::string node_name;
     std::string property_name;
@@ -1521,6 +1523,7 @@ struct PropertyWatcher {
     std::string callback_file;
     int comparison_mode = 0; // 0: ==, 1: <, 2: >, 3: <=, 4: >=
     bool fired = false;
+    LuaScripting* owner = nullptr;
 };
 
 struct AppState {
@@ -1601,7 +1604,7 @@ struct AppState {
 
 
     struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, CLEAR_AND_RUN,
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, CLEAR_AND_RUN, MOUSE_CAPTURE, MOUSE_RELEASE,
                     GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_GET_CHILD_COUNT, GODOT_PRINT_HIERARCHY, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
                     GODOT_MOVE_AND_COLLIDE, GODOT_GET_OVERLAPPING_AREAS, GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE,
                     GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY, WATCH_PROPERTY };
@@ -1611,6 +1614,7 @@ struct AppState {
         double value;
         float fargs[3];
         std::shared_ptr<LuaSyncData> sync;
+        LuaScripting* owner = nullptr;
     };
     std::queue<LuaCommand> lua_commands;
     std::mutex lua_mutex;
@@ -2046,7 +2050,9 @@ static void print_help() {
     std::printf("  ioMouseGetMotion()         Returns rx, ry relative movement\n");
     std::printf("  ioMouseBTNClicked(btn)     Returns true if mouse button (1-3) clicked\n");
     std::printf("  ioMouseBTNDown(btn)        Returns true if mouse button is down\n");
-    std::printf("  ioMouseBTNUp(btn)          Returns true if mouse button was released\n\n");
+    std::printf("  ioMouseBTNUp(btn)          Returns true if mouse button was released\n");
+    std::printf("  ioMouseCapture()           Captures mouse (relative mode)\n");
+    std::printf("  ioMouseRelease()           Releases mouse\n\n");
 
     std::printf("Godot Manipulation Functions:\n");
     std::printf("  godotSelectRoot()          Selects scene root\n");
@@ -2513,12 +2519,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({AppState::LuaCommand::SET_USD_PARAM, name, 0, value});
             },
-            [state](LuaScripting::GodotCmd gcmd, const std::string& str_arg, float f_args[3], std::shared_ptr<LuaSyncData> sync_data) {
+            [state](LuaScripting::GodotCmd gcmd, const std::string& str_arg, float f_args[3], std::shared_ptr<LuaSyncData> sync_data, LuaScripting* owner) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 AppState::LuaCommand cmd;
                 cmd.syntax = str_arg;
                 if (f_args) { cmd.fargs[0] = f_args[0]; cmd.fargs[1] = f_args[1]; cmd.fargs[2] = f_args[2]; }
                 cmd.sync = sync_data;
+                cmd.owner = owner;
                 switch (gcmd) {
                     case LuaScripting::GCMD_SELECT_ROOT: cmd.type = AppState::LuaCommand::GODOT_SELECT_ROOT; break;
                     case LuaScripting::GCMD_SELECT_NODE: cmd.type = AppState::LuaCommand::GODOT_SELECT_NODE; break;
@@ -2558,6 +2565,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             [state](const std::string& filename, std::shared_ptr<LuaSyncData> sync_data) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({AppState::LuaCommand::CLEAR_AND_RUN, filename, 0, 0.0, {0,0,0}, sync_data});
+            },
+            [state](bool captured) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({captured ? AppState::LuaCommand::MOUSE_CAPTURE : AppState::LuaCommand::MOUSE_RELEASE, "", 0, 0.0});
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);
@@ -2921,6 +2932,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                                     else if (cmd.fargs[1] == 2.0f) w.target_value = Variant(cmd.fargs[0] > 0.5f);
                                     
                                     w.comparison_mode = (int)cmd.fargs[2];
+                                    w.owner = cmd.owner;
                                     state->watchers.push_back(w);
                                 }
                             }
@@ -2943,6 +2955,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 state->show_imgui = false;
             } else if (cmd.type == AppState::LuaCommand::IMGUI_SHOW) {
                 state->show_imgui = true;
+            } else if (cmd.type == AppState::LuaCommand::MOUSE_CAPTURE) {
+                SDL_SetWindowRelativeMouseMode(window, true);
+            } else if (cmd.type == AppState::LuaCommand::MOUSE_RELEASE) {
+                SDL_SetWindowRelativeMouseMode(window, false);
             } else if (cmd.type == AppState::LuaCommand::CLEAR_AND_RUN) {
                 state->pending_lua_path = cmd.syntax;
                 if (cmd.sync) {
@@ -3455,7 +3471,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     }
                     if (triggered) {
                         w.fired = true;
-                        state->scriptSystem->runOneShotScript(w.callback_file);
+                        if (w.callback_file.find(".lua") != std::string::npos) {
+                            state->scriptSystem->runOneShotScript(w.callback_file);
+                        } else if (w.owner) {
+                            w.owner->triggerCallback(w.callback_file);
+                        }
                     }
                 }
             }
@@ -3491,7 +3511,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                             }
                             if (triggered) {
                                 w.fired = true;
-                                state->scriptSystem->runOneShotScript(w.callback_file);
+                                if (w.callback_file.find(".lua") != std::string::npos) {
+                                    state->scriptSystem->runOneShotScript(w.callback_file);
+                                } else if (w.owner) {
+                                    w.owner->triggerCallback(w.callback_file);
+                                }
                             }
                         }
                     }
@@ -3509,6 +3533,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         std::printf("Performing deferred transition to: %s\n", state->pending_lua_path.c_str());
         
         state->scriptSystem->stop();
+        SDL_SetWindowRelativeMouseMode(window, false);
         
         // Reset selections
         state->selected_plasma = myPlasma;
@@ -3612,6 +3637,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
             delete state->scriptSystem;
             state->scriptSystem = nullptr;
         }
+        SDL_SetWindowRelativeMouseMode(window, false);
         recorder_stop(state->recorder);
         if (bUsePlasma && myPlasma) { /* myPlasma->stop(); */ }
         if (bUseMandel && myMandel) myMandel->stop();
