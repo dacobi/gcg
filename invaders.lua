@@ -13,8 +13,21 @@ local maxX = 55.0
 
 addBouncer("[layer:1][fontsize:0.2][pos:20,20][rgb: 0,255,255]Level [global:\"level\"]")
 
+addBouncer("[layer:1][fontsize:0.2][pos:850,20][rgb: 0,255,255]Score [global:\"score\"]")
+
 local clvs = getGlobalVar("lives")
 
+    godotSelectRoot()
+    if godotSearchNode("Ship") then
+        godotSetProperty("lives", clvs)
+    end
+
+    godotSelectRoot()
+    if godotSearchNode("Invaders") then
+        godotSetProperty("vaders", 50)
+        local vtest = godotGetProperty("vaders")
+        print("vaders: ",vtest)
+    end
 
 addBouncer("[layer:1][pos:20,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
 
@@ -82,15 +95,15 @@ function onLiveLost()
             end            
             if livesleft == 2 then
                 setGlobalVar("lives",2)
-                delBouncer(3)
+                delBouncer(4)
             end
             if livesleft == 1 then
                 setGlobalVar("lives",1)
-                delBouncer(2)
+                delBouncer(3)
             end
             if livesleft == 0 then
                 setGlobalVar("lives",0)
-                delBouncer(1)
+                delBouncer(2)
                 onGameOver()
             end
 
@@ -101,26 +114,38 @@ function onLiveLost()
             godotSetPos(shipX, sy, sz)
             godotSetVisible(true)
             godotSetProperty("livelost", false)
-            godotWatchProperty("Ship", "livelost", true, "onLiveLost")            
+            
+            -- godotWatchProperty is NOT needed here, it was set up at the start!
+            
             godotSelectRoot()
             if godotSearchNode("Invaders") then
                 godotSetProperty("bAdvance", true) -- Enable advancing and firing
             end
-        end
+        end 
+end
 
-    
+function onNewScore()
+    godotSelectRoot()
+    if godotSearchNode("Invaders") then        
+        local lscore = godotGetProperty("score")  
+        setGlobalVar("score",lscore)
+        godotSetProperty("bNewScore", false) -- Enable next score update
+    end
 end
 
 
---godotWatchProperty("Ship", "alive", false, "onGameOver")
+-- Register watchers ONCE at the start
+godotWatchProperty("Invaders", "bNewScore", true, "onNewScore")
 godotWatchProperty("Ship", "livelost", true, "onLiveLost")
 godotWatchProperty("Invaders", "vaders", 0, "onGameWon", 3)
 
 godotSelectRoot()
     if godotSearchNode("Invaders") then
         local mlvl = getGlobalVar("level")
-
+        if mlvl == 0 then mlvl = 1 end
         godotSetProperty("level", mlvl) -- Enable advancing and firing
+        local mscore = getGlobalVar("score")
+        godotSetProperty("score", mscore) -- Transfer score from last level
     end
 
 while true do

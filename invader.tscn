@@ -13,7 +13,7 @@ emission = Color(0, 1, 1, 1)
 emission_energy_multiplier = 3.0
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_invader"]
-size = Vector3(9, 8, 1.5)
+size = Vector3(11, 10, 2)
 
 [node name="SpaceInvader" type="Area3D"]
 script = ExtResource("1_invader_script")

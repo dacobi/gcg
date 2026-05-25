@@ -210,8 +210,8 @@ void LuaScripting::lua_hook(lua_State* L, lua_Debug* ar) {
 
 int LuaScripting::lua_regGlobalVar(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
-    if (lua_isstring(L, 1) && lua_isinteger(L, 2) && self && self->regGlobalIntFunc) {
-        self->regGlobalIntFunc(lua_tostring(L, 1), (int)lua_tointeger(L, 2));
+    if (lua_isstring(L, 1) && lua_isnumber(L, 2) && self && self->regGlobalIntFunc) {
+        self->regGlobalIntFunc(lua_tostring(L, 1), (int)lua_tonumber(L, 2));
     }
     return 0;
 }
@@ -226,8 +226,8 @@ int LuaScripting::lua_unregGlobalVar(lua_State* L) {
 
 int LuaScripting::lua_setGlobalVar(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
-    if (lua_isstring(L, 1) && lua_isinteger(L, 2) && self && self->setGlobalIntFunc) {
-        self->setGlobalIntFunc(lua_tostring(L, 1), (int)lua_tointeger(L, 2));
+    if (lua_isstring(L, 1) && lua_isnumber(L, 2) && self && self->setGlobalIntFunc) {
+        self->setGlobalIntFunc(lua_tostring(L, 1), (int)lua_tonumber(L, 2));
     }
     return 0;
 }

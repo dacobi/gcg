@@ -1539,7 +1539,7 @@ struct PropertyWatcher {
     Variant target_value;
     std::string callback_file;
     int comparison_mode = 0; // 0: ==, 1: <, 2: >, 3: <=, 4: >=
-    bool fired = false;
+    bool in_trigger_state = false;
     LuaScripting* owner = nullptr;
 };
 
@@ -3517,93 +3517,68 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     // --- Property Watchers Polling ---
     for (auto& w : state->watchers) {
-        if (w.fired) continue;
+        bool condition_met = false;
         
-        GodotRenderer* target_renderer = nullptr;
+        // Helper to check condition
+        auto check_condition = [&](GodotRenderer* r) {
+            Variant val = r->getProperty(w.property_name);
+            if (val.get_type() == Variant::NIL) return false;
+            
+            if (w.comparison_mode == 0) return (val == w.target_value);
+            
+            double v_cur = 0, v_tgt = 0;
+            if ((val.get_type() == Variant::INT || val.get_type() == Variant::FLOAT) &&
+                (w.target_value.get_type() == Variant::INT || w.target_value.get_type() == Variant::FLOAT)) {
+                v_cur = (double)val;
+                v_tgt = (double)w.target_value;
+                if (w.comparison_mode == 1) return (v_cur < v_tgt);
+                if (w.comparison_mode == 2) return (v_cur > v_tgt);
+                if (w.comparison_mode == 3) return (v_cur <= v_tgt);
+                if (w.comparison_mode == 4) return (v_cur >= v_tgt);
+            }
+            return false;
+        };
+
         if (state->bg_godot) {
             Node* saved = state->bg_godot->getCurrentNode();
             state->bg_godot->selectRoot();
             if (state->bg_godot->searchNode(w.node_name)) {
-                target_renderer = state->bg_godot;
-                Variant val = target_renderer->getProperty(w.property_name);
-                if (val.get_type() != Variant::NIL) {
-                    bool triggered = false;
-                    if (w.comparison_mode == 0) triggered = (val == w.target_value);
-                    else {
-                        double v_cur = 0, v_tgt = 0;
-                        bool numeric = false;
-                        if ((val.get_type() == Variant::INT || val.get_type() == Variant::FLOAT) &&
-                            (w.target_value.get_type() == Variant::INT || w.target_value.get_type() == Variant::FLOAT)) {
-                            v_cur = (double)val;
-                            v_tgt = (double)w.target_value;
-                            numeric = true;
-                        }
-                        if (numeric) {
-                            if (w.comparison_mode == 1) triggered = (v_cur < v_tgt);
-                            else if (w.comparison_mode == 2) triggered = (v_cur > v_tgt);
-                            else if (w.comparison_mode == 3) triggered = (v_cur <= v_tgt);
-                            else if (w.comparison_mode == 4) triggered = (v_cur >= v_tgt);
-                        }
-                    }
-                    if (triggered) {
-                        w.fired = true;
-                        if (w.callback_file.find(".lua") != std::string::npos) {
-                            state->scriptSystem->runOneShotScript(w.callback_file);
-                        } else if (w.owner) {
-                            w.owner->triggerCallback(w.callback_file);
-                        }
-                    }
-                }
+                condition_met = check_condition(state->bg_godot);
             }
             state->bg_godot->setCurrentNode(saved);
         }
-        if (w.fired) goto next_watcher;
 
-        for (auto& bd : state->mBdisplay) {
-            for (auto& b : bd->bouncers) {
-                if (b.godot_renderer) {
-                    Node* saved = b.godot_renderer->getCurrentNode();
-                    b.godot_renderer->selectRoot();
-                    if (b.godot_renderer->searchNode(w.node_name)) {
-                        Variant val = b.godot_renderer->getProperty(w.property_name);
-                        if (val.get_type() != Variant::NIL) {
-                            bool triggered = false;
-                            if (w.comparison_mode == 0) triggered = (val == w.target_value);
-                            else {
-                                double v_cur = 0, v_tgt = 0;
-                                bool numeric = false;
-                                if ((val.get_type() == Variant::INT || val.get_type() == Variant::FLOAT) &&
-                                    (w.target_value.get_type() == Variant::INT || w.target_value.get_type() == Variant::FLOAT)) {
-                                    v_cur = (double)val;
-                                    v_tgt = (double)w.target_value;
-                                    numeric = true;
-                                }
-                                if (numeric) {
-                                    if (w.comparison_mode == 1) triggered = (v_cur < v_tgt);
-                                    else if (w.comparison_mode == 2) triggered = (v_cur > v_tgt);
-                                    else if (w.comparison_mode == 3) triggered = (v_cur <= v_tgt);
-                                    else if (w.comparison_mode == 4) triggered = (v_cur >= v_tgt);
-                                }
-                            }
-                            if (triggered) {
-                                w.fired = true;
-                                if (w.callback_file.find(".lua") != std::string::npos) {
-                                    state->scriptSystem->runOneShotScript(w.callback_file);
-                                } else if (w.owner) {
-                                    w.owner->triggerCallback(w.callback_file);
-                                }
-                            }
+        if (!condition_met) {
+            for (auto& bd : state->mBdisplay) {
+                for (auto& b : bd->bouncers) {
+                    if (b.godot_renderer) {
+                        Node* saved = b.godot_renderer->getCurrentNode();
+                        b.godot_renderer->selectRoot();
+                        if (b.godot_renderer->searchNode(w.node_name)) {
+                            condition_met = check_condition(b.godot_renderer);
                         }
+                        b.godot_renderer->setCurrentNode(saved);
+                        if (condition_met) goto found_in_bouncer;
                     }
-                    b.godot_renderer->setCurrentNode(saved);
-                    if (w.fired) goto next_watcher;
                 }
             }
         }
-        next_watcher:;
+        found_in_bouncer:;
+
+        if (condition_met) {
+            if (!w.in_trigger_state) {
+                // Edge triggered!
+                w.in_trigger_state = true;
+                if (w.callback_file.find(".lua") != std::string::npos) {
+                    state->scriptSystem->runOneShotScript(w.callback_file);
+                } else if (w.owner) {
+                    w.owner->triggerCallback(w.callback_file);
+                }
+            }
+        } else {
+            w.in_trigger_state = false;
+        }
     }
-    // Prune fired watchers
-    state->watchers.erase(std::remove_if(state->watchers.begin(), state->watchers.end(), [](const PropertyWatcher& w){ return w.fired; }), state->watchers.end());
 
     if (!state->pending_lua_path.empty()) {
         std::printf("Performing deferred transition to: %s\n", state->pending_lua_path.c_str());

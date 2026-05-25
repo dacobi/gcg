@@ -19,7 +19,9 @@ var projectile_scene = load("res://enemy_projectile.tscn")
 
 @export var vaders: int = 50
 @export var bAdvance: bool = true
+var bNewScore: bool = false
 @export var level: int = 1
+@export var score: int = 0
 
 func _init():
 	set_process(true)
@@ -28,6 +30,8 @@ func _ready():
 	_reset_fire_timer()
 
 func _process(delta):
+	# Prevent massive delta spikes from breaking movement
+	delta = min(delta, 0.1)
 	var level_scale = float(level)
 
 	# --- Difficulty Scaling ---
@@ -36,19 +40,30 @@ func _process(delta):
 	max_fire_delay *= pow(fire_delay_multiplier_per_sec, delta * level_scale)
 
 	# --- Movement Logic ---
-	position.x += direction * speed * delta
+	var step = direction * speed * delta
+	# Hard cap the maximum movement per frame to prevent boundary tunneling or infinite bounce loops
+	if step > 2.0: step = 2.0
+	elif step < -2.0: step = -2.0
 	
-	if abs(position.x) > boundary_x:
-		# Clamp to boundary to prevent jitter
-		position.x = boundary_x * (1 if position.x > 0 else -1)
-		# Reverse direction
-		direction *= -1
-		
-		if bAdvance:
-			# Drop down one step
-			position.y -= drop_height
-			# Classic drop speed boost, scaled by level
-			speed += 0.5 * level_scale
+	position.x += step
+	
+	var over_boundary = false
+	if position.x > boundary_x:
+		position.x = boundary_x
+		if direction == 1:
+			direction = -1
+			over_boundary = true
+	elif position.x < -boundary_x:
+		position.x = -boundary_x
+		if direction == -1:
+			direction = 1
+			over_boundary = true
+			
+	if over_boundary and bAdvance:
+		# Drop down one step
+		position.y -= drop_height
+		# Classic drop speed boost, scaled by level
+		speed += 0.5 * level_scale
 
 	# --- Firing Logic ---
 	if bAdvance:
@@ -62,9 +77,11 @@ func _reset_fire_timer():
 	# Random delay between shots
 	next_fire_time = randf() * (max_fire_delay - min_fire_delay) + min_fire_delay
 
-func vaderdie():
+func vaderdie(height):
 	vaders = vaders - 1
 	print("vaders: ", vaders)
+	score = score + (speed / 10) * level * height	
+	bNewScore = true
 
 func _fire_random_projectile():
 	var alive_invaders = []
