@@ -29,8 +29,38 @@ function onGameWon()
     luaClearAndRun("winwin.lua")
 end
 
+function onLiveLost()
+    print("***************************")
+    print("*        HITMAN!          *")
+    print("***************************")
+    
+    godotSelectRoot()
+        if godotSearchNode("Ship") then     
+            local int livesleft = godotGetProperty("lives")
+            print("livesleft: ",livesleft)
+            if livesleft == 2 then
+                delBouncer(2)
+            end
+            if livesleft == 1 then
+                delBouncer(1)
+            end
+            if livesleft == 0 then
+                delBouncer(0)
+            end
+            local _, sy, sz = godotGetPos()
+            shipX = 0.0
+            godotSetPos(shipX, sy, sz)
+            godotSetProperty("livelost", false)
+            godotWatchProperty("Ship", "livelost", true, "onLiveLost")
+            delay(3000)
+        end
+
+    
+end
+
+
 godotWatchProperty("Ship", "alive", false, "onGameOver")
---godotWatchProperty("Invaders", "vaders", 45, "onGameOver", 3)
+godotWatchProperty("Ship", "livelost", true, "onLiveLost")
 godotWatchProperty("Invaders", "vaders", 0, "onGameWon", 3)
 
 while true do
