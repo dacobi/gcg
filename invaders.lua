@@ -13,9 +13,17 @@ local maxX = 55.0
 
 addBouncer("[layer:1][fontsize:0.2][pos:20,20][rgb: 0,255,255]Level [global:\"level\"]")
 
+local clvs = getGlobalVar("lives")
+
+
 addBouncer("[layer:1][pos:20,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
-addBouncer("[layer:1][pos:80,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
-addBouncer("[layer:1][pos:140,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
+
+if clvs > 1 then
+    addBouncer("[layer:1][pos:80,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
+end
+if clvs > 2 then
+    addBouncer("[layer:1][pos:140,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
+end
 
 function onGameOver()
     print("***************************")
@@ -73,15 +81,15 @@ function onLiveLost()
                 delay(40)
             end            
             if livesleft == 2 then
-                setGlobalVar(lives,2)
+                setGlobalVar("lives",2)
                 delBouncer(3)
             end
             if livesleft == 1 then
-                setGlobalVar(lives,1)
+                setGlobalVar("lives",1)
                 delBouncer(2)
             end
             if livesleft == 0 then
-                setGlobalVar(lives,0)
+                setGlobalVar("lives",0)
                 delBouncer(1)
                 onGameOver()
             end
@@ -107,6 +115,13 @@ end
 --godotWatchProperty("Ship", "alive", false, "onGameOver")
 godotWatchProperty("Ship", "livelost", true, "onLiveLost")
 godotWatchProperty("Invaders", "vaders", 0, "onGameWon", 3)
+
+godotSelectRoot()
+    if godotSearchNode("Invaders") then
+        local mlvl = getGlobalVar("level")
+
+        godotSetProperty("level", mlvl) -- Enable advancing and firing
+    end
 
 while true do
     -- Allow exiting via ESC

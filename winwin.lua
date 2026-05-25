@@ -7,5 +7,8 @@ addBouncer("[phys: 600,600,300,400,1,1][rgb: 255,255,255]Dinner[image:ckitt.png]
 
 delay(5000)
 
-luaClearAndRun("startspace.lua")
+local clvl = getGlobalVar("level")
+clvl = clvl + 1
+setGlobalVar("level",clvl)
+luaClearAndRun("invaders.lua")
 

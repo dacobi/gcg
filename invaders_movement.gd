@@ -19,6 +19,7 @@ var projectile_scene = load("res://enemy_projectile.tscn")
 
 @export var vaders: int = 50
 @export var bAdvance: bool = true
+@export var level: int = 1
 
 func _init():
 	set_process(true)
@@ -27,10 +28,12 @@ func _ready():
 	_reset_fire_timer()
 
 func _process(delta):
+	var level_scale = float(level)
+
 	# --- Difficulty Scaling ---
-	speed += speed_increase_per_sec * delta
-	min_fire_delay *= pow(fire_delay_multiplier_per_sec, delta)
-	max_fire_delay *= pow(fire_delay_multiplier_per_sec, delta)
+	speed += speed_increase_per_sec * delta * level_scale
+	min_fire_delay *= pow(fire_delay_multiplier_per_sec, delta * level_scale)
+	max_fire_delay *= pow(fire_delay_multiplier_per_sec, delta * level_scale)
 
 	# --- Movement Logic ---
 	position.x += direction * speed * delta
@@ -44,12 +47,12 @@ func _process(delta):
 		if bAdvance:
 			# Drop down one step
 			position.y -= drop_height
-			# Classic drop speed boost
-			speed += 0.5
+			# Classic drop speed boost, scaled by level
+			speed += 0.5 * level_scale
 
 	# --- Firing Logic ---
 	if bAdvance:
-		fire_timer += delta
+		fire_timer += delta * level_scale
 		if fire_timer >= next_fire_time:
 			_fire_random_projectile()
 			_reset_fire_timer()
