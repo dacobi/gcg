@@ -11,6 +11,8 @@ local shipX = 0.0
 local minX = -55.0
 local maxX = 55.0
 
+addBouncer("[layer:1][fontsize:0.4][pos:50,50]Level [global:\"level\"]")
+
 addBouncer("[layer:1][pos:20,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
 addBouncer("[layer:1][pos:80,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
 addBouncer("[layer:1][pos:140,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
@@ -71,13 +73,16 @@ function onLiveLost()
                 delay(40)
             end            
             if livesleft == 2 then
-                delBouncer(2)
+                setGlobalVar(lives,2)
+                delBouncer(3)
             end
             if livesleft == 1 then
-                delBouncer(1)
+                setGlobalVar(lives,1)
+                delBouncer(2)
             end
             if livesleft == 0 then
-                delBouncer(0)
+                setGlobalVar(lives,0)
+                delBouncer(1)
                 onGameOver()
             end
 

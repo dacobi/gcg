@@ -70,8 +70,12 @@ public:
     using SetImGuiVisibleFunc = std::function<void(bool visible)>;
     using ClearAndRunFunc = std::function<void(const std::string& filename, std::shared_ptr<LuaSyncData> sync_data)>;
     using SetMouseCaptureFunc = std::function<void(bool captured)>;
+    using SetGlobalIntFunc = std::function<void(const std::string&, int)>;
+    using GetGlobalIntFunc = std::function<int(const std::string&)>;
+    using RegGlobalIntFunc = std::function<void(const std::string&, int)>;
+    using UnregGlobalIntFunc = std::function<void(const std::string&)>;
 
-    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc);
+    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetGlobalIntFunc setGlobalIntFunc, GetGlobalIntFunc getGlobalIntFunc, RegGlobalIntFunc regGlobalIntFunc, UnregGlobalIntFunc unregGlobalIntFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
@@ -105,6 +109,10 @@ private:
     static int lua_imGuiShow(lua_State* L);
     static int lua_ioMouseCapture(lua_State* L);
     static int lua_ioMouseRelease(lua_State* L);
+    static int lua_setGlobalVar(lua_State* L);
+    static int lua_getGlobalVar(lua_State* L);
+    static int lua_regGlobalVar(lua_State* L);
+    static int lua_unregGlobalVar(lua_State* L);
     
     // Input Framework
     static int lua_ioKBClicked(lua_State* L);
@@ -178,6 +186,10 @@ private:
     SetImGuiVisibleFunc setImGuiVisibleFunc;
     ClearAndRunFunc clearAndRunFunc;
     SetMouseCaptureFunc setMouseCaptureFunc;
+    SetGlobalIntFunc setGlobalIntFunc;
+    GetGlobalIntFunc getGlobalIntFunc;
+    RegGlobalIntFunc regGlobalIntFunc;
+    UnregGlobalIntFunc unregGlobalIntFunc;
 
     static LuaScripting* instance;
 };

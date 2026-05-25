@@ -1195,6 +1195,8 @@ struct ParsedSegment {
     int hover_w=0;
     bool hasClicked = false;
     std::string clicked_lua;
+    std::string global_var_name = "";
+    float font_size_scale = 1.0f;
 };
 
 class ContentParser {
@@ -1220,10 +1222,12 @@ public:
         int hw=0;
         bool hasClicked = false;
         std::string clua = "";
+        std::string gvar = "";
+        float fscale = 1.0f;
 
         // Scan string for tags
         std::string body = input;
-        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys|layer|usd|tusd|tscn|ttscn|hover|clicked)(?::\s*([^\]]*))?\])", std::regex::icase);
+        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys|layer|usd|tusd|tscn|ttscn|hover|clicked|fontsize|global)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -1234,7 +1238,7 @@ public:
 
             // Text segment before a tag
             if (matchPos > lastPos) {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale});
                 line_breaks = 0; next_is_new_group = false;
                 stencil_path = "";
             }
@@ -1266,6 +1270,16 @@ public:
                 stencil_path = tagContent;
             } else if (tagType == "ttl") {
                 try { ttl = std::stoi(tagContent); } catch(...) { ttl = -1; }
+            } else if (tagType == "fontsize") {
+                try { fscale = std::stof(tagContent); } catch(...) { fscale = 1.0f; }
+            } else if (tagType == "global") {
+                std::string parsed_gvar = tagContent;
+                // Strip quotes if they exist
+                if (parsed_gvar.length() >= 2 && (parsed_gvar.front() == '"' || parsed_gvar.front() == '\'') && parsed_gvar.front() == parsed_gvar.back()) {
+                    parsed_gvar = parsed_gvar.substr(1, parsed_gvar.length() - 2);
+                }
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, "", 0, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, parsed_gvar, fscale});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "layer") {
                 try { layer = std::stoi(tagContent); } catch(...) { layer = 1; }
             } else if (tagType == "phys") {
@@ -1356,7 +1370,7 @@ public:
 
         // 3. Final trailing text
         if (lastPos < body.length()) {
-            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
+            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale});
         }
 
         return results;
@@ -1417,6 +1431,9 @@ struct Bouncer {
     int hover_w=0;
     bool hasClicked = false;
     std::string clicked_lua;
+    std::string global_var_name = "";
+    float font_size_scale = 1.0f;
+    int last_global_val = -9999999;
 };
 
 static ContentParser mParser;
@@ -1597,6 +1614,9 @@ struct AppState {
     std::vector<PropertyWatcher> watchers;
     std::string pending_lua_path;
 
+    std::unordered_map<std::string, int> global_ints;
+    std::mutex globals_mutex;
+
     Uint64 last_ticks;
     Uint64 freq;
     Uint64 last_time;
@@ -1714,6 +1734,25 @@ public:
 
         // Update video and plasma frames
         for (auto& b : bouncers) {
+            if (!b.global_var_name.empty()) {
+                int val = 0;
+                {
+                    std::lock_guard<std::mutex> lock(state->globals_mutex);
+                    auto it = state->global_ints.find(b.global_var_name);
+                    if (it != state->global_ints.end()) {
+                        val = it->second;
+                    }
+                }
+                if (val != b.last_global_val) {
+                    if (b.tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), b.tex);
+                    std::string val_str = std::to_string(val);
+                    b.tex = create_text_texture(g_renderer, val_str.c_str(), &b.tw, &b.th);
+                    b.tw = (int)((float)b.tw * b.font_size_scale);
+                    b.th = (int)((float)b.th * b.font_size_scale);
+                    b.last_global_val = val;
+                }
+            }
+
             if (b.decoder && b.tex) {
                 b.decoder->updateTexture(g_renderer, b.tex);
             }
@@ -1865,7 +1904,14 @@ public:
                 return false;
             }
         } else { // Text (pd.bIsFile == 0)
-            tex = create_text_texture(g_renderer, pd.content.c_str(), &newB.tw, &newB.th);
+            std::string text_to_render = pd.content;
+            if (!pd.global_var_name.empty() && text_to_render.empty()) {
+                text_to_render = "0"; // Placeholder so TTF doesn't fail on empty string
+            }
+            if (text_to_render.empty()) text_to_render = " "; // Fallback
+            tex = create_text_texture(g_renderer, text_to_render.c_str(), &newB.tw, &newB.th);
+            newB.tw = (int)((float)newB.tw * pd.font_size_scale);
+            newB.th = (int)((float)newB.th * pd.font_size_scale);
         }
 
         if(tex == NULL) return false;
@@ -1899,6 +1945,9 @@ public:
         newB.hover_w = pd.hover_w;
         newB.hasClicked = pd.hasClicked;
         newB.clicked_lua = pd.clicked_lua;
+        
+        newB.global_var_name = pd.global_var_name;
+        newB.font_size_scale = pd.font_size_scale;
 
         if (bouncers.empty()) {            // Initial spawn point
             newB.x = pd.posx;
@@ -2575,6 +2624,24 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             [state](bool captured) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({captured ? AppState::LuaCommand::MOUSE_CAPTURE : AppState::LuaCommand::MOUSE_RELEASE, "", 0, 0.0});
+            },
+            [state](const std::string& name, int val) {
+                std::lock_guard<std::mutex> lock(state->globals_mutex);
+                state->global_ints[name] = val;
+            },
+            [state](const std::string& name) {
+                std::lock_guard<std::mutex> lock(state->globals_mutex);
+                auto it = state->global_ints.find(name);
+                if (it != state->global_ints.end()) return it->second;
+                return 0;
+            },
+            [state](const std::string& name, int val) {
+                std::lock_guard<std::mutex> lock(state->globals_mutex);
+                state->global_ints.insert({name, val});
+            },
+            [state](const std::string& name) {
+                std::lock_guard<std::mutex> lock(state->globals_mutex);
+                state->global_ints.erase(name);
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);
