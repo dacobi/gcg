@@ -80,8 +80,6 @@ function onLiveLost()
 
     godotSelectRoot()
         if godotSearchNode("Ship") then
-
-
             local livesleft = godotGetProperty("lives")
             print("livesleft: ",livesleft)
             for i = 1,10 do
@@ -105,6 +103,7 @@ function onLiveLost()
                 setGlobalVar("lives",0)
                 delBouncer(2)
                 onGameOver()
+                return
             end
 
             delay(900)
@@ -114,7 +113,8 @@ function onLiveLost()
             godotSetPos(shipX, sy, sz)
             godotSetVisible(true)
             godotSetProperty("livelost", false)
-            
+         --   godotWatchProperty("Ship", "livelost", true, "onLiveLost")
+
             -- godotWatchProperty is NOT needed here, it was set up at the start!
             
             godotSelectRoot()
@@ -130,14 +130,13 @@ function onNewScore()
         local lscore = godotGetProperty("score")  
         setGlobalVar("score",lscore)
         godotSetProperty("bNewScore", false) -- Enable next score update
+
     end
 end
 
 
--- Register watchers ONCE at the start
-godotWatchProperty("Invaders", "bNewScore", true, "onNewScore")
-godotWatchProperty("Ship", "livelost", true, "onLiveLost")
-godotWatchProperty("Invaders", "vaders", 0, "onGameWon", 3)
+-- Watchers are now polled in the main loop to prevent race conditions
+
 
 godotSelectRoot()
     if godotSearchNode("Invaders") then
@@ -155,6 +154,28 @@ while true do
         break
     end
     
+    -- Poll for events (replaces watchers to avoid node selection race conditions)
+    godotSelectRoot()
+    if godotSearchNode("Ship") then
+        local ll = godotGetProperty("livelost")
+        if ll == true or ll == "true" or ll == 1 then
+            onLiveLost()
+        end
+    end
+    
+    godotSelectRoot()
+    if godotSearchNode("Invaders") then
+        local vd = godotGetProperty("vaders")
+        if vd <= 0 then
+            onGameWon()
+            break
+        end
+        local bNew = godotGetProperty("bNewScore")
+        if bNew == true or bNew == "true" or bNew == 1 then
+            onNewScore()
+        end
+    end
+
     -- Mouse movement to control ship
     local rx, ry = ioMouseGetMotion()
     if rx ~= 0 then

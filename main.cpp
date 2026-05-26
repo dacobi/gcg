@@ -3516,7 +3516,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     if (state->bg_video && state->bg_tex) state->bg_video->updateTexture(g_renderer, state->bg_tex);
 
     // --- Property Watchers Polling ---
-    for (auto& w : state->watchers) {
+    std::vector<PropertyWatcher> triggered_watchers;
+    for (auto it = state->watchers.begin(); it != state->watchers.end(); ) {
+        auto& w = *it;
         bool condition_met = false;
         
         // Helper to check condition
@@ -3566,17 +3568,18 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         found_in_bouncer:;
 
         if (condition_met) {
-            if (!w.in_trigger_state) {
-                // Edge triggered!
-                w.in_trigger_state = true;
-                if (w.callback_file.find(".lua") != std::string::npos) {
-                    state->scriptSystem->runOneShotScript(w.callback_file);
-                } else if (w.owner) {
-                    w.owner->triggerCallback(w.callback_file);
-                }
-            }
+            triggered_watchers.push_back(w);
+            it = state->watchers.erase(it);
         } else {
-            w.in_trigger_state = false;
+            ++it;
+        }
+    }
+
+    for (auto& w : triggered_watchers) {
+        if (w.callback_file.find(".lua") != std::string::npos) {
+            state->scriptSystem->runOneShotScript(w.callback_file);
+        } else if (w.owner) {
+            w.owner->triggerCallback(w.callback_file);
         }
     }
 
