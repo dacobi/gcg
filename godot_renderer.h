@@ -46,6 +46,7 @@ public:
     bool attachScript(const std::string& path);
     void setProperty(const std::string& name, const class Variant& value);
     class Variant getProperty(const std::string& name);
+    bool watchSignal(const std::string& signal_name, const std::string& callback_file, void* owner);
 
     int getWidth() const { return width; }
     int getHeight() const { return height; }

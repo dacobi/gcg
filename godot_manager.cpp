@@ -5,8 +5,31 @@
 #include "scene/main/scene_tree.h"
 #include "scene/main/window.h"
 #include "core/os/os.h"
+#include "core/object/class_db.h"
+#include "core/object/object.h"
 #include "resource_format_loader_gltf.h"
 #include <iostream>
+
+#include "scene/main/node.h"
+
+std::queue<GodotSignalEvent> GodotManager::signal_queue;
+std::mutex GodotManager::signal_mutex;
+
+class LuaEventBridge : public Node {
+    GDCLASS(LuaEventBridge, Node);
+protected:
+    static void _bind_methods() {
+        ClassDB::bind_method(D_METHOD("on_signal", "callback_file", "lua_ptr"), &LuaEventBridge::on_signal);
+    }
+public:
+    void on_signal(String callback_file, uint64_t lua_ptr) {
+        std::lock_guard<std::mutex> lock(GodotManager::signal_mutex);
+        GodotSignalEvent ev;
+        ev.callback_file = callback_file.utf8().get_data();
+        ev.lua_scripting = reinterpret_cast<void*>(lua_ptr);
+        GodotManager::signal_queue.push(ev);
+    }
+};
 
 GodotManager::GodotManager() {
 }
@@ -44,9 +67,10 @@ bool GodotManager::init(int argc, char* argv[]) {
     Ref<ResourceFormatLoaderGLTF> gltf_loader;
     gltf_loader.instantiate();
     ResourceLoader::add_resource_format_loader(gltf_loader);
-    
-    is_running = true;
-    return true;
+
+    ClassDB::register_class<LuaEventBridge>();
+
+    is_running = true;    return true;
 }
 
 void GodotManager::iteration() {

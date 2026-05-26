@@ -1,5 +1,8 @@
 extends Node3D
 
+signal new_score
+signal game_won
+
 var speed = 10.0
 var direction = 1
 var boundary_x = 30.0
@@ -44,9 +47,9 @@ func _process(delta):
 	# Hard cap the maximum movement per frame to prevent boundary tunneling or infinite bounce loops
 	if step > 2.0: step = 2.0
 	elif step < -2.0: step = -2.0
-	
+
 	position.x += step
-	
+
 	var over_boundary = false
 	if position.x > boundary_x:
 		position.x = boundary_x
@@ -58,7 +61,7 @@ func _process(delta):
 		if direction == -1:
 			direction = 1
 			over_boundary = true
-			
+
 	if over_boundary and bAdvance:
 		# Drop down one step
 		position.y -= drop_height
@@ -80,8 +83,10 @@ func _reset_fire_timer():
 func vaderdie(height):
 	vaders = vaders - 1
 	print("vaders: ", vaders)
-	score = score + (speed / 10) * level * height	
-	bNewScore = true
+	score = score + (speed / 10) * level * height
+	emit_signal("new_score")
+	if vaders <= 0:
+		emit_signal("game_won")
 
 func _fire_random_projectile():
 	var alive_invaders = []

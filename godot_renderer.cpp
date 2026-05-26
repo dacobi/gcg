@@ -322,6 +322,30 @@ Variant GodotRenderer::getProperty(const std::string& name) {
     return Variant();
 }
 
+bool GodotRenderer::watchSignal(const std::string& signal_name, const std::string& callback_file, void* owner) {
+    if (!current_node) return false;
+    
+    Object* bridge_obj = ClassDB::instantiate("LuaEventBridge");
+    if (!bridge_obj) return false;
+    
+    Node* bridge = Object::cast_to<Node>(bridge_obj);
+    if (!bridge) {
+        memdelete(bridge_obj);
+        return false;
+    }
+    
+    current_node->add_child(bridge);
+    
+    Array binds;
+    binds.push_back(String(callback_file.c_str()));
+    binds.push_back((uint64_t)owner);
+    Callable callable(bridge, "on_signal");
+    callable = callable.bindv(binds);
+    
+    Error err = current_node->connect(String(signal_name.c_str()), callable);
+    return err == OK;
+}
+
 void GodotRenderer::resize(int w, int h) {
     width = w;
     height = h;

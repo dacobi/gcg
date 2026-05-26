@@ -50,7 +50,8 @@ public:
         GCMD_ATTACH_SCRIPT,
         GCMD_SET_PROPERTY,
         GCMD_GET_PROPERTY,
-        GCMD_WATCH_PROPERTY
+        GCMD_WATCH_PROPERTY,
+        GCMD_WATCH_SIGNAL
     };
 
     using AddBouncerFunc = std::function<void(const std::string&)>;
@@ -152,6 +153,7 @@ private:
     static int lua_godotSetProperty(lua_State* L);
     static int lua_godotGetProperty(lua_State* L);
     static int lua_godotWatchProperty(lua_State* L);
+    static int lua_godotWatchSignal(lua_State* L);
 
     static void lua_hook(lua_State* L, lua_Debug* ar);
 

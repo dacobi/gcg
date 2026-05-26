@@ -168,6 +168,7 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("godotSetProperty", lua_godotSetProperty);
     reg("godotGetProperty", lua_godotGetProperty);
     reg("godotWatchProperty", lua_godotWatchProperty);
+    reg("godotWatchSignal", lua_godotWatchSignal);
 
     reg("regGlobalVar", lua_regGlobalVar);
     reg("unregGlobalVar", lua_unregGlobalVar);
@@ -206,6 +207,26 @@ void LuaScripting::lua_hook(lua_State* L, lua_Debug* ar) {
             }
         }
     }
+}
+
+int LuaScripting::lua_godotWatchSignal(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isstring(L, 1) && lua_isstring(L, 2) && self && self->godotCmdFunc) {
+        std::string signal = lua_tostring(L, 1);
+        std::string file = lua_tostring(L, 2);
+        
+        std::string combined = signal + "|" + file;
+        auto sd = std::make_shared<LuaSyncData>();
+        float fargs[3] = {0,0,0};
+        self->godotCmdFunc(GCMD_WATCH_SIGNAL, combined, fargs, sd, self);
+        std::unique_lock<std::mutex> lock(sd->mtx);
+        while (!sd->done && self && self->systemRunning) {
+            sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
+        lua_pushboolean(L, sd->b_res);
+        return 1;
+    }
+    return 0;
 }
 
 int LuaScripting::lua_regGlobalVar(lua_State* L) {

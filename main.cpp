@@ -1627,7 +1627,7 @@ struct AppState {
         enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, CLEAR_AND_RUN, MOUSE_CAPTURE, MOUSE_RELEASE,
                     GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_GET_CHILD_COUNT, GODOT_PRINT_HIERARCHY, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_SET_VISIBLE, GODOT_GET_SCALE, GODOT_SET_SCALE, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
                     GODOT_MOVE_AND_COLLIDE, GODOT_GET_OVERLAPPING_AREAS, GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE,
-                    GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY, WATCH_PROPERTY };
+                    GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY, WATCH_PROPERTY, WATCH_SIGNAL };
         Type type;
         std::string syntax;
         int index;
@@ -2605,6 +2605,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                     case LuaScripting::GCMD_SET_PROPERTY: cmd.type = AppState::LuaCommand::GODOT_SET_PROPERTY; break;
                     case LuaScripting::GCMD_GET_PROPERTY: cmd.type = AppState::LuaCommand::GODOT_GET_PROPERTY; break;
                     case LuaScripting::GCMD_WATCH_PROPERTY: cmd.type = AppState::LuaCommand::WATCH_PROPERTY; break;
+                    case LuaScripting::GCMD_WATCH_SIGNAL: cmd.type = AppState::LuaCommand::WATCH_SIGNAL; break;
                     default: return;
                 }
                 state->lua_commands.push(cmd);
@@ -2719,7 +2720,6 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
 
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
-    InputManager::getInstance().beginFrame();
     AppState* state = (AppState*)appstate;
     if (state->godot_manager) {
         state->godot_manager->iteration();
@@ -2935,7 +2935,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     cmd.sync->done = true;
                     cmd.sync->cv.notify_one();
                 }
-            } else if (cmd.type >= AppState::LuaCommand::GODOT_SELECT_ROOT && cmd.type <= AppState::LuaCommand::WATCH_PROPERTY) {
+            } else if (cmd.type >= AppState::LuaCommand::GODOT_SELECT_ROOT && cmd.type <= AppState::LuaCommand::WATCH_SIGNAL) {
                 if (state->selected_godot) {
                     switch (cmd.type) {
                         case AppState::LuaCommand::GODOT_SELECT_ROOT: state->selected_godot->selectRoot(); break;
@@ -3010,6 +3010,24 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                                     w.comparison_mode = (int)cmd.fargs[2];
                                     w.owner = cmd.owner;
                                     state->watchers.push_back(w);
+                                }
+                            }
+                            break;
+                        case AppState::LuaCommand::WATCH_SIGNAL:
+                            {
+                                // signal|file
+                                std::string s = cmd.syntax;
+                                size_t p1 = s.find('|');
+                                if (p1 != std::string::npos) {
+                                    std::string sig = s.substr(0, p1);
+                                    std::string file = s.substr(p1+1);
+                                    if (cmd.sync) {
+                                        if (state->selected_godot) {
+                                            cmd.sync->b_res = state->selected_godot->watchSignal(sig, file, cmd.owner);
+                                        } else {
+                                            cmd.sync->b_res = false;
+                                        }
+                                    }
                                 }
                             }
                             break;
@@ -3580,6 +3598,26 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             state->scriptSystem->runOneShotScript(w.callback_file);
         } else if (w.owner) {
             w.owner->triggerCallback(w.callback_file);
+        }
+    }
+
+    // --- Native Godot Signal Events Polling ---
+    {
+        std::vector<GodotSignalEvent> events;
+        {
+            std::lock_guard<std::mutex> lock(GodotManager::signal_mutex);
+            while (!GodotManager::signal_queue.empty()) {
+                events.push_back(GodotManager::signal_queue.front());
+                GodotManager::signal_queue.pop();
+            }
+        }
+        for (const auto& ev : events) {
+            if (ev.callback_file.find(".lua") != std::string::npos) {
+                state->scriptSystem->runOneShotScript(ev.callback_file);
+            } else if (ev.lua_scripting) {
+                LuaScripting* script = reinterpret_cast<LuaScripting*>(ev.lua_scripting);
+                script->triggerCallback(ev.callback_file);
+            }
         }
     }
 

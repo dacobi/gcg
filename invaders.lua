@@ -52,7 +52,10 @@ function onGameWon()
     luaClearAndRun("winwin.lua")
 end
 
+local inLiveLost = false
 function onLiveLost()
+    if inLiveLost then return end
+    inLiveLost = true
     print("***************************")
     print("*        HITMAN!          *")
     print("***************************")
@@ -83,12 +86,18 @@ function onLiveLost()
             local livesleft = godotGetProperty("lives")
             print("livesleft: ",livesleft)
             for i = 1,10 do
+                if godotSearchNode("Ship") then
                 godotSetVisible(true)
                 godotSetScale(1.2, 1.2, 1.2)
+            end
                 delay(40)
+            if godotSearchNode("Ship") then
                 godotSetScale(1.0, 1.0, 1.0)
+            end
                 delay(40)
+            if godotSearchNode("Ship") then
                 godotSetVisible(false)
+            end
                 delay(40)
             end            
             if livesleft == 2 then
@@ -103,16 +112,18 @@ function onLiveLost()
                 setGlobalVar("lives",0)
                 delBouncer(2)
                 onGameOver()
+                inLiveLost = false
                 return
             end
 
             delay(900)
-            
+            if godotSearchNode("Ship") then
             local _, sy, sz = godotGetPos()
             shipX = 0.0
             godotSetPos(shipX, sy, sz)
             godotSetVisible(true)
             godotSetProperty("livelost", false)
+            end
          --   godotWatchProperty("Ship", "livelost", true, "onLiveLost")
 
             -- godotWatchProperty is NOT needed here, it was set up at the start!
@@ -122,6 +133,7 @@ function onLiveLost()
                 godotSetProperty("bAdvance", true) -- Enable advancing and firing
             end
         end 
+    inLiveLost = false
 end
 
 function onNewScore()
@@ -135,8 +147,17 @@ function onNewScore()
 end
 
 
--- Watchers are now polled in the main loop to prevent race conditions
+-- Watchers are now polled natively via godotWatchSignal on selected nodes
+godotSelectRoot()
+if godotSearchNode("Ship") then
+    godotWatchSignal("live_lost", "onLiveLost")
+end
 
+godotSelectRoot()
+if godotSearchNode("Invaders") then
+    godotWatchSignal("new_score", "onNewScore")
+    godotWatchSignal("game_won", "onGameWon")
+end
 
 godotSelectRoot()
     if godotSearchNode("Invaders") then
@@ -152,28 +173,6 @@ while true do
     if ioKBClicked("SDLK_ESCAPE") then
         print("Exiting game logic...")
         break
-    end
-    
-    -- Poll for events (replaces watchers to avoid node selection race conditions)
-    godotSelectRoot()
-    if godotSearchNode("Ship") then
-        local ll = godotGetProperty("livelost")
-        if ll == true or ll == "true" or ll == 1 then
-            onLiveLost()
-        end
-    end
-    
-    godotSelectRoot()
-    if godotSearchNode("Invaders") then
-        local vd = godotGetProperty("vaders")
-        if vd <= 0 then
-            onGameWon()
-            break
-        end
-        local bNew = godotGetProperty("bNewScore")
-        if bNew == true or bNew == "true" or bNew == 1 then
-            onNewScore()
-        end
     end
 
     -- Mouse movement to control ship
