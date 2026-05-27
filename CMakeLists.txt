@@ -46,7 +46,6 @@ if (USE_USD)
     set(pxr_DIR "/usr/local")
     find_package(pxr REQUIRED)
     find_package(Python3 COMPONENTS Development REQUIRED)
-    add_definitions(-DUSE_USD)
     set(USD_SOURCES usd_manager.cpp usd_hydra_renderer.cpp object3d.cpp)
     set(USD_LIBS usd_usd usd_usdGeom usd_usdImaging usd_usdImagingGL usd_hd usd_hdSt usd_hgi usd_hgiGL usd_sdf usd_tf usd_gf usd_vt usd_python ${Python3_LIBRARIES} /usr/local/lib/libtbb.so)
     set(USD_INCLUDES /usr/local/include ${Python3_INCLUDE_DIRS})
@@ -65,6 +64,11 @@ target_link_libraries(imgui PUBLIC PkgConfig::SDL3 SDL3_shadercross::SDL3_shader
 #target_compile_options(gcg PRIVATE -g -O2)
 # --- Our executable ---
 add_executable(gcg main.cpp clplasma.cpp clmandelbrot.cpp luascripting.cpp input_manager.cpp renderer.cpp shplasma.cpp godot_manager.cpp godot_renderer.cpp resource_format_loader_gltf.cpp ${USD_SOURCES})
+
+if (USE_USD)
+    target_compile_definitions(gcg PRIVATE USE_USD)
+endif()
+
 target_include_directories(gcg PRIVATE ${USD_INCLUDES} ${CMAKE_CURRENT_SOURCE_DIR}/godot ${CMAKE_CURRENT_SOURCE_DIR}/godot/platform/linuxbsd)
 target_compile_options(gcg PRIVATE "-g")
 target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA PkgConfig::LUA ${USD_LIBS} OpenCL::OpenCL m SDL3_shadercross::SDL3_shadercross-shared OpenGL::GL ${CMAKE_CURRENT_SOURCE_DIR}/godot/bin/libgodot.linuxbsd.template_release.x86_64.so)

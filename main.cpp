@@ -2290,6 +2290,10 @@ static void print_help() {
     std::printf("  godotSelectNode(name)      Selects direct child node (returns success)\n");
     std::printf("  godotSearchNode(name)      Searches tree for node (returns success)\n");
     std::printf("  godotGetNodeType()         Returns type string of selected node\n");
+    std::printf("  godotGetName()             Returns name of selected node\n");
+    std::printf("  godotGetChildCount()       Returns number of child nodes\n");
+    std::printf("  godotPrintHierarchy()      Prints full scene tree to console\n");
+    std::printf("  godotRenameNode(name)      Renames the selected node\n");
     std::printf("  godotSetCamera()           Sets selected node as active camera\n");
     std::printf("  godotGetPos()              Returns x, y, z of selected node\n");
     std::printf("  godotSetPos(x, y, z)       Sets position of selected node\n");
