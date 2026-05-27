@@ -2318,9 +2318,10 @@ static void print_help() {
 
     std::printf("Supported Plasma Parameters (for setPlasmaParam):\n");
     std::printf("  drift_amp, drift_speed_x, drift_speed_y, rot_speed,\n");
-    std::printf("  scale_base_x, scale_base_y, scale_mod_amp, scale_mod_speed_x,\n");
-    std::printf("  scale_mod_speed_y, warp_base, warp_amp, warp_speed, swirl,\n");
-    std::printf("  darken_r, darken_g, darken_b, tile_count, roll_palette, roll_speed\n\n");
+    std::printf("  scale_base_x, scale_base_y, phase_r, phase_g, phase_b,\n");
+    std::printf("  scale_mod_amp, scale_mod_speed_x, scale_mod_speed_y,\n");
+    std::printf("  darken_r, darken_g, darken_b, tile_count, noise_smooth, noise_rough,\n");
+    std::printf("  roll_palette, roll_speed, zoom\n\n");
 
     std::printf("Supported Fractal Parameters (for setFractalParam):\n");
     std::printf("  x_offset, y_offset, zoom, max_iterations, color_speed,\n");
@@ -3362,9 +3363,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     else if (cmd.syntax == "rot_speed") p.rot_speed = (float)cmd.value;
                     else if (cmd.syntax == "scale_base_x") p.scale_base_x = (float)cmd.value;
                     else if (cmd.syntax == "scale_base_y") p.scale_base_y = (float)cmd.value;
-                    else if (cmd.syntax == "palette_phase_r") p.palette_phase_r = (float)cmd.value;
-                    else if (cmd.syntax == "palette_phase_g") p.palette_phase_g = (float)cmd.value;
-                    else if (cmd.syntax == "palette_phase_b") p.palette_phase_b = (float)cmd.value;
+                    else if (cmd.syntax == "palette_phase_r" || cmd.syntax == "phase_r") p.palette_phase_r = (float)cmd.value;
+                    else if (cmd.syntax == "palette_phase_g" || cmd.syntax == "phase_g") p.palette_phase_g = (float)cmd.value;
+                    else if (cmd.syntax == "palette_phase_b" || cmd.syntax == "phase_b") p.palette_phase_b = (float)cmd.value;
                     else if (cmd.syntax == "scale_mod_amp") p.scale_mod_amp = (float)cmd.value;
                     else if (cmd.syntax == "scale_mod_speed_x") p.scale_mod_speed_x = (float)cmd.value;
                     else if (cmd.syntax == "scale_mod_speed_y") p.scale_mod_speed_y = (float)cmd.value;
@@ -3376,6 +3377,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     else if (cmd.syntax == "darken_g") p.darken_g = (float)cmd.value;
                     else if (cmd.syntax == "darken_b") p.darken_b = (float)cmd.value;
                     else if (cmd.syntax == "tile_count") p.tile_count = (float)cmd.value;
+                    else if (cmd.syntax == "noise_smooth") p.noise_smooth = (float)cmd.value;
+                    else if (cmd.syntax == "noise_rough") p.noise_rough = (float)cmd.value;
+                    else if (cmd.syntax == "zoom") p.zoom = (float)cmd.value;
                     else if (cmd.syntax == "roll_palette") state->roll_palette = (cmd.value > 0.5);
                     else if (cmd.syntax == "roll_speed") state->roll_palette_speed = (float)cmd.value;
                     state->selected_plasma->setArgs(p);
