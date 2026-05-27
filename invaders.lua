@@ -82,28 +82,35 @@ function onLiveLost()
     end
 
     godotSelectRoot()
-        if godotSearchNode("Ship") then
-            local livesleft = godotGetProperty("lives")
-            print("livesleft: ",livesleft)
-            for i = 1,10 do
+    if godotSearchNode("Ship") then
+        godotSetProperty("hit_glow", true)
+        local livesleft = godotGetProperty("lives")
+        print("livesleft: ",livesleft)
+        for i = 1,7 do
             godotSelectRoot()
             if godotSearchNode("Ship") then
                 godotSetVisible(true)
                 godotSetScale(1.2, 1.2, 1.2)
             end
-                delay(40)
+            delay(40)
             godotSelectRoot()
             if godotSearchNode("Ship") then
                 godotSetScale(1.0, 1.0, 1.0)
             end
-                delay(40)
+            delay(40)
             godotSelectRoot()
             if godotSearchNode("Ship") then
                 godotSetVisible(false)
             end
-                delay(40)
-            end            
-            if livesleft == 2 then
+            delay(40)
+        end
+
+        godotSelectRoot()
+        if godotSearchNode("Ship") then
+            godotSetProperty("hit_glow", false)
+        end
+
+        if livesleft == 2 then                
                 setGlobalVar("lives",2)
                 delBouncer(4)
             end

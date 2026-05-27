@@ -5,6 +5,26 @@ signal live_lost
 var alive: bool = true
 var livelost: bool = false
 var lives: int = 3
+var hit_glow: bool = false
+var _glow_timer: float = 0.0
+
+@onready var main_geometry = get_node_or_null("Geometry")
+@onready var glow_light = get_node_or_null("HitGlowLight")
+@onready var glow_mesh = get_node_or_null("GlowGeometry")
+
+func _process(delta: float) -> void:
+	if hit_glow:
+		_glow_timer += delta
+		var is_visible = int(_glow_timer * 10.0) % 2 == 0
+		if glow_light: glow_light.visible = is_visible
+		if glow_mesh: glow_mesh.visible = is_visible
+		# Optional: Turn off main geometry when glow is on to avoid Z-fighting
+		# if main_geometry: main_geometry.visible = !is_visible
+	else:
+		_glow_timer = 0.0
+		if glow_light: glow_light.visible = false
+		if glow_mesh: glow_mesh.visible = false
+		if main_geometry: main_geometry.visible = true
 
 func kill() -> void:
 	if not alive: return

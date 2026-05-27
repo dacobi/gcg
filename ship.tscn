@@ -33,6 +33,12 @@ albedo_texture = SubResource("NoiseTexture2D_ship")
 metallic = 0.8
 roughness = 0.3
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hit_glow"]
+albedo_color = Color(1, 0.5, 0, 1)
+emission_enabled = true
+emission = Color(1, 0.4, 0, 1)
+emission_energy_multiplier = 8.0
+
 [sub_resource type="BoxShape3D" id="BoxShape3D_ship"]
 size = Vector3(7, 3, 2)
 
@@ -66,6 +72,37 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, 0)
 size = Vector3(1, 1, 2)
 
 [node name="WingR" type="CSGBox3D" parent="Geometry"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 0)
+size = Vector3(1, 1, 2)
+
+[node name="HitGlowLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+visible = false
+light_color = Color(1, 0.6, 0, 1)
+light_energy = 5.0
+omni_range = 10.0
+
+[node name="GlowGeometry" type="CSGCombiner3D" parent="."]
+visible = false
+material_override = SubResource("StandardMaterial3D_hit_glow")
+
+[node name="Base" type="CSGBox3D" parent="GlowGeometry"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+size = Vector3(7, 2, 2)
+
+[node name="Top" type="CSGBox3D" parent="GlowGeometry"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+size = Vector3(3, 1, 2)
+
+[node name="Cannon" type="CSGBox3D" parent="GlowGeometry"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+size = Vector3(1, 1, 1)
+
+[node name="WingL" type="CSGBox3D" parent="GlowGeometry"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, 0)
+size = Vector3(1, 1, 2)
+
+[node name="WingR" type="CSGBox3D" parent="GlowGeometry"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 0)
 size = Vector3(1, 1, 2)
 
