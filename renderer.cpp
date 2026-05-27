@@ -181,7 +181,11 @@ bool Renderer::initPipelines() {
     SDL_ReleaseGPUShader(device, vs_3d);
     SDL_ReleaseGPUShader(device, fs_3d);
     
+#ifdef USE_USD
     return pipeline_base && pipeline_stencil && pipeline_trans && pipeline_3d;
+#else
+    return pipeline_base && pipeline_stencil && pipeline_trans;
+#endif
 }
 
 void Renderer::shutdown() {

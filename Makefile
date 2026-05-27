@@ -478,6 +478,30 @@ main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/main.cpp.s
 .PHONY : main.cpp.s
 
+object3d.o: object3d.cpp.o
+.PHONY : object3d.o
+
+# target to build an object file
+object3d.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/object3d.cpp.o
+.PHONY : object3d.cpp.o
+
+object3d.i: object3d.cpp.i
+.PHONY : object3d.i
+
+# target to preprocess a source file
+object3d.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/object3d.cpp.i
+.PHONY : object3d.cpp.i
+
+object3d.s: object3d.cpp.s
+.PHONY : object3d.s
+
+# target to generate assembly for a file
+object3d.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/object3d.cpp.s
+.PHONY : object3d.cpp.s
+
 renderer.o: renderer.cpp.o
 .PHONY : renderer.o
 
@@ -550,6 +574,54 @@ shplasma.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/shplasma.cpp.s
 .PHONY : shplasma.cpp.s
 
+usd_hydra_renderer.o: usd_hydra_renderer.cpp.o
+.PHONY : usd_hydra_renderer.o
+
+# target to build an object file
+usd_hydra_renderer.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/usd_hydra_renderer.cpp.o
+.PHONY : usd_hydra_renderer.cpp.o
+
+usd_hydra_renderer.i: usd_hydra_renderer.cpp.i
+.PHONY : usd_hydra_renderer.i
+
+# target to preprocess a source file
+usd_hydra_renderer.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/usd_hydra_renderer.cpp.i
+.PHONY : usd_hydra_renderer.cpp.i
+
+usd_hydra_renderer.s: usd_hydra_renderer.cpp.s
+.PHONY : usd_hydra_renderer.s
+
+# target to generate assembly for a file
+usd_hydra_renderer.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/usd_hydra_renderer.cpp.s
+.PHONY : usd_hydra_renderer.cpp.s
+
+usd_manager.o: usd_manager.cpp.o
+.PHONY : usd_manager.o
+
+# target to build an object file
+usd_manager.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/usd_manager.cpp.o
+.PHONY : usd_manager.cpp.o
+
+usd_manager.i: usd_manager.cpp.i
+.PHONY : usd_manager.i
+
+# target to preprocess a source file
+usd_manager.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/usd_manager.cpp.i
+.PHONY : usd_manager.cpp.i
+
+usd_manager.s: usd_manager.cpp.s
+.PHONY : usd_manager.s
+
+# target to generate assembly for a file
+usd_manager.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/usd_manager.cpp.s
+.PHONY : usd_manager.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -602,6 +674,9 @@ help:
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
+	@echo "... object3d.o"
+	@echo "... object3d.i"
+	@echo "... object3d.s"
 	@echo "... renderer.o"
 	@echo "... renderer.i"
 	@echo "... renderer.s"
@@ -611,6 +686,12 @@ help:
 	@echo "... shplasma.o"
 	@echo "... shplasma.i"
 	@echo "... shplasma.s"
+	@echo "... usd_hydra_renderer.o"
+	@echo "... usd_hydra_renderer.i"
+	@echo "... usd_hydra_renderer.s"
+	@echo "... usd_manager.o"
+	@echo "... usd_manager.i"
+	@echo "... usd_manager.s"
 .PHONY : help
 
 

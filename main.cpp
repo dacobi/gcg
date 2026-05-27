@@ -1657,6 +1657,7 @@ struct AppState {
     GodotManager* godot_manager = nullptr;
 
     bool show_imgui = true;
+    bool imgui_initialized = false;
 
     float time_acc = 0.0f;
     bool roll_palette = false;
@@ -2265,6 +2266,7 @@ static void print_help() {
     std::printf("  stopRecord(wait)           Stops recording (wait=1 to wait for max-time)\n");
     std::printf("  setRecordMax(seconds)      Sets auto-stop duration for recording\n");
     std::printf("  delay(ms)                  Pauses script for ms milliseconds\n");
+    std::printf("  delayKb(ms)                Pauses script for ms milliseconds or until key hit\n");
     std::printf("  appQuit()                  Closes the application\n");
     std::printf("  luaClearAndRun(file)       Deletes all bouncers and runs Lua script\n");
     std::printf("  imGuiHide()                Hides the ImGui overlay\n");
@@ -2303,7 +2305,12 @@ static void print_help() {
     std::printf("  godotAttachScript(path)    Attaches GDScript to selected node\n");
     std::printf("  godotSetProperty(name, v)  Sets property/variable on selected node\n");
     std::printf("  godotGetProperty(name)     Gets property/variable from selected node\n");
-    std::printf("  godotWatchProperty(node, prop, target, file) Runs file when prop == target\n\n");
+    std::printf("  godotWatchProperty(node, prop, target, file) Runs file when prop == target\n");
+    std::printf("  godotWatchSignal(sig, file) Runs file when signal is emitted\n");
+    std::printf("  godotIsHighScore(score)    Returns true if score is a high score\n");
+    std::printf("  godotAddHighScore(n,s,l)   Adds score to leaderboard\n");
+    std::printf("  godotLoadHighScore()       Reloads high scores from file\n");
+    std::printf("  godotSaveHighScore()       Saves high scores to file\n\n");
 
     std::printf("Supported Plasma Parameters (for setPlasmaParam):\n");
     std::printf("  drift_amp, drift_speed_x, drift_speed_y, rot_speed,\n");
@@ -2340,6 +2347,8 @@ static void print_help() {
     std::printf("  [layer:#]                  Rendering layer (0=Foreground, 1=Middle, 2=Background)\n");
     std::printf("  [hover:r,g,b,w]            Draw RGB frame of width W when hovered\n");
     std::printf("  [clicked:file.lua]         Run Lua script when clicked\n");
+    std::printf("  [hscore:size]              Display high score leaderboard\n");
+    std::printf("  [addhscore:size,s,l]       Display high score name entry field\n");
 }
 
 static void randomise_mandel_palette(CLMandelbrotParams& p) {
@@ -2560,7 +2569,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         std::printf("Failed to init Renderer\n");
         return SDL_APP_FAILURE;
     }
-    std::printf("Active Renderer: SDL3 GPU API\n");
 
     // --- Plasma texture ---
     state->plasma_w = cur_w / 2;
@@ -2663,6 +2671,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     init_info.ColorTargetFormat = SDL_GetGPUSwapchainTextureFormat(g_renderer->getDevice(), window);
     init_info.MSAASamples = SDL_GPU_SAMPLECOUNT_1;
     ImGui_ImplSDLGPU3_Init(&init_info);
+    state->imgui_initialized = true;
 
     if (state->cli_plasma_tile) plasma_render_tiles = true;
     if (state->cli_record_max > 0) {
@@ -4046,9 +4055,11 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         }
 #endif
 
-        ImGui_ImplSDLGPU3_Shutdown();
-        ImGui_ImplSDL3_Shutdown();
-        ImGui::DestroyContext();
+        if (state->imgui_initialized) {
+            ImGui_ImplSDLGPU3_Shutdown();
+            ImGui_ImplSDL3_Shutdown();
+            ImGui::DestroyContext();
+        }
         
         if (myMix) {
             delete myMix;
