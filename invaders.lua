@@ -137,9 +137,7 @@ function onLiveLost()
             --    godotSetProperty("livelost", false)
             --end
         end
-         --   godotWatchProperty("Ship", "livelost", true, "onLiveLost")
 
-            -- godotWatchProperty is NOT needed here, it was set up at the start!
             
             godotSelectRoot()
             if godotSearchNode("Invaders") then

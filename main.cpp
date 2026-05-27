@@ -1813,7 +1813,6 @@ public:
                 for (const auto& e : entries) current_data += e.name + std::to_string(e.score);
 
                 if (current_data != b.last_hs_data) {
-                    std::printf("Regenerating HS textures: Display=%d, Entry=%d, entries=%zu\n", b.isHighScoreDisplay, b.isHighScoreEntry, entries.size());
                     for (auto& et : b.extra_texs) SDL_ReleaseGPUTexture(g_renderer->getDevice(), et.tex);
                     b.extra_texs.clear();
                     
@@ -1832,19 +1831,28 @@ public:
                     int count = 0;
                     int entry_ptr = 0;
                     while (count < 10) {
-                        char buf[128];
+                        char rank_buf[16], name_buf[16], score_buf[16], level_buf[16];
                         if (count == insert_idx) {
                             std::string display = b.inputBuffer;
                             while (display.length() < 3) display += "-";
-                            std::snprintf(buf, sizeof(buf), "%d. %-3s  %06d  L%d", count+1, display.c_str(), b.pendingScore, b.pendingLevel);
-                            insert_idx = -2; // Done injecting
+                            std::snprintf(rank_buf, sizeof(rank_buf), "%d.", count+1);
+                            std::snprintf(name_buf, sizeof(name_buf), "%s", display.c_str());
+                            std::snprintf(score_buf, sizeof(score_buf), "%06d", b.pendingScore);
+                            std::snprintf(level_buf, sizeof(level_buf), "L%d", b.pendingLevel);
+                            insert_idx = -2;
                         } else {
                             if (entry_ptr >= (int)entries.size()) break;
-                            std::snprintf(buf, sizeof(buf), "%d. %-3s  %06d  L%d", count+1, entries[entry_ptr].name.c_str(), entries[entry_ptr].score, entries[entry_ptr].level);
+                            std::snprintf(rank_buf, sizeof(rank_buf), "%d.", count+1);
+                            std::snprintf(name_buf, sizeof(name_buf), "%s", entries[entry_ptr].name.c_str());
+                            std::snprintf(score_buf, sizeof(score_buf), "%06d", entries[entry_ptr].score);
+                            std::snprintf(level_buf, sizeof(level_buf), "L%d", entries[entry_ptr].level);
                             entry_ptr++;
                         }
-                        SDL_GPUTexture* row_tex = create_text_texture(g_renderer, buf, &w, &h, pt);
-                        if (row_tex) b.extra_texs.push_back({row_tex, w, h});
+                        const char* parts[] = {rank_buf, name_buf, score_buf, level_buf};
+                        for (auto p : parts) {
+                            SDL_GPUTexture* t = create_text_texture(g_renderer, p, &w, &h, pt);
+                            if (t) b.extra_texs.push_back({t, w, h});
+                        }
                         count++;
                     }
                     b.last_hs_data = current_data;
@@ -2096,26 +2104,29 @@ public:
                         SDL_FRect dst = { b.x, b.y, static_cast<float>(b.tw), static_cast<float>(b.th) };
 
             if (b.isHighScoreDisplay || b.isHighScoreEntry) {
-                                // Smokey background
+                // Smokey background
                 renderer->drawRect(dst, 20, 20, 30, 180);
                 
                 float curY = b.y + 10.0f;
-                for (size_t i = 0; i < b.extra_texs.size(); ++i) {
-                    const auto& ct = b.extra_texs[i];
-                    if (!ct.tex) continue;
-                    
-                    float sw = (float)ct.w;
-                    float sh = (float)ct.h;
-                    
-                    float curX = b.x + (b.tw/2.0f) - (sw/2.0f);
-                                        // If this is the input row, give it a subtle highlight
-                    if (b.isHighScoreEntry && i > 0) {
-                        // We need to know which row is the injected one. 
-                        // For simplicity, just check if the text contains dashes.
-                        // Actually, let's just draw all rows for now.
+                // Draw Header
+                if (!b.extra_texs.empty()) {
+                    const auto& ct = b.extra_texs[0];
+                    float sw = (float)ct.w; float sh = (float)ct.h;
+                    renderer->drawBouncer(ct.tex, {b.x + (b.tw/2.0f) - (sw/2.0f), curY, sw, sh}, 0, 255, 255, 255);
+                    curY += sh * 1.5f;
+                }
+                
+                // Column offsets - tightened by factor of ~5
+                float offsets[] = {15.0f, 50.0f, 110.0f, 210.0f};
+                for (size_t i = 1; i < b.extra_texs.size(); i += 4) {
+                    float rowH = 0;
+                    for (int j = 0; j < 4 && (i+j) < b.extra_texs.size(); ++j) {
+                        const auto& ct = b.extra_texs[i+j];
+                        float sw = (float)ct.w; float sh = (float)ct.h;
+                        renderer->drawBouncer(ct.tex, {b.x + offsets[j], curY, sw, sh}, 255, 255, 255, 255);
+                        rowH = std::max(rowH, sh);
                     }
-                    renderer->drawBouncer(ct.tex, {curX, curY, sw, sh}, (i==0 ? 0 : 255), 255, (i==0 ? 255 : 255), 255);
-                    curY += (i == 0) ? sh * 1.5f : sh * 1.1f;
+                    curY += rowH * 1.1f;
                 }
             } else {
                 renderer->drawBouncer(b.tex, dst, b.r, b.g, b.b, 255, b.stencil_tex, b.bTransparent);
