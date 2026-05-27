@@ -29,7 +29,9 @@ public:
     void drawBouncer(SDL_GPUTexture* tex, const SDL_FRect& dst, Uint8 r, Uint8 g, Uint8 b, Uint8 a, SDL_GPUTexture* stencil_tex = nullptr, bool transparent = false);
 
     // 3D drawing
+#ifdef USE_USD
     void drawObject3D(class Object3D* obj, const struct Light3D& light, const float* viewMatrix, const float* projMatrix);
+#endif
 
     // Background drawing
     void drawBackground(SDL_GPUTexture* tex);

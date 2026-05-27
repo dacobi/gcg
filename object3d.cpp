@@ -1,4 +1,7 @@
 #include "object3d.h"
+
+#ifdef USE_USD
+
 #include <cstring>
 
 Object3D::Object3D() {
@@ -112,3 +115,4 @@ void Object3D::destroy(SDL_GPUDevice* device) {
     }
     indexCount = 0;
 }
+#endif

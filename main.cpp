@@ -46,14 +46,18 @@
 #include "godot_renderer.h"
 #include "high_score_manager.h"
 
+#ifdef USE_USD
 #include "usd_manager.h"
 #include "usd_hydra_renderer.h"
-#include "object3d.h"
-#include "core/variant/variant.h"
 #include <pxr/base/gf/rotation.h>
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/camera.h>
+#endif
+#ifdef USE_USD
+#include "object3d.h"
+#endif
+#include "core/variant/variant.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -74,6 +78,7 @@ const int MIXER_SAMPLE_RATE = 48000;
 
 // --- 1. Audio Mixer Class ---
 
+#ifdef USE_USD
 static void renderUSDTree(UsdPrim prim, USDHydraRenderer* renderer) {
     if (!prim) return;
 
@@ -107,6 +112,7 @@ static void renderUSDTree(UsdPrim prim, USDHydraRenderer* renderer) {
         ImGui::TreePop();
     }
 }
+#endif
 
 class AudioMixer {
 
@@ -1451,7 +1457,9 @@ struct Bouncer {
     MediaDecoder* decoder = nullptr;
     PlasmaShader* plasma = nullptr;
     MandelbrotOpenCL* mandel = nullptr;
+#ifdef USE_USD
     USDHydraRenderer* usd_renderer = nullptr;
+#endif
     GodotRenderer* godot_renderer = nullptr;
     float ttl_remaining_ms = -1.0f;
     int layer = 1;
@@ -1483,7 +1491,9 @@ static PlasmaShader* myPlasma = nullptr;
 static MandelbrotOpenCL* myMandel = nullptr;
 static bool bUsePlasma = true;
 static bool bUseMandel = false;
+#ifdef USE_USD
 static bool bUseUSD = false;
+#endif
 static bool bUseGodot = false;
 
 static SDL_GPUTexture* create_png_texture(Renderer* renderer,
@@ -1594,7 +1604,9 @@ struct AppState {
     std::string cli_audio_path;
     int cli_bg_plasma_idx = -1;
     int cli_bg_fractal_idx = -1;
+#ifdef USE_USD
     std::string cli_bg_usd_path;
+#endif
     std::string cli_bg_tscn_path;
     int cli_record_max = -1;
     bool cli_geekd = false;
@@ -1605,9 +1617,11 @@ struct AppState {
 
     PlasmaShader* selected_plasma = nullptr;
     MandelbrotOpenCL* selected_mandel = nullptr;
+#ifdef USE_USD
     USDHydraRenderer* selected_usd = nullptr;
-    GodotRenderer* selected_godot = nullptr;
     float usd_tree_height = 300.0f;
+#endif
+    GodotRenderer* selected_godot = nullptr;
 
     std::vector<std::unique_ptr<class BDdisplay>> mBdisplay;
 
@@ -1615,7 +1629,9 @@ struct AppState {
 
     SDL_GPUTexture* plasma_tex = nullptr;
     SDL_GPUTexture* mandel_tex = nullptr;
+#ifdef USE_USD
     USDHydraRenderer* bg_usd = nullptr;
+#endif
     GodotRenderer* bg_godot = nullptr;
     std::unique_ptr<MediaDecoder> bg_video;
     std::unique_ptr<AudioDecoder> loop_audio;
@@ -1633,8 +1649,10 @@ struct AppState {
     int plasma_w, plasma_h;
     int prev_win_w, prev_win_h;
 
+#ifdef USE_USD
     class USDManager* usdManager = nullptr;
     std::vector<class Object3D*> usdObjects;
+#endif
 
     GodotManager* godot_manager = nullptr;
 
@@ -1717,7 +1735,9 @@ public:
             if (b.decoder) delete b.decoder;
             if (b.plasma) delete b.plasma;
             if (b.mandel) delete b.mandel;
+#ifdef USE_USD
             if (b.usd_renderer) delete b.usd_renderer;
+#endif
             if (b.godot_renderer) delete b.godot_renderer;
             if (b.tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), b.tex);
             if (b.stencil_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), b.stencil_tex);
@@ -1757,13 +1777,17 @@ public:
                     // Cleanup resources
                     if (it->plasma == state->selected_plasma) state->selected_plasma = myPlasma;
                     if (it->mandel == state->selected_mandel) state->selected_mandel = myMandel;
+#ifdef USE_USD
                     if (it->usd_renderer == state->selected_usd) state->selected_usd = nullptr;
+#endif
                     if (it->godot_renderer == state->selected_godot) state->selected_godot = nullptr;
 
                     if (it->decoder) delete it->decoder;
                     if (it->plasma) delete it->plasma;
                     if (it->mandel) delete it->mandel;
+#ifdef USE_USD
                     if (it->usd_renderer) delete it->usd_renderer;
+#endif
                     if (it->godot_renderer) delete it->godot_renderer;
                     if (it->tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), it->tex);
                     if (it->stencil_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), it->stencil_tex);
@@ -1807,12 +1831,14 @@ public:
             if (b.mandel && b.tex) {
                 b.mandel->updateTexture(g_renderer, b.tex);
             }
-            if (b.usd_renderer && b.tex) {
-                std::vector<uint8_t> pixels(b.tw * b.th * 4);
-                b.usd_renderer->render(pixels.data());
-                g_renderer->updateTexture(b.tex, b.tw, b.th, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, pixels.data(), b.tw * 4);
-            }
-            if (b.godot_renderer && b.tex) {
+            #ifdef USE_USD
+                        if (b.usd_renderer && b.tex) {
+                            std::vector<uint8_t> pixels(b.tw * b.th * 4);
+                            b.usd_renderer->render(pixels.data());
+                            g_renderer->updateTexture(b.tex, b.tw, b.th, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, pixels.data(), b.tw * 4);
+                        }
+            #endif
+                        if (b.godot_renderer && b.tex) {
                 std::vector<uint8_t> pixels(b.tw * b.th * 4);
                 b.godot_renderer->render(pixels.data());
                 g_renderer->updateTexture(b.tex, b.tw, b.th, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, pixels.data(), b.tw * 4);
@@ -1974,6 +2000,7 @@ public:
                 newB.mandel = nullptr;
                 return false;
             }
+#ifdef USE_USD
         } else if (pd.bIsFile == 6 || pd.bIsFile == 7) { // USD or Transparent USD
             newB.tw = (pd.over_w > 0) ? pd.over_w : 512;
             newB.th = (pd.over_h > 0) ? pd.over_h : 512;
@@ -1988,6 +2015,7 @@ public:
                 newB.usd_renderer = nullptr;
                 return false;
             }
+#endif
         } else if (pd.bIsFile == 8 || pd.bIsFile == 9) { // Godot tscn or ttscn
             newB.tw = (pd.over_w > 0) ? pd.over_w : 512;
             newB.th = (pd.over_h > 0) ? pd.over_h : 512;
@@ -2220,11 +2248,15 @@ static void print_help() {
     std::printf("  setBG(path_or_tag)         Sets background to file, [plasma:#], [fractal:#], or [tscn:FILE]\n");
     std::printf("  selectPlasma(index)        Selects plasma instance (-1=BG, 0+=bouncer)\n");
     std::printf("  selectFractal(index)       Selects fractal instance (-1=BG, 0+=bouncer)\n");
+#ifdef USE_USD
     std::printf("  selectUSD(index)           Selects USD instance (0+=bouncer)\n");
+#endif
     std::printf("  selectGodot(index)         Selects Godot instance (-1=BG, 0+=bouncer)\n");
     std::printf("  setPlasmaParam(name, val)  Sets parameter on selected plasma\n");
     std::printf("  setFractalParam(name, val) Sets parameter on selected fractal\n");
+#ifdef USE_USD
     std::printf("  setUSDParam(name, val)     Sets parameter on selected USD\n");
+#endif
     std::printf("  randomizePlasmaPalette()   Randomizes selected plasma colors\n");
     std::printf("  randomizePlasmaXY()        Randomizes selected plasma motion/scale\n");
     std::printf("  randomizeFractalPalette()  Randomizes selected fractal colors\n");
@@ -2284,8 +2316,10 @@ static void print_help() {
     std::printf("  palette_phase_r, palette_phase_g, palette_phase_b,\n");
     std::printf("  transparency (bands), roll_palette, roll_speed\n\n");
 
+#ifdef USE_USD
     std::printf("Supported USD Parameters (for setUSDParam):\n");
     std::printf("  rot_x, rot_y, rot_z, dist, camera (-1=Free Cam)\n\n");
+#endif
 
     std::printf("Overlay Tag Syntax:\n");
     std::printf("  [pos:x,y,vx,vy]            Position and velocity\n");
@@ -2296,8 +2330,10 @@ static void print_help() {
     std::printf("  [tvid:file,no_audio]       Render video with transparency (optional no_audio=1)\n");
     std::printf("  [plasma:idx]               Render plasma #\n");
     std::printf("  [fractal:idx]              Render fractal #\n");
+#ifdef USE_USD
     std::printf("  [usd:file.usd]             Render USD file using Hydra\n");
     std::printf("  [tusd:file.usd]            Render USD file with transparent background\n");
+#endif
     std::printf("  [stencil:file.png]         Apply alpha mask\n");
     std::printf("  [ttl:ms]                   Self-destruct timer\n");
     std::printf("  [phys:vx,vy,sx,sy,m,b]     Advanced physics and spawn point\n");
@@ -2426,32 +2462,42 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                     state->cli_bg_fractal_idx = safe_stoi(idx_str, -1);
                     bUseMandel = true;
                     bUsePlasma = false;
+#ifdef USE_USD
                     bUseUSD = false;
+#endif
                     bUseGodot = false;
                 } catch (...) {
                     state->cli_bg_path = arg;
                     bUsePlasma = false;
                     bUseMandel = false;
+#ifdef USE_USD
                     bUseUSD = false;
+#endif
                     bUseGodot = false;
                 }
+#ifdef USE_USD
             } else if (arg.size() > 5 && arg.substr(0, 5) == "[usd:" && arg.back() == ']') {
                 state->cli_bg_usd_path = arg.substr(5, arg.size() - 6);
                 bUseUSD = true;
                 bUsePlasma = false;
                 bUseMandel = false;
                 bUseGodot = false;
+#endif
             } else if (arg.size() > 6 && arg.substr(0, 6) == "[tscn:" && arg.back() == ']') {
                 state->cli_bg_tscn_path = arg.substr(6, arg.size() - 7);
                 bUseGodot = true;
                 bUsePlasma = false;
                 bUseMandel = false;
+#ifdef USE_USD
                 bUseUSD = false;
+#endif
             } else {
                 state->cli_bg_path = arg;
                 bUsePlasma = false;
                 bUseMandel = false;
+#ifdef USE_USD
                 bUseUSD = false;
+#endif
                 bUseGodot = false;
             }
         } else if (std::strcmp(argv[i], "--record-max") == 0 && i + 1 < argc) {
@@ -2527,6 +2573,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         SDL_Log("Creating Mandelbrot texture...");
         state->mandel_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
     }
+#ifdef USE_USD
     if (bUseUSD) {
         SDL_Log("Creating USD Background...");
         state->bg_usd = new USDHydraRenderer(cur_w, cur_h);
@@ -2540,6 +2587,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         }
         state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
     }
+#endif
     if (bUseGodot) {
         SDL_Log("Creating Godot Background...");
         state->bg_godot = new GodotRenderer(cur_w, cur_h);
@@ -2707,17 +2755,19 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             []() {
                 return (myNvec != nullptr);
             },
+#ifdef USE_USD
             [state](int index, std::shared_ptr<LuaSyncData> sync_data) {
                std::lock_guard<std::mutex> lock(state->lua_mutex);
                state->lua_commands.push({AppState::LuaCommand::SELECT_USD, "", index, 0.0, {0,0,0}, sync_data});
             },
-            [state](int index, std::shared_ptr<LuaSyncData> sync_data) {
-               std::lock_guard<std::mutex> lock(state->lua_mutex);
-               state->lua_commands.push({AppState::LuaCommand::SELECT_GODOT, "", index, 0.0, {0,0,0}, sync_data});
-            },
             [state](const std::string& name, double value) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({AppState::LuaCommand::SET_USD_PARAM, name, 0, value});
+            },
+#endif
+            [state](int index, std::shared_ptr<LuaSyncData> sync_data) {
+               std::lock_guard<std::mutex> lock(state->lua_mutex);
+               state->lua_commands.push({AppState::LuaCommand::SELECT_GODOT, "", index, 0.0, {0,0,0}, sync_data});
             },
             [state](LuaScripting::GodotCmd gcmd, const std::string& str_arg, float f_args[3], std::shared_ptr<LuaSyncData> sync_data, LuaScripting* owner) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
@@ -2900,11 +2950,13 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
                 myPlasma->resize(state->plasma_w, state->plasma_h);
                 myPlasma->setArgs(plasma_params);
             }
+#ifdef USE_USD
             if (bUseUSD && state->bg_usd) {
                 state->bg_usd->resize(cur_w, cur_h);
                 if (state->bg_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->bg_tex);
                 state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
             }
+#endif
             if (bUseGodot && state->bg_godot) {
                 state->bg_godot->resize(cur_w, cur_h);
                 if (state->bg_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->bg_tex);
@@ -2953,7 +3005,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     for (auto& b : state->mBdisplay[cmd.index]->bouncers) {
                         if (state->selected_plasma == b.plasma) state->selected_plasma = myPlasma;
                         if (state->selected_mandel == b.mandel) state->selected_mandel = myMandel;
+#ifdef USE_USD
                         if (state->selected_usd == b.usd_renderer) state->selected_usd = nullptr;
+#endif
                         if (state->selected_godot == b.godot_renderer) state->selected_godot = nullptr;
                     }
                     state->mBdisplay.erase(state->mBdisplay.begin() + cmd.index);
@@ -2966,10 +3020,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 state->bg_video.reset();
                 if (state->plasma_tex) { SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->plasma_tex); state->plasma_tex = nullptr; }
                 if (state->mandel_tex) { SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->mandel_tex); state->mandel_tex = nullptr; }
+#ifdef USE_USD
                 if (state->bg_usd) {
                     if (state->selected_usd == state->bg_usd) state->selected_usd = nullptr;
                     delete state->bg_usd; state->bg_usd = nullptr; bUseUSD = false;
                 }
+#endif
                 if (state->bg_godot) {
                     if (state->selected_godot == state->bg_godot) state->selected_godot = nullptr;
                     delete state->bg_godot; state->bg_godot = nullptr; bUseGodot = false;
@@ -2983,7 +3039,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     delete myMandel; myMandel = nullptr; bUseMandel = false; 
                 }
                 state->cli_bg_path = "";
+#ifdef USE_USD
                 state->cli_bg_usd_path = "";
+#endif
                 state->cli_bg_tscn_path = "";
 
                 if (arg.size() > 8 && arg.substr(0, 8) == "[plasma:" && arg.back() == ']') {
@@ -2998,9 +3056,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         state->cli_bg_fractal_idx = safe_stoi(idx_str, -1);
                         bUseMandel = true;
                     } catch (...) {}
+#ifdef USE_USD
                 } else if (arg.size() > 5 && arg.substr(0, 5) == "[usd:" && arg.back() == ']') {
                     state->cli_bg_usd_path = arg.substr(5, arg.size() - 6);
                     bUseUSD = true;
+#endif
                 } else if (arg.size() > 6 && arg.substr(0, 6) == "[tscn:" && arg.back() == ']') {
                     state->cli_bg_tscn_path = arg.substr(6, arg.size() - 7);
                     bUseGodot = true;
@@ -3024,6 +3084,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     }
                     state->mandel_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM);
                 }
+#ifdef USE_USD
                 if (bUseUSD) {
                     state->bg_usd = new USDHydraRenderer(cur_w, cur_h);
                     if (state->bg_usd->init(state->cli_bg_usd_path)) {
@@ -3033,6 +3094,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     }
                     state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
                 }
+#endif
                 if (bUseGodot) {
                     state->bg_godot = new GodotRenderer(cur_w, cur_h);
                     if (state->bg_godot->init(state->cli_bg_tscn_path)) {
@@ -3101,6 +3163,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     cmd.sync->done = true;
                     cmd.sync->cv.notify_one();
                 }
+#ifdef USE_USD
             } else if (cmd.type == AppState::LuaCommand::SELECT_USD) {
                 if (cmd.index == -1) {
                     state->selected_usd = state->bg_usd;
@@ -3121,6 +3184,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     cmd.sync->done = true;
                     cmd.sync->cv.notify_one();
                 }
+#endif
             } else if (cmd.type == AppState::LuaCommand::SELECT_GODOT) {
                 if (cmd.index == -1) {
                     state->selected_godot = state->bg_godot;
@@ -3266,6 +3330,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     cmd.sync->done = true;
                     cmd.sync->cv.notify_one();
                 }
+#ifdef USE_USD
             } else if (cmd.type == AppState::LuaCommand::SET_USD_PARAM) {
                 if (state->selected_usd) {
                     if (cmd.syntax == "rot_x") state->selected_usd->sceneRotation[0] = (float)cmd.value;
@@ -3274,6 +3339,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     else if (cmd.syntax == "dist") state->selected_usd->cameraDistance = (float)cmd.value;
                     else if (cmd.syntax == "camera") state->selected_usd->setCameraByIndex((int)cmd.value);
                 }
+#endif
             } else if (cmd.type == AppState::LuaCommand::SET_PLASMA_PARAM) {
                 if (state->selected_plasma) {
                     CLPlasmaParams p = state->selected_plasma->getArgs();
@@ -3425,7 +3491,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 for (auto& b : state->mBdisplay[del_text_idx]->bouncers) {
                     if (state->selected_plasma == b.plasma) state->selected_plasma = myPlasma;
                     if (state->selected_mandel == b.mandel) state->selected_mandel = myMandel;
+#ifdef USE_USD
                     if (state->selected_usd == b.usd_renderer) state->selected_usd = nullptr;
+#endif
                     if (state->selected_godot == b.godot_renderer) state->selected_godot = nullptr;
                 }
                 state->mBdisplay.erase(state->mBdisplay.begin() + del_text_idx);
@@ -3612,6 +3680,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             }
             ImGui::EndMenu();
         }
+#ifdef USE_USD
         if (ImGui::BeginMenu("USD")) {
             if (ImGui::BeginMenu("Select USD Bouncer")) {
                 if (state->bg_usd) {
@@ -3661,6 +3730,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             }
             ImGui::EndMenu();
         }
+#endif
         if (ImGui::BeginMenu("Godot")) {
             if (ImGui::BeginMenu("Select Godot Bouncer")) {
                 if (state->bg_godot) {
@@ -3837,7 +3907,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         // Reset selections
         state->selected_plasma = myPlasma;
         state->selected_mandel = myMandel;
+#ifdef USE_USD
         state->selected_usd = nullptr;
+#endif
         state->selected_godot = nullptr;
         
         state->mBdisplay.clear();
@@ -3868,11 +3940,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     if (bUseMandel) {
         myMandel->updateTexture(g_renderer, state->mandel_tex);
     }
+#ifdef USE_USD
     if (bUseUSD && state->bg_usd && state->bg_tex) {
         std::vector<uint8_t> pixels(cur_w * cur_h * 4);
         state->bg_usd->render(pixels.data());
         g_renderer->updateTexture(state->bg_tex, cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, pixels.data(), cur_w * 4);
     }
+#endif
     if (bUseGodot && state->bg_godot && state->bg_tex) {
         std::vector<uint8_t> pixels(cur_w * cur_h * 4);
         state->bg_godot->render(pixels.data());
@@ -3940,7 +4014,9 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         recorder_stop(state->recorder);
         if (bUsePlasma && myPlasma) { /* myPlasma->stop(); */ }
         if (bUseMandel && myMandel) myMandel->stop();
+#ifdef USE_USD
         if (state->bg_usd) delete state->bg_usd;
+#endif
         if (state->bg_godot) delete state->bg_godot;
         if (state->bg_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), state->bg_tex);
         for (auto* et : state->extra_textures) SDL_ReleaseGPUTexture(g_renderer->getDevice(), et);
@@ -3958,6 +4034,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
             state->godot_manager = nullptr;
         }
 
+#ifdef USE_USD
         for (auto obj : state->usdObjects) {
             obj->destroy(g_renderer->getDevice());
             delete obj;
@@ -3967,6 +4044,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
             delete state->usdManager;
             state->usdManager = nullptr;
         }
+#endif
 
         ImGui_ImplSDLGPU3_Shutdown();
         ImGui_ImplSDL3_Shutdown();

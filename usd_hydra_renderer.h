@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef USE_USD
+
 #include <string>
 #include <memory>
 #include <vector>
@@ -49,3 +51,5 @@ private:
     UsdStageRefPtr stage;
     SdfPath activeCameraPath;
 };
+
+#endif

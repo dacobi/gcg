@@ -126,6 +126,7 @@ bool Renderer::initPipelines() {
     if (!pipeline_trans) std::printf("Failed to create pipeline_trans: %s\n", SDL_GetError());
 
     // 3D Pipeline
+#ifdef USE_USD
     SDL_GPUGraphicsPipelineCreateInfo pipeline_3d_info = {};
     pipeline_3d_info.vertex_shader = vs_3d;
     pipeline_3d_info.fragment_shader = fs_3d;
@@ -169,6 +170,7 @@ bool Renderer::initPipelines() {
 
     pipeline_3d = SDL_CreateGPUGraphicsPipeline(device, &pipeline_3d_info);
     if (!pipeline_3d) std::printf("Failed to create pipeline_3d: %s\n", SDL_GetError());
+#endif
     
     delete[] pipeline_info.target_info.color_target_descriptions;
     
@@ -537,6 +539,7 @@ static void make_ortho(float* m, float left, float right, float bottom, float to
     m[3] = 0.0f; m[7] = 0.0f; m[11] = 0.0f; m[15] = 1.0f;
 }
 
+#ifdef USE_USD
 void Renderer::drawObject3D(Object3D* obj, const Light3D& light, const float* viewMatrix, const float* projMatrix) {
     if (!current_render_pass || !obj || !obj->vertexBuffer || !obj->indexBuffer) return;
 
@@ -573,6 +576,7 @@ void Renderer::drawObject3D(Object3D* obj, const Light3D& light, const float* vi
     
     SDL_DrawGPUIndexedPrimitives(current_render_pass, obj->indexCount, 1, 0, 0, 0);
 }
+#endif
 
 void Renderer::drawBackground(SDL_GPUTexture* tex) {
     if (!current_render_pass || !tex) return;

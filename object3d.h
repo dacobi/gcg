@@ -2,8 +2,6 @@
 
 #include <SDL3/SDL.h>
 #include <vector>
-#include <pxr/base/gf/vec3f.h>
-#include <pxr/base/gf/matrix4f.h>
 
 struct Light3D {
     float position[3];
@@ -17,6 +15,11 @@ struct Vertex3D {
     float normal[3];
     float uv[2];
 };
+
+#ifdef USE_USD
+
+#include <pxr/base/gf/vec3f.h>
+#include <pxr/base/gf/matrix4f.h>
 
 class Object3D {
 public:
@@ -39,3 +42,5 @@ public:
     
     pxr::GfMatrix4f modelMatrix;
 };
+
+#endif

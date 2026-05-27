@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef USE_USD
+
 #include <string>
 #include <vector>
 
@@ -28,3 +30,5 @@ public:
 private:
     UsdStageRefPtr stage;
 };
+
+#endif

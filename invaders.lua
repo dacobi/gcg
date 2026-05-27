@@ -56,6 +56,14 @@ local inLiveLost = false
 function onLiveLost()
     if inLiveLost then return end
     inLiveLost = true
+    local livesleft = 3
+    
+    godotSelectRoot()
+    if godotSearchNode("Ship") then
+        livesleft = godotGetProperty("lives")        
+        print("livesleft: ",livesleft)
+    end
+    
     print("***************************")
     print("*        HITMAN!          *")
     print("***************************")
@@ -81,15 +89,15 @@ function onLiveLost()
         godotCreateNode("Projectiles")
     end
 
-    godotSelectRoot()
-    if godotSearchNode("Ship") then
-        godotSetProperty("hit_glow", true)
-        local livesleft = godotGetProperty("lives")
-        print("livesleft: ",livesleft)
+        godotSelectRoot()
+        if godotSearchNode("Ship") then
+            godotSetProperty("hit_glow", true)
+        end    
+        
         for i = 1,7 do
             godotSelectRoot()
             if godotSearchNode("Ship") then
-                godotSetVisible(true)
+                -- godotSetVisible(true)
                 godotSetScale(1.2, 1.2, 1.2)
             end
             delay(40)
@@ -100,7 +108,7 @@ function onLiveLost()
             delay(40)
             godotSelectRoot()
             if godotSearchNode("Ship") then
-                godotSetVisible(false)
+                -- godotSetVisible(false)
             end
             delay(40)
         end
@@ -143,7 +151,7 @@ function onLiveLost()
             --if godotSearchNode("Ship") then
             --    godotSetProperty("livelost", false)
             --end
-        end
+        
 
             
             godotSelectRoot()

@@ -63,9 +63,13 @@ public:
     using SetAudioFunc = std::function<void(const std::string&)>;
     using RecordFunc = std::function<void(int type, const std::string& path, int val)>;
     using IsRecordingFunc = std::function<bool()>;
+#ifdef USE_USD
     using SelectUSDFunc = std::function<void(int index, std::shared_ptr<LuaSyncData> sync_data)>;
+#endif
     using SelectGodotFunc = std::function<void(int index, std::shared_ptr<LuaSyncData> sync_data)>;
+#ifdef USE_USD
     using SetUSDParamFunc = std::function<void(const std::string& name, double value)>;
+#endif
     using GodotCmdFunc = std::function<void(GodotCmd cmd, const std::string& str_arg, float f_args[3], std::shared_ptr<LuaSyncData> sync_data, LuaScripting* owner)>;
     using QuitFunc = std::function<void(std::shared_ptr<LuaSyncData> sync_data)>;
     using SetImGuiVisibleFunc = std::function<void(bool visible)>;
@@ -80,7 +84,11 @@ public:
     using LoadHighScoreFunc = std::function<void()>;
     using SaveHighScoreFunc = std::function<void()>;
 
-    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetGlobalIntFunc setGlobalIntFunc, GetGlobalIntFunc getGlobalIntFunc, RegGlobalIntFunc regGlobalIntFunc, UnregGlobalIntFunc unregGlobalIntFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc);
+    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, 
+#ifdef USE_USD
+        SelectUSDFunc selectUSDFunc, SetUSDParamFunc setUSDParamFunc, 
+#endif
+        SelectGodotFunc selectGodotFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetGlobalIntFunc setGlobalIntFunc, GetGlobalIntFunc getGlobalIntFunc, RegGlobalIntFunc regGlobalIntFunc, UnregGlobalIntFunc unregGlobalIntFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
@@ -95,11 +103,15 @@ private:
     static int lua_setBG(lua_State* L);
     static int lua_selectPlasma(lua_State* L);
     static int lua_selectFractal(lua_State* L);
+#ifdef USE_USD
     static int lua_selectUSD(lua_State* L);
+#endif
     static int lua_selectGodot(lua_State* L);
     static int lua_setPlasmaParam(lua_State* L);
     static int lua_setFractalParam(lua_State* L);
+#ifdef USE_USD
     static int lua_setUSDParam(lua_State* L);
+#endif
     static int lua_randomizePlasmaPalette(lua_State* L);
     static int lua_randomizePlasmaXY(lua_State* L);
     static int lua_randomizeFractalPalette(lua_State* L);
@@ -189,9 +201,11 @@ private:
     SetAudioFunc setAudioFunc;
     RecordFunc recordFunc;
     IsRecordingFunc isRecFunc;
+#ifdef USE_USD
     SelectUSDFunc selectUSDFunc;
-    SelectGodotFunc selectGodotFunc;
     SetUSDParamFunc setUSDParamFunc;
+#endif
+    SelectGodotFunc selectGodotFunc;
     GodotCmdFunc godotCmdFunc;
     QuitFunc quitFunc;
     SetImGuiVisibleFunc setImGuiVisibleFunc;

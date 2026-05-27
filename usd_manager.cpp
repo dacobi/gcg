@@ -1,4 +1,7 @@
 #include "usd_manager.h"
+
+#ifdef USE_USD
+
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/primvarsAPI.h>
 #include <pxr/base/gf/vec2f.h>
@@ -74,3 +77,5 @@ std::vector<USDMeshData> USDManager::extractMeshes() {
     
     return meshesData;
 }
+
+#endif

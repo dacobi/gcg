@@ -1,4 +1,7 @@
 #include "usd_hydra_renderer.h"
+
+#ifdef USE_USD
+
 #include <iostream>
 #include <SDL3/SDL_vulkan.h>
 #include <pxr/usd/usd/prim.h>
@@ -193,3 +196,5 @@ void USDHydraRenderer::setCameraByIndex(int index) {
         }
     }
 }
+
+#endif

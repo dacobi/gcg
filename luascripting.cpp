@@ -6,8 +6,16 @@
 
 LuaScripting* LuaScripting::instance = nullptr;
 
-LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetGlobalIntFunc setGlobalIntFunc, GetGlobalIntFunc getGlobalIntFunc, RegGlobalIntFunc regGlobalIntFunc, UnregGlobalIntFunc unregGlobalIntFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc)
-    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc), selectUSDFunc(selectUSDFunc), selectGodotFunc(selectGodotFunc), setUSDParamFunc(setUSDParamFunc), godotCmdFunc(godotFunc), quitFunc(quitFunc), setImGuiVisibleFunc(setImGuiVisibleFunc), clearAndRunFunc(clearAndRunFunc), setMouseCaptureFunc(setMouseCaptureFunc), setGlobalIntFunc(setGlobalIntFunc), getGlobalIntFunc(getGlobalIntFunc), regGlobalIntFunc(regGlobalIntFunc), unregGlobalIntFunc(unregGlobalIntFunc), checkHighScoreFunc(checkHSFunc), addHighScoreFunc(addHSFunc), loadHighScoreFunc(loadHSFunc), saveHighScoreFunc(saveHSFunc) {
+LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, 
+#ifdef USE_USD
+    SelectUSDFunc selectUSDFunc, SetUSDParamFunc setUSDParamFunc, 
+#endif
+    SelectGodotFunc selectGodotFunc, GodotCmdFunc godotFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetGlobalIntFunc setGlobalIntFunc, GetGlobalIntFunc getGlobalIntFunc, RegGlobalIntFunc regGlobalIntFunc, UnregGlobalIntFunc unregGlobalIntFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc)
+    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc), 
+#ifdef USE_USD
+    selectUSDFunc(selectUSDFunc), setUSDParamFunc(setUSDParamFunc), 
+#endif
+    selectGodotFunc(selectGodotFunc), godotCmdFunc(godotFunc), quitFunc(quitFunc), setImGuiVisibleFunc(setImGuiVisibleFunc), clearAndRunFunc(clearAndRunFunc), setMouseCaptureFunc(setMouseCaptureFunc), setGlobalIntFunc(setGlobalIntFunc), getGlobalIntFunc(getGlobalIntFunc), regGlobalIntFunc(regGlobalIntFunc), unregGlobalIntFunc(unregGlobalIntFunc), checkHighScoreFunc(checkHSFunc), addHighScoreFunc(addHSFunc), loadHighScoreFunc(loadHSFunc), saveHighScoreFunc(saveHSFunc) {
     instance = this;
     systemRunning = true;
 }
@@ -110,11 +118,15 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("setBG", lua_setBG);
     reg("selectPlasma", lua_selectPlasma);
     reg("selectFractal", lua_selectFractal);
+#ifdef USE_USD
     reg("selectUSD", lua_selectUSD);
+#endif
     reg("selectGodot", lua_selectGodot);
     reg("setPlasmaParam", lua_setPlasmaParam);
     reg("setFractalParam", lua_setFractalParam);
+#ifdef USE_USD
     reg("setUSDParam", lua_setUSDParam);
+#endif
     reg("randomizePlasmaPalette", lua_randomizePlasmaPalette);
     reg("randomizePlasmaXY", lua_randomizePlasmaXY);
     reg("randomizeFractalPalette", lua_randomizeFractalPalette);
@@ -367,6 +379,7 @@ int LuaScripting::lua_selectFractal(lua_State* L) {
     return 0;
 }
 
+#ifdef USE_USD
 int LuaScripting::lua_selectUSD(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (lua_isinteger(L, 1)) {
@@ -382,6 +395,7 @@ int LuaScripting::lua_selectUSD(lua_State* L) {
     }
     return 0;
 }
+#endif
 
 int LuaScripting::lua_selectGodot(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
@@ -423,6 +437,7 @@ int LuaScripting::lua_setFractalParam(lua_State* L) {
     return 0;
 }
 
+#ifdef USE_USD
 int LuaScripting::lua_setUSDParam(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (lua_isstring(L, 1) && lua_isnumber(L, 2)) {
@@ -434,6 +449,7 @@ int LuaScripting::lua_setUSDParam(lua_State* L) {
     }
     return 0;
 }
+#endif
 
 int LuaScripting::lua_randomizePlasmaPalette(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
