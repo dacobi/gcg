@@ -17,6 +17,8 @@ public:
 
     // Lua API - These consume "Hit/Released/Moved" state
     bool lua_isKeyHit(SDL_Keycode key);
+    bool lua_hasAnyKeyHit();
+    bool isTextInputActive();
     bool lua_isKeyDown(SDL_Keycode key);
     bool lua_isKeyUp(SDL_Keycode key);
 

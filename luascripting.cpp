@@ -123,6 +123,7 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("stopRecord", lua_stopRecord);
     reg("setRecordMax", lua_setRecordMax);
     reg("delay", lua_delay);
+    reg("delayKb", lua_delayKb);
     reg("appQuit", lua_appQuit);
     reg("luaClearAndRun", lua_luaClearAndRun);
     reg("imGuiHide", lua_imGuiHide);
@@ -496,6 +497,30 @@ int LuaScripting::lua_delay(lua_State* L) {
             // Process callbacks while waiting
             lua_Debug ar;
             lua_hook(L, &ar);
+
+            int chunk = std::min(remaining, 16);
+            std::this_thread::sleep_for(std::chrono::milliseconds(chunk));
+            remaining -= chunk;
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_delayKb(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isinteger(L, 1)) {
+        int ms = (int)lua_tointeger(L, 1);
+        int remaining = ms;
+        while (remaining > 0 && self && self->systemRunning) {
+            // Process callbacks while waiting
+            lua_Debug ar;
+            lua_hook(L, &ar);
+
+            if (!InputManager::getInstance().isTextInputActive()) {
+                if (InputManager::getInstance().lua_hasAnyKeyHit()) {
+                    break;
+                }
+            }
 
             int chunk = std::min(remaining, 16);
             std::this_thread::sleep_for(std::chrono::milliseconds(chunk));

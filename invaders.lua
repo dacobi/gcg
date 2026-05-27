@@ -119,7 +119,7 @@ function onLiveLost()
                 return
             end
 
-            delay(900)
+            delay(700)
             godotSelectRoot()
             if godotSearchNode("Ship") then
                 local _, sy, sz = godotGetPos()

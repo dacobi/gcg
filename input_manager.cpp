@@ -60,6 +60,21 @@ bool InputManager::lua_isKeyHit(SDL_Keycode key) {
     return false;
 }
 
+bool InputManager::lua_hasAnyKeyHit() {
+    std::lock_guard<std::mutex> lock(inputMutex);
+    if (!keysClickedAccum.empty()) {
+        keysClickedAccum.clear();
+        return true;
+    }
+    return false;
+}
+
+extern SDL_Window* window;
+bool InputManager::isTextInputActive() {
+    if (!window) return false;
+    return SDL_TextInputActive(window);
+}
+
 bool InputManager::lua_isKeyDown(SDL_Keycode key) {
     std::lock_guard<std::mutex> lock(inputMutex);
     auto it = keysDown.find(key);

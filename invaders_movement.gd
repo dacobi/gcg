@@ -82,7 +82,7 @@ func _reset_fire_timer():
 
 func vaderdie(height):
 	vaders = vaders - 1
-	print("vaders: ", vaders)
+	# print("vaders: ", vaders)
 	score = score + (speed / 10) * level * height
 	emit_signal("new_score")
 	if vaders <= 0:

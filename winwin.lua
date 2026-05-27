@@ -5,7 +5,7 @@ addBouncer("[phys: 600,600,100,200,1,1][rgb: 255,0,255][fontsize: 0.6]Chicken[lf
 --addBouncer("[phys: 600,600,300,400,1,1][rgb: 255,255,255]Dinner[image:ckitt.png]")
 
 
-delay(5000)
+delayKb(5000)
 
 local clvl = getGlobalVar("level")
 clvl = clvl + 1
