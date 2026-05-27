@@ -167,7 +167,7 @@ function onNewScore()
     if godotSearchNode("Invaders") then        
         local lscore = godotGetProperty("score")  
         setGlobalVar("score",lscore)
-        godotSetProperty("bNewScore", false) -- Enable next score update
+        --godotSetProperty("bNewScore", false) -- Enable next score update
 
     end
 end

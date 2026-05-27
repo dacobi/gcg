@@ -19,7 +19,7 @@ func _process(delta: float) -> void:
 		if glow_light: glow_light.visible = is_visible
 		if glow_mesh: glow_mesh.visible = is_visible
 		# Optional: Turn off main geometry when glow is on to avoid Z-fighting
-		# if main_geometry: main_geometry.visible = !is_visible
+		if main_geometry: main_geometry.visible = !is_visible
 	else:
 		_glow_timer = 0.0
 		if glow_light: glow_light.visible = false

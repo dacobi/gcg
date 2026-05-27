@@ -3222,48 +3222,48 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             } else if (cmd.type >= AppState::LuaCommand::GODOT_SELECT_ROOT && cmd.type <= AppState::LuaCommand::WATCH_SIGNAL) {
                 if (state->selected_godot) {
                     switch (cmd.type) {
-                        case AppState::LuaCommand::GODOT_SELECT_ROOT: state->selected_godot->selectRoot(); break;
-                        case AppState::LuaCommand::GODOT_SELECT_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->selectNode(cmd.syntax); break;
-                        case AppState::LuaCommand::GODOT_SEARCH_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->searchNode(cmd.syntax); break;
-                        case AppState::LuaCommand::GODOT_GET_NODE_TYPE: if (cmd.sync) cmd.sync->s_res = state->selected_godot->getNodeType(); break;
-                        case AppState::LuaCommand::GODOT_GET_NAME: if (cmd.sync) cmd.sync->s_res = state->selected_godot->getName(); break;
-                        case AppState::LuaCommand::GODOT_GET_CHILD_COUNT: if (cmd.sync) { cmd.sync->b_res = true; cmd.sync->d_res = (double)state->selected_godot->getChildCount(); } break;
+                        case AppState::LuaCommand::GODOT_SELECT_ROOT: state->selected_godot->selectRoot(cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_SELECT_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->selectNode(cmd.syntax, cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_SEARCH_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->searchNode(cmd.syntax, cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_GET_NODE_TYPE: if (cmd.sync) cmd.sync->s_res = state->selected_godot->getNodeType(cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_GET_NAME: if (cmd.sync) cmd.sync->s_res = state->selected_godot->getName(cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_GET_CHILD_COUNT: if (cmd.sync) { cmd.sync->b_res = true; cmd.sync->d_res = (double)state->selected_godot->getChildCount(cmd.owner); } break;
                         case AppState::LuaCommand::GODOT_PRINT_HIERARCHY: state->selected_godot->printHierarchy(); break;
-                        case AppState::LuaCommand::GODOT_RENAME_NODE: state->selected_godot->renameNode(cmd.syntax); break;
-                        case AppState::LuaCommand::GODOT_SET_CAMERA: if (cmd.sync) cmd.sync->b_res = state->selected_godot->setCamera(); break;
-                        case AppState::LuaCommand::GODOT_GET_POS: if (cmd.sync) cmd.sync->b_res = state->selected_godot->getPos(cmd.sync->f_res[0], cmd.sync->f_res[1], cmd.sync->f_res[2]); break;
-                        case AppState::LuaCommand::GODOT_SET_POS: state->selected_godot->setPos(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2]); break;
-                        case AppState::LuaCommand::GODOT_SET_VISIBLE: state->selected_godot->setVisible(cmd.fargs[0] > 0.5f); break;
-                        case AppState::LuaCommand::GODOT_GET_SCALE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->getScale(cmd.sync->f_res[0], cmd.sync->f_res[1], cmd.sync->f_res[2]); break;
-                        case AppState::LuaCommand::GODOT_SET_SCALE: state->selected_godot->setScale(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2]); break;
-                        case AppState::LuaCommand::GODOT_MOVE_X: state->selected_godot->move(cmd.fargs[0], 0, 0); break;
-                        case AppState::LuaCommand::GODOT_MOVE_Y: state->selected_godot->move(0, cmd.fargs[1], 0); break;
-                        case AppState::LuaCommand::GODOT_MOVE_Z: state->selected_godot->move(0, 0, cmd.fargs[2]); break;
-                        case AppState::LuaCommand::GODOT_MOVE_AND_COLLIDE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->moveAndCollide(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2]); break;
-                        case AppState::LuaCommand::GODOT_GET_OVERLAPPING_AREAS: if (cmd.sync) cmd.sync->vs_res = state->selected_godot->getOverlappingAreas(); break;
-                        case AppState::LuaCommand::GODOT_CREATE_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->createNode(cmd.syntax); break;
+                        case AppState::LuaCommand::GODOT_RENAME_NODE: state->selected_godot->renameNode(cmd.syntax, cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_SET_CAMERA: if (cmd.sync) cmd.sync->b_res = state->selected_godot->setCamera(cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_GET_POS: if (cmd.sync) cmd.sync->b_res = state->selected_godot->getPos(cmd.sync->f_res[0], cmd.sync->f_res[1], cmd.sync->f_res[2], cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_SET_POS: state->selected_godot->setPos(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_SET_VISIBLE: state->selected_godot->setVisible(cmd.fargs[0] > 0.5f, cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_GET_SCALE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->getScale(cmd.sync->f_res[0], cmd.sync->f_res[1], cmd.sync->f_res[2], cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_SET_SCALE: state->selected_godot->setScale(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_MOVE_X: state->selected_godot->move(cmd.fargs[0], 0, 0, cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_MOVE_Y: state->selected_godot->move(0, cmd.fargs[1], 0, cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_MOVE_Z: state->selected_godot->move(0, 0, cmd.fargs[2], cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_MOVE_AND_COLLIDE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->moveAndCollide(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_GET_OVERLAPPING_AREAS: if (cmd.sync) cmd.sync->vs_res = state->selected_godot->getOverlappingAreas(cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_CREATE_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godot->createNode(cmd.syntax, cmd.owner); break;
                         case AppState::LuaCommand::GODOT_LOAD_NODE: 
                             if (cmd.sync) {
-                                cmd.sync->b_res = state->selected_godot->loadNode(cmd.syntax, cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.sync->b_res);
+                                cmd.sync->b_res = state->selected_godot->loadNode(cmd.syntax, cmd.owner, cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.sync->b_res);
                             }
                             break;
-                        case AppState::LuaCommand::GODOT_DELETE_NODE: state->selected_godot->deleteNode(); break;
-                        case AppState::LuaCommand::GODOT_ATTACH_SCRIPT: if (cmd.sync) cmd.sync->b_res = state->selected_godot->attachScript(cmd.syntax); break;
+                        case AppState::LuaCommand::GODOT_DELETE_NODE: state->selected_godot->deleteNode(cmd.owner); break;
+                        case AppState::LuaCommand::GODOT_ATTACH_SCRIPT: if (cmd.sync) cmd.sync->b_res = state->selected_godot->attachScript(cmd.syntax, cmd.owner); break;
                         case AppState::LuaCommand::GODOT_SET_PROPERTY: 
                             if (cmd.fargs[1] == 1.0f) {
                                 size_t sep = cmd.syntax.find('|');
                                 if (sep != std::string::npos) {
                                     std::string prop = cmd.syntax.substr(0, sep);
                                     std::string val = cmd.syntax.substr(sep + 1);
-                                    state->selected_godot->setProperty(prop, Variant(val.c_str()));
+                                    state->selected_godot->setProperty(prop, Variant(val.c_str()), cmd.owner);
                                 }
                             } else {
-                                state->selected_godot->setProperty(cmd.syntax, Variant(cmd.fargs[0]));
+                                state->selected_godot->setProperty(cmd.syntax, Variant(cmd.fargs[0]), cmd.owner);
                             }
                             break;
                         case AppState::LuaCommand::GODOT_GET_PROPERTY:
                             if (cmd.sync) {
-                                Variant v = state->selected_godot->getProperty(cmd.syntax);
+                                Variant v = state->selected_godot->getProperty(cmd.syntax, cmd.owner);
                                 if (v.get_type() == Variant::INT || v.get_type() == Variant::FLOAT) {
                                     cmd.sync->b_res = true;
                                     cmd.sync->d_res = (double)v;
@@ -3834,7 +3834,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         
         // Helper to check condition
         auto check_condition = [&](GodotRenderer* r) {
-            Variant val = r->getProperty(w.property_name);
+            Variant val = r->getProperty(w.property_name, w.owner);
             if (val.get_type() == Variant::NIL) return false;
             
             if (w.comparison_mode == 0) return (val == w.target_value);
@@ -3853,24 +3853,24 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         };
 
         if (state->bg_godot) {
-            Node* saved = state->bg_godot->getCurrentNode();
-            state->bg_godot->selectRoot();
-            if (state->bg_godot->searchNode(w.node_name)) {
+            Node* saved = state->bg_godot->getCurrentNode(w.owner);
+            state->bg_godot->selectRoot(w.owner);
+            if (state->bg_godot->searchNode(w.node_name, w.owner)) {
                 condition_met = check_condition(state->bg_godot);
             }
-            state->bg_godot->setCurrentNode(saved);
+            state->bg_godot->setCurrentNode(saved, w.owner);
         }
 
         if (!condition_met) {
             for (auto& bd : state->mBdisplay) {
                 for (auto& b : bd->bouncers) {
                     if (b.godot_renderer) {
-                        Node* saved = b.godot_renderer->getCurrentNode();
-                        b.godot_renderer->selectRoot();
-                        if (b.godot_renderer->searchNode(w.node_name)) {
+                        Node* saved = b.godot_renderer->getCurrentNode(w.owner);
+                        b.godot_renderer->selectRoot(w.owner);
+                        if (b.godot_renderer->searchNode(w.node_name, w.owner)) {
                             condition_met = check_condition(b.godot_renderer);
                         }
-                        b.godot_renderer->setCurrentNode(saved);
+                        b.godot_renderer->setCurrentNode(saved, w.owner);
                         if (condition_met) goto found_in_bouncer;
                     }
                 }
@@ -3928,6 +3928,17 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         state->selected_usd = nullptr;
 #endif
         state->selected_godot = nullptr;
+        
+        if (state->bg_godot) {
+            state->bg_godot->clearSignalWatchers();
+        }
+        for (auto& bd : state->mBdisplay) {
+            for (auto& b : bd->bouncers) {
+                if (b.godot_renderer) {
+                    b.godot_renderer->clearSignalWatchers();
+                }
+            }
+        }
         
         state->mBdisplay.clear();
         state->watchers.clear();
