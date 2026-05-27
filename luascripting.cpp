@@ -6,8 +6,8 @@
 
 LuaScripting* LuaScripting::instance = nullptr;
 
-LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetGlobalIntFunc setGlobalIntFunc, GetGlobalIntFunc getGlobalIntFunc, RegGlobalIntFunc regGlobalIntFunc, UnregGlobalIntFunc unregGlobalIntFunc)
-    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc), selectUSDFunc(selectUSDFunc), selectGodotFunc(selectGodotFunc), setUSDParamFunc(setUSDParamFunc), godotCmdFunc(godotFunc), quitFunc(quitFunc), setImGuiVisibleFunc(setImGuiVisibleFunc), clearAndRunFunc(clearAndRunFunc), setMouseCaptureFunc(setMouseCaptureFunc), setGlobalIntFunc(setGlobalIntFunc), getGlobalIntFunc(getGlobalIntFunc), regGlobalIntFunc(regGlobalIntFunc), unregGlobalIntFunc(unregGlobalIntFunc) {
+LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetGlobalIntFunc setGlobalIntFunc, GetGlobalIntFunc getGlobalIntFunc, RegGlobalIntFunc regGlobalIntFunc, UnregGlobalIntFunc unregGlobalIntFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc)
+    : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), recordFunc(recordFunc), isRecFunc(isRecFunc), selectUSDFunc(selectUSDFunc), selectGodotFunc(selectGodotFunc), setUSDParamFunc(setUSDParamFunc), godotCmdFunc(godotFunc), quitFunc(quitFunc), setImGuiVisibleFunc(setImGuiVisibleFunc), clearAndRunFunc(clearAndRunFunc), setMouseCaptureFunc(setMouseCaptureFunc), setGlobalIntFunc(setGlobalIntFunc), getGlobalIntFunc(getGlobalIntFunc), regGlobalIntFunc(regGlobalIntFunc), unregGlobalIntFunc(unregGlobalIntFunc), checkHighScoreFunc(checkHSFunc), addHighScoreFunc(addHSFunc), loadHighScoreFunc(loadHSFunc), saveHighScoreFunc(saveHSFunc) {
     instance = this;
     systemRunning = true;
 }
@@ -169,6 +169,10 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("godotGetProperty", lua_godotGetProperty);
     reg("godotWatchProperty", lua_godotWatchProperty);
     reg("godotWatchSignal", lua_godotWatchSignal);
+    reg("godotIsHighScore", lua_godotIsHighScore);
+    reg("godotAddHighScore", lua_godotAddHighScore);
+    reg("godotLoadHighScore", lua_godotLoadHighScore);
+    reg("godotSaveHighScore", lua_godotSaveHighScore);
 
     reg("regGlobalVar", lua_regGlobalVar);
     reg("unregGlobalVar", lua_unregGlobalVar);
@@ -225,6 +229,40 @@ int LuaScripting::lua_godotWatchSignal(lua_State* L) {
         }
         lua_pushboolean(L, sd->b_res);
         return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotIsHighScore(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isnumber(L, 1) && self && self->checkHighScoreFunc) {
+        bool res = self->checkHighScoreFunc((int)lua_tonumber(L, 1));
+        lua_pushboolean(L, res);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotAddHighScore(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isstring(L, 1) && lua_isnumber(L, 2) && lua_isnumber(L, 3) && self && self->addHighScoreFunc) {
+        self->addHighScoreFunc(lua_tostring(L, 1), (int)lua_tonumber(L, 2), (int)lua_tonumber(L, 3));
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotLoadHighScore(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (self && self->loadHighScoreFunc) {
+        self->loadHighScoreFunc();
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotSaveHighScore(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (self && self->saveHighScoreFunc) {
+        self->saveHighScoreFunc();
     }
     return 0;
 }

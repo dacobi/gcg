@@ -44,6 +44,7 @@
 
 #include "godot_manager.h"
 #include "godot_renderer.h"
+#include "high_score_manager.h"
 
 #include "usd_manager.h"
 #include "usd_hydra_renderer.h"
@@ -1197,6 +1198,10 @@ struct ParsedSegment {
     std::string clicked_lua;
     std::string global_var_name = "";
     float font_size_scale = 1.0f;
+    bool isHSDisplay = false;
+    bool isHSEntry = false;
+    int hScore = 0;
+    int hLevel = 0;
 };
 
 class ContentParser {
@@ -1227,7 +1232,7 @@ public:
 
         // Scan string for tags
         std::string body = input;
-        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys|layer|usd|tusd|tscn|ttscn|hover|clicked|fontsize|global)(?::\s*([^\]]*))?\])", std::regex::icase);
+        std::regex tagRegex(R"(\[(image|video|tvid|plasma|fractal|rgb|rect|lf|pos|stencil|ttl|phys|layer|usd|tusd|tscn|ttscn|hover|clicked|fontsize|global|hscore|addhscore)(?::\s*([^\]]*))?\])", std::regex::icase);
         auto tags_begin = std::sregex_iterator(body.begin(), body.end(), tagRegex);
         auto tags_end = std::sregex_iterator();
 
@@ -1238,7 +1243,7 @@ public:
 
             // Text segment before a tag
             if (matchPos > lastPos) {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos, matchPos - lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, false, 0, 0});
                 line_breaks = 0; next_is_new_group = false;
                 stencil_path = "";
             }
@@ -1278,7 +1283,7 @@ public:
                 if (parsed_gvar.length() >= 2 && (parsed_gvar.front() == '"' || parsed_gvar.front() == '\'') && parsed_gvar.front() == parsed_gvar.back()) {
                     parsed_gvar = parsed_gvar.substr(1, parsed_gvar.length() - 2);
                 }
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, "", 0, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, parsed_gvar, fscale});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, "", 0, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, parsed_gvar, fscale, false, false, 0, 0});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "layer") {
                 try { layer = std::stoi(tagContent); } catch(...) { layer = 1; }
@@ -1311,7 +1316,7 @@ public:
             } else if (tagType == "lf") {
                 line_breaks++;
             } else if (tagType == "image") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 1, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, false, 0, 0});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "video") {
                 std::vector<std::string> tokens = tokenize(tagContent);
@@ -1321,7 +1326,7 @@ public:
                     path = tokens[0];
                     noAudio = (tokens[1] == "1");
                 }
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, noAudio, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 2, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, noAudio, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, false, 0, 0});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "tvid") {
                 std::vector<std::string> tokens = tokenize(tagContent);
@@ -1331,25 +1336,25 @@ public:
                     path = tokens[0];
                     noAudio = (tokens[1] == "1");
                 }
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 5, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, noAudio, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, path, 5, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, noAudio, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, false, 0, 0});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "plasma") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 3, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, false, 0, 0});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "fractal") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 4, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, false, 0, 0});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "usd") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 6, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 6, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, false, 0, 0});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "tusd") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 7, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 7, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, false, 0, 0});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "tscn") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 8, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 8, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, false, 0, 0});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "ttscn") {
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 9, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua});
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, tagContent, 9, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, false, 0, 0});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "hover") {
                 std::vector<std::string> tokens = tokenize(tagContent);
@@ -1359,6 +1364,21 @@ public:
                     hb = std::stoi(tokens[2]);
                     hw = std::stoi(tokens[3]);
                     hasHover = true;
+                }
+            } else if (tagType == "hscore") {
+                try { fscale = std::stof(tagContent); } catch(...) { fscale = 1.0f; }
+                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, "", 0, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, true, false, 0, 0});
+                ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
+            } else if (tagType == "addhscore") {
+                std::vector<std::string> tokens = tokenize(tagContent);
+                if (tokens.size() >= 3) {
+                    try {
+                        fscale = std::stof(tokens[0]);
+                        int score = std::stoi(tokens[1]);
+                        int level = std::stoi(tokens[2]);
+                        results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, "", 0, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, true, score, level});
+                    } catch(...) {}
+                    ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
                 }
             } else if (tagType == "clicked") {
                 clua = tagContent;
@@ -1370,7 +1390,7 @@ public:
 
         // 3. Final trailing text
         if (lastPos < body.length()) {
-            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale});
+            results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, body.substr(lastPos), 0, input, 0, 0, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, false, 0, 0});
         }
 
         return results;
@@ -1434,6 +1454,17 @@ struct Bouncer {
     std::string global_var_name = "";
     float font_size_scale = 1.0f;
     int last_global_val = -9999999;
+    bool isHighScoreDisplay = false;
+    bool isHighScoreEntry = false;
+    int pendingScore = 0;
+    int pendingLevel = 0;
+    std::string inputBuffer = "";
+    struct CachedTexture {
+        SDL_GPUTexture* tex;
+        int w, h;
+    };
+    std::vector<CachedTexture> extra_texs;
+    std::string last_hs_data = "INIT";
 };
 
 static ContentParser mParser;
@@ -1484,7 +1515,8 @@ static SDL_GPUTexture* create_png_texture(Renderer* renderer,
 
 static SDL_GPUTexture* create_text_texture(Renderer* renderer,
                                         const char* text,
-                                        int* out_w, int* out_h)
+                                        int* out_w, int* out_h,
+                                        float font_pt = 120.0f)
 {
     if (!TTF_Init()) {
         std::printf("TTF_Init error: %s\n", SDL_GetError());
@@ -1500,7 +1532,7 @@ static SDL_GPUTexture* create_text_texture(Renderer* renderer,
 
     TTF_Font* font = nullptr;
     for (auto path : font_paths) {
-        font = TTF_OpenFont(path, 120.0f);
+        font = TTF_OpenFont(path, font_pt);
         if (font) break;
     }
     if (!font) {
@@ -1508,13 +1540,13 @@ static SDL_GPUTexture* create_text_texture(Renderer* renderer,
         return nullptr;
     }
 
-    SDL_Color fg = {255, 255, 255, 200};
+    SDL_Color fg = {255, 255, 255, 255};
     SDL_Surface* text_surf = TTF_RenderText_Blended(font, text, 0, fg);
     if (!text_surf) {
-        std::printf("TTF_RenderText_Blended error: %s\n", SDL_GetError());
         TTF_CloseFont(font);
         return nullptr;
     }
+
 
     SDL_Surface* rgba_surf = SDL_ConvertSurface(text_surf, SDL_PIXELFORMAT_RGBA32);
     SDL_DestroySurface(text_surf);
@@ -1621,6 +1653,7 @@ struct AppState {
     Uint64 freq;
     Uint64 last_time;
     double frequency;
+    HighScoreManager highScores;
 
 
     struct LuaCommand {
@@ -1723,6 +1756,7 @@ public:
                     if (it->godot_renderer) delete it->godot_renderer;
                     if (it->tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), it->tex);
                     if (it->stencil_tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), it->stencil_tex);
+                    for (auto& et : it->extra_texs) SDL_ReleaseGPUTexture(g_renderer->getDevice(), et.tex);
                     it = bouncers.erase(it);
                     continue;
                 }
@@ -1771,6 +1805,50 @@ public:
                 std::vector<uint8_t> pixels(b.tw * b.th * 4);
                 b.godot_renderer->render(pixels.data());
                 g_renderer->updateTexture(b.tex, b.tw, b.th, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, pixels.data(), b.tw * 4);
+            }
+
+            if (b.isHighScoreDisplay || b.isHighScoreEntry) {
+                std::string current_data = b.isHighScoreEntry ? b.inputBuffer : "";
+                const auto& entries = state->highScores.getEntries();
+                for (const auto& e : entries) current_data += e.name + std::to_string(e.score);
+
+                if (current_data != b.last_hs_data) {
+                    std::printf("Regenerating HS textures: Display=%d, Entry=%d, entries=%zu\n", b.isHighScoreDisplay, b.isHighScoreEntry, entries.size());
+                    for (auto& et : b.extra_texs) SDL_ReleaseGPUTexture(g_renderer->getDevice(), et.tex);
+                    b.extra_texs.clear();
+                    
+                    int w, h;
+                    float pt = b.font_size_scale > 5.0f ? b.font_size_scale : 32.0f;
+                    b.extra_texs.push_back({create_text_texture(g_renderer, "HIGH SCORES", &w, &h, pt * 1.2f), w, h});
+                    
+                    int insert_idx = -1;
+                    if (b.isHighScoreEntry) {
+                        for(int i=0; i<(int)entries.size(); ++i) {
+                            if (b.pendingScore >= entries[i].score) { insert_idx = i; break; }
+                        }
+                        if (insert_idx == -1 && entries.size() < 10) insert_idx = (int)entries.size();
+                    }
+
+                    int count = 0;
+                    int entry_ptr = 0;
+                    while (count < 10) {
+                        char buf[128];
+                        if (count == insert_idx) {
+                            std::string display = b.inputBuffer;
+                            while (display.length() < 3) display += "-";
+                            std::snprintf(buf, sizeof(buf), "%d. %-3s  %06d  L%d", count+1, display.c_str(), b.pendingScore, b.pendingLevel);
+                            insert_idx = -2; // Done injecting
+                        } else {
+                            if (entry_ptr >= (int)entries.size()) break;
+                            std::snprintf(buf, sizeof(buf), "%d. %-3s  %06d  L%d", count+1, entries[entry_ptr].name.c_str(), entries[entry_ptr].score, entries[entry_ptr].level);
+                            entry_ptr++;
+                        }
+                        SDL_GPUTexture* row_tex = create_text_texture(g_renderer, buf, &w, &h, pt);
+                        if (row_tex) b.extra_texs.push_back({row_tex, w, h});
+                        count++;
+                    }
+                    b.last_hs_data = current_data;
+                }
             }
         }
 
@@ -1914,6 +1992,26 @@ public:
             newB.th = (int)((float)newB.th * pd.font_size_scale);
         }
 
+        if (pd.isHSDisplay) {
+            newB.isHighScoreDisplay = true;
+            newB.font_size_scale = pd.font_size_scale;
+            newB.tw = (pd.over_w > 0) ? pd.over_w : 600; 
+            newB.th = (pd.over_h > 0) ? pd.over_h : 450;
+            if (tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), tex);
+            tex = g_renderer->createTexture(1, 1, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM); // Dummy
+        } else if (pd.isHSEntry) {
+            newB.isHighScoreEntry = true;
+            newB.font_size_scale = pd.font_size_scale;
+            newB.pendingScore = pd.hScore;
+            newB.pendingLevel = pd.hLevel;
+            newB.inputBuffer = "";
+            newB.tw = (pd.over_w > 0) ? pd.over_w : 600;
+            newB.th = (pd.over_h > 0) ? pd.over_h : 450;
+            if (tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), tex);
+            tex = g_renderer->createTexture(1, 1, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM); // Dummy
+            SDL_StartTextInput(window);
+        }
+
         if(tex == NULL) return false;
 
         // Apply overrides if provided
@@ -1948,6 +2046,10 @@ public:
         
         newB.global_var_name = pd.global_var_name;
         newB.font_size_scale = pd.font_size_scale;
+        newB.isHighScoreDisplay = pd.isHSDisplay;
+        newB.isHighScoreEntry = pd.isHSEntry;
+        newB.pendingScore = pd.hScore;
+        newB.pendingLevel = pd.hLevel;
 
         if (bouncers.empty()) {            // Initial spawn point
             newB.x = pd.posx;
@@ -1985,15 +2087,39 @@ public:
     }
 
 
-    void draw(Renderer* renderer, int target_layer) {
+        void draw(Renderer* renderer, int target_layer, AppState* state) {
         int mx, my;
         InputManager::getInstance().lua_getMousePos(mx, my);
 
         for (auto& b : bouncers) {
             if (b.layer != target_layer) continue;
-            SDL_FRect dst = { b.x, b.y, static_cast<float>(b.tw), static_cast<float>(b.th) };
+                        SDL_FRect dst = { b.x, b.y, static_cast<float>(b.tw), static_cast<float>(b.th) };
 
-            renderer->drawBouncer(b.tex, dst, b.r, b.g, b.b, 255, b.stencil_tex, b.bTransparent);
+            if (b.isHighScoreDisplay || b.isHighScoreEntry) {
+                                // Smokey background
+                renderer->drawRect(dst, 20, 20, 30, 180);
+                
+                float curY = b.y + 10.0f;
+                for (size_t i = 0; i < b.extra_texs.size(); ++i) {
+                    const auto& ct = b.extra_texs[i];
+                    if (!ct.tex) continue;
+                    
+                    float sw = (float)ct.w;
+                    float sh = (float)ct.h;
+                    
+                    float curX = b.x + (b.tw/2.0f) - (sw/2.0f);
+                                        // If this is the input row, give it a subtle highlight
+                    if (b.isHighScoreEntry && i > 0) {
+                        // We need to know which row is the injected one. 
+                        // For simplicity, just check if the text contains dashes.
+                        // Actually, let's just draw all rows for now.
+                    }
+                    renderer->drawBouncer(ct.tex, {curX, curY, sw, sh}, (i==0 ? 0 : 255), 255, (i==0 ? 255 : 255), 255);
+                    curY += (i == 0) ? sh * 1.5f : sh * 1.1f;
+                }
+            } else {
+                renderer->drawBouncer(b.tex, dst, b.r, b.g, b.b, 255, b.stencil_tex, b.bTransparent);
+            }
 
             if (b.hasHover) {
                 if (mx >= b.x && mx <= b.x + b.tw && my >= b.y && my <= b.y + b.th) {
@@ -2643,6 +2769,18 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             [state](const std::string& name) {
                 std::lock_guard<std::mutex> lock(state->globals_mutex);
                 state->global_ints.erase(name);
+            },
+            [state](int score) {
+                return state->highScores.isHigher(score);
+            },
+            [state](const std::string& name, int score, int level) {
+                state->highScores.addScore(name, score, level);
+            },
+            [state]() {
+                state->highScores.load();
+            },
+            [state]() {
+                state->highScores.save();
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);
@@ -2654,8 +2792,49 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
 {
     AppState* state = (AppState*)appstate;
-    state->event_burst_cooldown = 10;
+    
+    // High Score Entry Input - Handle BEFORE ImGui to ensure precedence
+    for (auto& bd : state->mBdisplay) {
+        for (auto& b : bd->bouncers) {
+            if (b.isHighScoreEntry) {
+                                if (ev->type == SDL_EVENT_KEY_DOWN) {
+                    SDL_Keycode key = ev->key.key;
+                                        if (key == SDLK_BACKSPACE || key == SDLK_DELETE) {
+                        if (!b.inputBuffer.empty()) b.inputBuffer.pop_back();
+                        b.last_hs_data = "FORCE";
+                        return SDL_APP_CONTINUE;
+                    } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
+                        if (b.inputBuffer.length() == 3) {
+                            state->highScores.addScore(b.inputBuffer, b.pendingScore, b.pendingLevel);
+                            b.isHighScoreEntry = false; // Disable input
+                            SDL_StopTextInput(window);
+                            b.isHighScoreDisplay = true; // Switch to show scores
+                            b.ttl_remaining_ms = 10000.0f;
+                        }
+                        return SDL_APP_CONTINUE;
+                    } else if (key == SDLK_ESCAPE) {
+                        state->highScores.addScore("ABC", b.pendingScore, b.pendingLevel);
+                        b.isHighScoreEntry = false;
+                        SDL_StopTextInput(window);
+                        b.isHighScoreDisplay = true;
+                        b.ttl_remaining_ms = 10000.0f;
+                        return SDL_APP_CONTINUE;
+                    }
+                } else if (ev->type == SDL_EVENT_TEXT_INPUT) {
+                    std::string t = ev->text.text;
+                    for (char c : t) {
+                        if (((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) && b.inputBuffer.length() < 3) {
+                            if (c >= 'a' && c <= 'z') c -= 32;
+                            b.inputBuffer += c;
+                        }
+                    }
+                    return SDL_APP_CONTINUE;
+                }
+            }
+        }
+    }
 
+    state->event_burst_cooldown = 10;
     ImGui_ImplSDL3_ProcessEvent(ev);
     InputManager::getInstance().processEvent(ev);
 
@@ -2723,6 +2902,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     AppState* state = (AppState*)appstate;
     if (state->godot_manager) {
         state->godot_manager->iteration();
+    }
+    for (auto& bd : state->mBdisplay) {
+        for (auto& b : bd->bouncers) {
+            if (b.isHighScoreEntry) SDL_StartTextInput(window);
+        }
     }
 
     // Process Lua Commands
@@ -3692,7 +3876,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     for (int l = 2; l >= 0; --l) {
         for (auto& bd : state->mBdisplay) {
-            bd->draw(g_renderer, l);
+            bd->draw(g_renderer, l, state);
         }
     }
 

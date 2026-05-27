@@ -75,8 +75,12 @@ public:
     using GetGlobalIntFunc = std::function<int(const std::string&)>;
     using RegGlobalIntFunc = std::function<void(const std::string&, int)>;
     using UnregGlobalIntFunc = std::function<void(const std::string&)>;
+    using CheckHighScoreFunc = std::function<bool(int)>;
+    using AddHighScoreFunc = std::function<void(const std::string&, int, int)>;
+    using LoadHighScoreFunc = std::function<void()>;
+    using SaveHighScoreFunc = std::function<void()>;
 
-    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetGlobalIntFunc setGlobalIntFunc, GetGlobalIntFunc getGlobalIntFunc, RegGlobalIntFunc regGlobalIntFunc, UnregGlobalIntFunc unregGlobalIntFunc);
+    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, SelectUSDFunc selectUSDFunc, SelectGodotFunc selectGodotFunc, SetUSDParamFunc setUSDParamFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetGlobalIntFunc setGlobalIntFunc, GetGlobalIntFunc getGlobalIntFunc, RegGlobalIntFunc regGlobalIntFunc, UnregGlobalIntFunc unregGlobalIntFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
@@ -154,6 +158,10 @@ private:
     static int lua_godotGetProperty(lua_State* L);
     static int lua_godotWatchProperty(lua_State* L);
     static int lua_godotWatchSignal(lua_State* L);
+    static int lua_godotIsHighScore(lua_State* L);
+    static int lua_godotAddHighScore(lua_State* L);
+    static int lua_godotLoadHighScore(lua_State* L);
+    static int lua_godotSaveHighScore(lua_State* L);
 
     static void lua_hook(lua_State* L, lua_Debug* ar);
 
@@ -192,6 +200,11 @@ private:
     GetGlobalIntFunc getGlobalIntFunc;
     RegGlobalIntFunc regGlobalIntFunc;
     UnregGlobalIntFunc unregGlobalIntFunc;
+
+    CheckHighScoreFunc checkHighScoreFunc;
+    AddHighScoreFunc addHighScoreFunc;
+    LoadHighScoreFunc loadHighScoreFunc;
+    SaveHighScoreFunc saveHighScoreFunc;
 
     static LuaScripting* instance;
 };

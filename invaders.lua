@@ -86,15 +86,18 @@ function onLiveLost()
             local livesleft = godotGetProperty("lives")
             print("livesleft: ",livesleft)
             for i = 1,10 do
-                if godotSearchNode("Ship") then
+            godotSelectRoot()
+            if godotSearchNode("Ship") then
                 godotSetVisible(true)
                 godotSetScale(1.2, 1.2, 1.2)
             end
                 delay(40)
+            godotSelectRoot()
             if godotSearchNode("Ship") then
                 godotSetScale(1.0, 1.0, 1.0)
             end
                 delay(40)
+            godotSelectRoot()
             if godotSearchNode("Ship") then
                 godotSetVisible(false)
             end
@@ -117,13 +120,23 @@ function onLiveLost()
             end
 
             delay(900)
+            godotSelectRoot()
             if godotSearchNode("Ship") then
-            local _, sy, sz = godotGetPos()
-            shipX = 0.0
-            godotSetPos(shipX, sy, sz)
-            godotSetVisible(true)
-            godotSetProperty("livelost", false)
+                local _, sy, sz = godotGetPos()
+                shipX = 0.0
+            godotSelectRoot()
+            if godotSearchNode("Ship") then
+                godotSetPos(shipX, sy, sz)
             end
+            godotSelectRoot()
+            if godotSearchNode("Ship") then
+                godotSetVisible(true)
+            end
+            --godotSelectRoot()
+            --if godotSearchNode("Ship") then
+            --    godotSetProperty("livelost", false)
+            --end
+        end
          --   godotWatchProperty("Ship", "livelost", true, "onLiveLost")
 
             -- godotWatchProperty is NOT needed here, it was set up at the start!
@@ -216,3 +229,4 @@ end
 ioMouseRelease()
 
 print("Space Invaders Logic Ended")
+luaClearAndRun("startspace.lua")
