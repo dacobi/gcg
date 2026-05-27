@@ -6,6 +6,7 @@
 #include <atomic>
 #include <queue>
 #include <mutex>
+#include "core/object/ref_counted.h"
 
 struct GodotSignalEvent {
     std::string callback_file;
@@ -28,4 +29,5 @@ private:
     void* godot_instance = nullptr;
     std::thread godot_thread;
     std::atomic<bool> is_running{false};
+    Ref<class ResourceFormatLoaderGLTF> gltf_loader;
 };

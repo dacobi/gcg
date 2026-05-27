@@ -51,6 +51,8 @@ public:
     int getWidth() const { return width; }
     int getHeight() const { return height; }
 
+    static int get_active_instance_count() { return active_instance_count; }
+
 private:
     int width;
     int height;
@@ -59,6 +61,8 @@ private:
     SubViewport* viewport = nullptr;
     Node* scene_instance = nullptr;
     Node* current_node = nullptr;
+
+    static int active_instance_count;
 
     Node* _searchNodeRecursive(Node* current, const std::string& name);
 };
