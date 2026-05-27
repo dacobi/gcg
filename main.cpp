@@ -1204,6 +1204,17 @@ struct ParsedSegment {
     int hLevel = 0;
 };
 
+
+static int safe_stoi(const std::string& s, int default_val = 0) {
+    if (s.empty()) return default_val;
+    try { return std::stoi(s); } catch(...) { return default_val; }
+}
+
+static float safe_stof(const std::string& s, float default_val = 0.0f) {
+    if (s.empty()) return default_val;
+    try { return std::stof(s); } catch(...) { return default_val; }
+}
+
 class ContentParser {
 public:
     static std::vector<ParsedSegment> parse(const std::string& input) {
@@ -1255,11 +1266,11 @@ public:
             if (tagType == "pos") {
                 std::vector<std::string> tokens = tokenize(tagContent);
                 if (tokens.size() >= 4) {
-                    px = std::stoi(tokens[0]); py = std::stoi(tokens[1]);
-                    vx = std::stoi(tokens[2]); vy = std::stoi(tokens[3]);
+                    px = safe_stoi(tokens[0]); py = safe_stoi(tokens[1]);
+                    vx = safe_stoi(tokens[2]); vy = safe_stoi(tokens[3]);
                     bIsStatic = false;
                 } else if (tokens.size() >= 2) {
-                    px = std::stoi(tokens[0]); py = std::stoi(tokens[1]);
+                    px = safe_stoi(tokens[0]); py = safe_stoi(tokens[1]);
                     vx = 0; vy = 0;
                     bIsStatic = true;
                 }
@@ -1267,16 +1278,16 @@ public:
             } else if (tagType == "rgb") {
                 std::vector<std::string> rgbTokens = tokenize(tagContent);
                 if (rgbTokens.size() >= 3) {
-                    cr = std::stoi(rgbTokens[0]);
-                    cg = std::stoi(rgbTokens[1]);
-                    cb = std::stoi(rgbTokens[2]);
+                    cr = safe_stoi(rgbTokens[0]);
+                    cg = safe_stoi(rgbTokens[1]);
+                    cb = safe_stoi(rgbTokens[2]);
                 }
             } else if (tagType == "stencil") {
                 stencil_path = tagContent;
             } else if (tagType == "ttl") {
-                try { ttl = std::stoi(tagContent); } catch(...) { ttl = -1; }
+                ttl = safe_stoi(tagContent, -1);
             } else if (tagType == "fontsize") {
-                try { fscale = std::stof(tagContent); } catch(...) { fscale = 1.0f; }
+                try { fscale = safe_stof(tagContent, 1.0f); } catch(...) { fscale = 1.0f; }
             } else if (tagType == "global") {
                 std::string parsed_gvar = tagContent;
                 // Strip quotes if they exist
@@ -1286,21 +1297,21 @@ public:
                 results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, "", 0, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, parsed_gvar, fscale, false, false, 0, 0});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "layer") {
-                try { layer = std::stoi(tagContent); } catch(...) { layer = 1; }
+                layer = safe_stoi(tagContent, 1);
             } else if (tagType == "phys") {
                 std::vector<std::string> tokens = tokenize(tagContent);
                 if (tokens.size() >= 6) {
                     try {
-                        p_vx = std::stof(tokens[0]); p_vy = std::stof(tokens[1]);
-                        p_sx = std::stof(tokens[2]); p_sy = std::stof(tokens[3]);
-                        p_mass = std::stof(tokens[4]); p_bouncy = std::stof(tokens[5]);
+                        p_vx = safe_stof(tokens[0]); p_vy = safe_stof(tokens[1]);
+                        p_sx = safe_stof(tokens[2]); p_sy = safe_stof(tokens[3]);
+                        p_mass = safe_stof(tokens[4]); p_bouncy = safe_stof(tokens[5]);
                         hasPhys = true;
                         vx = (int)p_vx; vy = (int)p_vy;
                         px = (int)p_sx; py = (int)p_sy;
                     } catch(...) {}
                 } else if (tokens.size() >= 4) {
                     try {
-                        p_vx = std::stof(tokens[0]); p_vy = std::stof(tokens[1]);
+                        p_vx = safe_stof(tokens[0]); p_vy = safe_stof(tokens[1]);
                         p_mass = std::stof(tokens[2]); p_bouncy = std::stof(tokens[3]);
                         hasPhys = true;
                         vx = (int)p_vx; vy = (int)p_vy;
@@ -1310,8 +1321,8 @@ public:
 
                 std::vector<std::string> rectTokens = tokenize(tagContent);
                 if (rectTokens.size() >= 2) {
-                    ow = std::stoi(rectTokens[0]);
-                    oh = std::stoi(rectTokens[1]);
+                    ow = safe_stoi(rectTokens[0]);
+                    oh = safe_stoi(rectTokens[1]);
                 }
             } else if (tagType == "lf") {
                 line_breaks++;
@@ -1359,23 +1370,23 @@ public:
             } else if (tagType == "hover") {
                 std::vector<std::string> tokens = tokenize(tagContent);
                 if (tokens.size() >= 4) {
-                    hr = std::stoi(tokens[0]);
-                    hg = std::stoi(tokens[1]);
-                    hb = std::stoi(tokens[2]);
-                    hw = std::stoi(tokens[3]);
+                    hr = safe_stoi(tokens[0]);
+                    hg = safe_stoi(tokens[1]);
+                    hb = safe_stoi(tokens[2]);
+                    hw = safe_stoi(tokens[3]);
                     hasHover = true;
                 }
             } else if (tagType == "hscore") {
-                try { fscale = std::stof(tagContent); } catch(...) { fscale = 1.0f; }
+                try { fscale = safe_stof(tagContent, 1.0f); } catch(...) { fscale = 1.0f; }
                 results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, "", 0, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, true, false, 0, 0});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "addhscore") {
                 std::vector<std::string> tokens = tokenize(tagContent);
                 if (tokens.size() >= 3) {
                     try {
-                        fscale = std::stof(tokens[0]);
-                        int score = std::stoi(tokens[1]);
-                        int level = std::stoi(tokens[2]);
+                        fscale = safe_stof(tokens[0], 1.0f);
+                        int score = safe_stoi(tokens[1]);
+                        int level = safe_stoi(tokens[2]);
                         results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, "", 0, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, true, score, level});
                     } catch(...) {}
                     ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
@@ -1939,7 +1950,7 @@ public:
                 return false;
             }
         } else if (pd.bIsFile == 3) { // Plasma
-            int p_idx = pd.content.empty() ? -1 : std::stoi(pd.content);
+            int p_idx = safe_stoi(pd.content, -1);
             newB.tw = (pd.over_w > 0) ? pd.over_w : 256;
             newB.th = (pd.over_h > 0) ? pd.over_h : 256;
             newB.plasma = new PlasmaShader(newB.tw, newB.th);
@@ -1951,7 +1962,7 @@ public:
                 return false;
             }
         } else if (pd.bIsFile == 4) { // Fractal
-            int f_idx = pd.content.empty() ? -1 : std::stoi(pd.content);
+            int f_idx = safe_stoi(pd.content, -1);
             newB.tw = (pd.over_w > 0) ? pd.over_w : 256;
             newB.th = (pd.over_h > 0) ? pd.over_h : 256;
             newB.mandel = new MandelbrotOpenCL(newB.tw, newB.th);
@@ -2399,7 +2410,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             } else if (arg.size() > 8 && arg.substr(0, 8) == "[plasma:" && arg.back() == ']') {
                 std::string idx_str = arg.substr(8, arg.size() - 9);
                 try {
-                    state->cli_bg_plasma_idx = std::stoi(idx_str);
+                    state->cli_bg_plasma_idx = safe_stoi(idx_str, -1);
                     bUsePlasma = true;
                     bUseMandel = false;
                     bUseGodot = false;
@@ -2412,7 +2423,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             } else if (arg.size() > 9 && arg.substr(0, 9) == "[fractal:" && arg.back() == ']') {
                 std::string idx_str = arg.substr(9, arg.size() - 10);
                 try {
-                    state->cli_bg_fractal_idx = std::stoi(idx_str);
+                    state->cli_bg_fractal_idx = safe_stoi(idx_str, -1);
                     bUseMandel = true;
                     bUsePlasma = false;
                     bUseUSD = false;
@@ -2978,13 +2989,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 if (arg.size() > 8 && arg.substr(0, 8) == "[plasma:" && arg.back() == ']') {
                     std::string idx_str = arg.substr(8, arg.size() - 9);
                     try {
-                        state->cli_bg_plasma_idx = std::stoi(idx_str);
+                        state->cli_bg_plasma_idx = safe_stoi(idx_str, -1);
                         bUsePlasma = true;
                     } catch (...) {}
                 } else if (arg.size() > 9 && arg.substr(0, 9) == "[fractal:" && arg.back() == ']') {
                     std::string idx_str = arg.substr(9, arg.size() - 10);
                     try {
-                        state->cli_bg_fractal_idx = std::stoi(idx_str);
+                        state->cli_bg_fractal_idx = safe_stoi(idx_str, -1);
                         bUseMandel = true;
                     } catch (...) {}
                 } else if (arg.size() > 5 && arg.substr(0, 5) == "[usd:" && arg.back() == ']') {
