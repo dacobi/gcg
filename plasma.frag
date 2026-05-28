@@ -167,10 +167,15 @@ void main() {
         float dist = sqrt((wx-0.5)*(wx-0.5) + (wy-0.5)*(wy-0.5));
         v += 1.0 - abs(sin(dist * 20.0 - t * 2.0));
         v /= 4.0;
-        v = pow(v, 3.5);
+        v = pow(v, 6.8);        
         R = clamp((0.5 + 0.5 * cos(3.14159 * (v + p_r))) * v * d_r, 0.0, 1.0);
         G = clamp((0.5 + 0.5 * cos(3.14159 * (v + p_g))) * v * d_g, 0.0, 1.0);
         B = clamp((0.5 + 0.5 * cos(3.14159 * (v + p_b))) * v * d_b, 0.0, 1.0);
+        float brightness_boost = 1.4; // Boosts global intensity
+
+        R = clamp((0.6 + 0.4 * cos(3.14159 * (v + p_r))) * v * d_r * brightness_boost, 0.0, 1.0);
+        G = clamp((0.6 + 0.4 * cos(3.14159 * (v + p_g))) * v * d_g * brightness_boost, 0.0, 1.0);
+        B = clamp((0.6 + 0.4 * cos(3.14159 * (v + p_b))) * v * d_b * brightness_boost, 0.0, 1.0);
     } else if (idx == 5) {
         float jitter = sin(fx * 150.0 + t * 20.0) * 0.012;
         float wx = fx + jitter;

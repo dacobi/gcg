@@ -204,11 +204,14 @@ while true do
     -- Mouse movement to control ship
     local rx, ry = ioMouseGetMotion()
     if rx ~= 0 then
+        --print("rx: ",rx)
+        --print("ry: ",ry)
         shipX = shipX + (rx / 10.0)
         -- Clamp ship position
         if shipX < minX then shipX = minX end
         if shipX > maxX then shipX = maxX end
 
+        
         godotSelectRoot()
         if godotSearchNode("Ship") then
             local _, sy, sz = godotGetPos()

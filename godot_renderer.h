@@ -52,7 +52,7 @@ public:
     bool attachScript(const std::string& path, void* owner);
     void setProperty(const std::string& name, const class Variant& value, void* owner);
     class Variant getProperty(const std::string& name, void* owner);
-    bool watchSignal(const std::string& signal_name, const std::string& callback_file, void* owner);
+    bool watchSignal(const std::string& signal_name, const std::string& callback_file, void* owner_thread, void* owner_engine);
     void clearSignalWatchers();
 
     int getWidth() const { return width; }

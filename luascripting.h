@@ -66,11 +66,11 @@ public:
 #ifdef USE_USD
     using SelectUSDFunc = std::function<void(int index, std::shared_ptr<LuaSyncData> sync_data)>;
 #endif
-    using SelectGodotFunc = std::function<void(int index, std::shared_ptr<LuaSyncData> sync_data)>;
+    using SelectGodotFunc = std::function<void(int index, std::shared_ptr<LuaSyncData> sync_data, void* thread, LuaScripting* engine)>;
 #ifdef USE_USD
     using SetUSDParamFunc = std::function<void(const std::string& name, double value)>;
 #endif
-    using GodotCmdFunc = std::function<void(GodotCmd cmd, const std::string& str_arg, float f_args[3], std::shared_ptr<LuaSyncData> sync_data, LuaScripting* owner)>;
+    using GodotCmdFunc = std::function<void(GodotCmd cmd, const std::string& str_arg, float f_args[3], std::shared_ptr<LuaSyncData> sync_data, void* thread, LuaScripting* engine)>;
     using QuitFunc = std::function<void(std::shared_ptr<LuaSyncData> sync_data)>;
     using SetImGuiVisibleFunc = std::function<void(bool visible)>;
     using ClearAndRunFunc = std::function<void(const std::string& filename, std::shared_ptr<LuaSyncData> sync_data)>;
@@ -94,6 +94,7 @@ public:
     bool runScript(const std::string& filename);
     void runOneShotScript(const std::string& filename);
     void stop();
+    lua_State* getL() const { return L; }
 
     void triggerCallback(const std::string& name);
 
