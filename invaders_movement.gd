@@ -26,8 +26,11 @@ var bNewScore: bool = false
 @export var level: int = 1
 @export var score: int = 0
 
+
+
 func _init():
 	set_process(true)
+	
 
 func _ready():
 	_reset_fire_timer()
@@ -84,6 +87,23 @@ func vaderdie(height):
 	vaders = vaders - 1
 	# print("vaders: ", vaders)
 	score = score + (speed / 10) * level * height
+	
+	var root_node = get_tree().root
+	if !root_node:
+		print("no root")
+
+	var my_game = root_node.find_child("SpaceInvadersGame", true, false) 
+	
+	if !my_game:
+		print("no game")
+
+	var my_ship = my_game.find_child("Ship", true, false)
+	
+	if !my_ship:
+		print("no ship")
+	
+	my_ship.set_score(score)
+	
 	emit_signal("new_score")
 	if vaders <= 0:
 		emit_signal("game_won")
