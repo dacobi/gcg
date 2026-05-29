@@ -31,6 +31,7 @@
 #include <queue>
 #include <atomic>
 #include <chrono>
+#include <cassert>
 #include "clplasma.h"
 #include "clmandelbrot.h"
 #include "luascripting.h"
@@ -1690,7 +1691,7 @@ struct AppState {
 
     struct LuaCommand {
         enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, CLEAR_AND_RUN, MOUSE_CAPTURE, MOUSE_RELEASE,
-                    GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_GET_CHILD_COUNT, GODOT_PRINT_HIERARCHY, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_SET_VISIBLE, GODOT_GET_SCALE, GODOT_SET_SCALE, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
+                    GODOT_GET_NODE_POINTER, GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_GET_CHILD_COUNT, GODOT_PRINT_HIERARCHY, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_SET_VISIBLE, GODOT_GET_SCALE, GODOT_SET_SCALE, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
                     GODOT_MOVE_AND_COLLIDE, GODOT_GET_OVERLAPPING_AREAS, GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE,
                     GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY, WATCH_PROPERTY, WATCH_SIGNAL };
         Type type;
@@ -1701,6 +1702,7 @@ struct AppState {
         std::shared_ptr<LuaSyncData> sync;
         void* owner_thread = nullptr;
         LuaScripting* owner_engine = nullptr;
+        void* target_node = nullptr;
     };
     std::queue<LuaCommand> lua_commands;
     std::mutex lua_mutex;
@@ -2794,7 +2796,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                 cmd.sync = sync_data;
                 cmd.owner_thread = thread;
                 cmd.owner_engine = engine;
+                cmd.target_node = sync_data ? sync_data->ptr_arg : nullptr;
                 switch (gcmd) {
+                    case LuaScripting::GCMD_GET_NODE_POINTER: cmd.type = AppState::LuaCommand::GODOT_GET_NODE_POINTER; break;
                     case LuaScripting::GCMD_SELECT_ROOT: cmd.type = AppState::LuaCommand::GODOT_SELECT_ROOT; break;
                     case LuaScripting::GCMD_SELECT_NODE: cmd.type = AppState::LuaCommand::GODOT_SELECT_NODE; break;
                     case LuaScripting::GCMD_SEARCH_NODE: cmd.type = AppState::LuaCommand::GODOT_SEARCH_NODE; break;
@@ -3234,35 +3238,36 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                     cmd.sync->done = true;
                     cmd.sync->cv.notify_one();
                 }
-            } else if (cmd.type >= AppState::LuaCommand::GODOT_SELECT_ROOT && cmd.type <= AppState::LuaCommand::WATCH_SIGNAL) {
+            } else if (cmd.type >= AppState::LuaCommand::GODOT_GET_NODE_POINTER && cmd.type <= AppState::LuaCommand::WATCH_SIGNAL) {
                 if (state->selected_godots.find(cmd.owner_thread) != state->selected_godots.end() && state->selected_godots[cmd.owner_thread]) {
                     switch (cmd.type) {
+                        case AppState::LuaCommand::GODOT_GET_NODE_POINTER: if (cmd.sync) cmd.sync->ptr_res = state->selected_godots[cmd.owner_thread]->getNodePointer(cmd.syntax, cmd.owner_thread); break;
                         case AppState::LuaCommand::GODOT_SELECT_ROOT: state->selected_godots[cmd.owner_thread]->selectRoot(cmd.owner_thread); break;
                         case AppState::LuaCommand::GODOT_SELECT_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->selectNode(cmd.syntax, cmd.owner_thread); break;
                         case AppState::LuaCommand::GODOT_SEARCH_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->searchNode(cmd.syntax, cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_GET_NODE_TYPE: if (cmd.sync) cmd.sync->s_res = state->selected_godots[cmd.owner_thread]->getNodeType(cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_GET_NAME: if (cmd.sync) cmd.sync->s_res = state->selected_godots[cmd.owner_thread]->getName(cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_GET_CHILD_COUNT: if (cmd.sync) { cmd.sync->b_res = true; cmd.sync->d_res = (double)state->selected_godots[cmd.owner_thread]->getChildCount(cmd.owner_thread); } break;
+                        case AppState::LuaCommand::GODOT_GET_NODE_TYPE: if (cmd.sync) cmd.sync->s_res = state->selected_godots[cmd.owner_thread]->getNodeType(cmd.owner_thread, cmd.target_node); break;
+                        case AppState::LuaCommand::GODOT_GET_NAME: if (cmd.sync) cmd.sync->s_res = state->selected_godots[cmd.owner_thread]->getName(cmd.owner_thread, cmd.target_node); break;
+                        case AppState::LuaCommand::GODOT_GET_CHILD_COUNT: if (cmd.sync) { cmd.sync->b_res = true; cmd.sync->d_res = (double)state->selected_godots[cmd.owner_thread]->getChildCount(cmd.owner_thread, cmd.target_node); } break;
                         case AppState::LuaCommand::GODOT_PRINT_HIERARCHY: state->selected_godots[cmd.owner_thread]->printHierarchy(); break;
-                        case AppState::LuaCommand::GODOT_RENAME_NODE: state->selected_godots[cmd.owner_thread]->renameNode(cmd.syntax, cmd.owner_thread); break;
+                        case AppState::LuaCommand::GODOT_RENAME_NODE: state->selected_godots[cmd.owner_thread]->renameNode(cmd.syntax, cmd.owner_thread, cmd.target_node); break;
                         case AppState::LuaCommand::GODOT_SET_CAMERA: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->setCamera(cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_GET_POS: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->getPos(cmd.sync->f_res[0], cmd.sync->f_res[1], cmd.sync->f_res[2], cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_SET_POS: state->selected_godots[cmd.owner_thread]->setPos(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_SET_VISIBLE: state->selected_godots[cmd.owner_thread]->setVisible(cmd.fargs[0] > 0.5f, cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_GET_SCALE: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->getScale(cmd.sync->f_res[0], cmd.sync->f_res[1], cmd.sync->f_res[2], cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_SET_SCALE: state->selected_godots[cmd.owner_thread]->setScale(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_MOVE_X: state->selected_godots[cmd.owner_thread]->move(cmd.fargs[0], 0, 0, cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_MOVE_Y: state->selected_godots[cmd.owner_thread]->move(0, cmd.fargs[1], 0, cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_MOVE_Z: state->selected_godots[cmd.owner_thread]->move(0, 0, cmd.fargs[2], cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_MOVE_AND_COLLIDE: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->moveAndCollide(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_GET_OVERLAPPING_AREAS: if (cmd.sync) cmd.sync->vs_res = state->selected_godots[cmd.owner_thread]->getOverlappingAreas(cmd.owner_thread); break;
+                        case AppState::LuaCommand::GODOT_GET_POS: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->getPos(cmd.sync->f_res[0], cmd.sync->f_res[1], cmd.sync->f_res[2], cmd.owner_thread, cmd.target_node); break;
+                        case AppState::LuaCommand::GODOT_SET_POS: state->selected_godots[cmd.owner_thread]->setPos(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.owner_thread, cmd.target_node); break;
+                        case AppState::LuaCommand::GODOT_SET_VISIBLE: state->selected_godots[cmd.owner_thread]->setVisible(cmd.fargs[0] > 0.5f, cmd.owner_thread, cmd.target_node); break;
+                        case AppState::LuaCommand::GODOT_GET_SCALE: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->getScale(cmd.sync->f_res[0], cmd.sync->f_res[1], cmd.sync->f_res[2], cmd.owner_thread, cmd.target_node); break;
+                        case AppState::LuaCommand::GODOT_SET_SCALE: state->selected_godots[cmd.owner_thread]->setScale(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.owner_thread, cmd.target_node); break;
+                        case AppState::LuaCommand::GODOT_MOVE_X: state->selected_godots[cmd.owner_thread]->move(cmd.fargs[0], 0, 0, cmd.owner_thread, cmd.target_node); break;
+                        case AppState::LuaCommand::GODOT_MOVE_Y: state->selected_godots[cmd.owner_thread]->move(0, cmd.fargs[1], 0, cmd.owner_thread, cmd.target_node); break;
+                        case AppState::LuaCommand::GODOT_MOVE_Z: state->selected_godots[cmd.owner_thread]->move(0, 0, cmd.fargs[2], cmd.owner_thread, cmd.target_node); break;
+                        case AppState::LuaCommand::GODOT_MOVE_AND_COLLIDE: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->moveAndCollide(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.owner_thread, cmd.target_node); break;
+                        case AppState::LuaCommand::GODOT_GET_OVERLAPPING_AREAS: if (cmd.sync) cmd.sync->vs_res = state->selected_godots[cmd.owner_thread]->getOverlappingAreas(cmd.owner_thread, cmd.target_node); break;
                         case AppState::LuaCommand::GODOT_CREATE_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->createNode(cmd.syntax, cmd.owner_thread); break;
                         case AppState::LuaCommand::GODOT_LOAD_NODE: 
                             if (cmd.sync) {
                                 cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->loadNode(cmd.syntax, cmd.owner_thread, cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.sync->b_res);
                             }
                             break;
-                        case AppState::LuaCommand::GODOT_DELETE_NODE: state->selected_godots[cmd.owner_thread]->deleteNode(cmd.owner_thread); break;
+                        case AppState::LuaCommand::GODOT_DELETE_NODE: state->selected_godots[cmd.owner_thread]->deleteNode(cmd.owner_thread, cmd.target_node); break;
                         case AppState::LuaCommand::GODOT_ATTACH_SCRIPT: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->attachScript(cmd.syntax, cmd.owner_thread); break;
                         case AppState::LuaCommand::GODOT_SET_PROPERTY: 
                             if (cmd.fargs[1] == 1.0f) {

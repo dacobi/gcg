@@ -4,6 +4,8 @@
 #include <chrono>
 #include <algorithm>
 
+static std::mutex global_lua_mutex;
+
 LuaScripting* LuaScripting::instance = nullptr;
 
 LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, 
@@ -143,6 +145,9 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("ioMouseCapture", lua_ioMouseCapture);
     reg("ioMouseRelease", lua_ioMouseRelease);
 
+    reg("luaGetMutex", lua_luaGetMutex);
+    reg("luaReleaseMutex", lua_luaReleaseMutex);
+
     // Input Framework
     reg("ioKBClicked", lua_ioKBClicked);
     reg("ioKBDown", lua_ioKBDown);
@@ -155,6 +160,7 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("ioMouseBTNUp", lua_ioMouseBTNUp);
 
     // Godot Manipulation
+    reg("godotGetNodePointer", lua_godotGetNodePointer);
     reg("godotSelectRoot", lua_godotSelectRoot);
     reg("godotSelectNode", lua_godotSelectNode);
     reg("godotSearchNode", lua_godotSearchNode);
@@ -554,6 +560,17 @@ int LuaScripting::lua_appQuit(lua_State* L) {
     return 0;
 }
 
+int LuaScripting::lua_luaGetMutex(lua_State* L) {
+    bool locked = global_lua_mutex.try_lock();
+    lua_pushboolean(L, locked);
+    return 1;
+}
+
+int LuaScripting::lua_luaReleaseMutex(lua_State* L) {
+    global_lua_mutex.unlock();
+    return 0;
+}
+
 int LuaScripting::lua_luaClearAndRun(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (lua_isstring(L, 1) && self && self->clearAndRunFunc) {
@@ -672,6 +689,26 @@ int LuaScripting::lua_ioMouseBTNUp(lua_State* L) {
     return 0;
 }
 
+int LuaScripting::lua_godotGetNodePointer(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isstring(L, 1) && self && self->godotCmdFunc) {
+        auto sd = std::make_shared<LuaSyncData>();
+        float fargs[3] = {0,0,0};
+        self->godotCmdFunc(GCMD_GET_NODE_POINTER, lua_tostring(L, 1), fargs, sd, L, self);
+        std::unique_lock<std::mutex> lock(sd->mtx);
+        while (!sd->done && self && self->systemRunning) {
+            sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+        }
+        if (sd->ptr_res) {
+            lua_pushlightuserdata(L, sd->ptr_res);
+        } else {
+            lua_pushnil(L);
+        }
+        return 1;
+    }
+    return 0;
+}
+
 int LuaScripting::lua_godotSelectRoot(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (self && self->godotCmdFunc) {
@@ -723,6 +760,9 @@ int LuaScripting::lua_godotGetNodeType(lua_State* L) {
     if (self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0,0,0};
+        if (lua_islightuserdata(L, 1)) {
+            sd->ptr_arg = lua_touserdata(L, 1);
+        }
         self->godotCmdFunc(GCMD_GET_NODE_TYPE, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -739,6 +779,9 @@ int LuaScripting::lua_godotGetName(lua_State* L) {
     if (self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0,0,0};
+        if (lua_islightuserdata(L, 1)) {
+            sd->ptr_arg = lua_touserdata(L, 1);
+        }
         self->godotCmdFunc(GCMD_GET_NAME, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -755,6 +798,9 @@ int LuaScripting::lua_godotGetChildCount(lua_State* L) {
     if (self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0,0,0};
+        if (lua_islightuserdata(L, 1)) {
+            sd->ptr_arg = lua_touserdata(L, 1);
+        }
         self->godotCmdFunc(GCMD_GET_CHILD_COUNT, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -785,6 +831,9 @@ int LuaScripting::lua_godotRenameNode(lua_State* L) {
     if (lua_isstring(L, 1) && self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0,0,0};
+        if (lua_islightuserdata(L, 2)) {
+            sd->ptr_arg = lua_touserdata(L, 2);
+        }
         self->godotCmdFunc(GCMD_RENAME_NODE, lua_tostring(L, 1), fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -815,6 +864,9 @@ int LuaScripting::lua_godotGetPos(lua_State* L) {
     if (self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0,0,0};
+        if (lua_islightuserdata(L, 1)) {
+            sd->ptr_arg = lua_touserdata(L, 1);
+        }
         self->godotCmdFunc(GCMD_GET_POS, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -833,6 +885,9 @@ int LuaScripting::lua_godotSetPos(lua_State* L) {
     if (lua_isnumber(L, 1) && lua_isnumber(L, 2) && lua_isnumber(L, 3) && self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {(float)lua_tonumber(L, 1), (float)lua_tonumber(L, 2), (float)lua_tonumber(L, 3)};
+        if (lua_islightuserdata(L, 4)) {
+            sd->ptr_arg = lua_touserdata(L, 4);
+        }
         self->godotCmdFunc(GCMD_SET_POS, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -847,6 +902,9 @@ int LuaScripting::lua_godotSetVisible(lua_State* L) {
     if (lua_isboolean(L, 1) && self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {lua_toboolean(L, 1) ? 1.0f : 0.0f, 0, 0};
+        if (lua_islightuserdata(L, 2)) {
+            sd->ptr_arg = lua_touserdata(L, 2);
+        }
         self->godotCmdFunc(GCMD_SET_VISIBLE, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -861,6 +919,9 @@ int LuaScripting::lua_godotGetScale(lua_State* L) {
     if (self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0,0,0};
+        if (lua_islightuserdata(L, 1)) {
+            sd->ptr_arg = lua_touserdata(L, 1);
+        }
         self->godotCmdFunc(GCMD_GET_SCALE, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -879,6 +940,9 @@ int LuaScripting::lua_godotSetScale(lua_State* L) {
     if (lua_isnumber(L, 1) && lua_isnumber(L, 2) && lua_isnumber(L, 3) && self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {(float)lua_tonumber(L, 1), (float)lua_tonumber(L, 2), (float)lua_tonumber(L, 3)};
+        if (lua_islightuserdata(L, 4)) {
+            sd->ptr_arg = lua_touserdata(L, 4);
+        }
         self->godotCmdFunc(GCMD_SET_SCALE, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -893,6 +957,9 @@ int LuaScripting::lua_godotMoveX(lua_State* L) {
     if (lua_isnumber(L, 1) && self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {(float)lua_tonumber(L, 1), 0, 0};
+        if (lua_islightuserdata(L, 2)) {
+            sd->ptr_arg = lua_touserdata(L, 2);
+        }
         self->godotCmdFunc(GCMD_MOVE_X, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -907,6 +974,9 @@ int LuaScripting::lua_godotMoveY(lua_State* L) {
     if (lua_isnumber(L, 1) && self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0, (float)lua_tonumber(L, 1), 0};
+        if (lua_islightuserdata(L, 2)) {
+            sd->ptr_arg = lua_touserdata(L, 2);
+        }
         self->godotCmdFunc(GCMD_MOVE_Y, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -921,6 +991,9 @@ int LuaScripting::lua_godotMoveZ(lua_State* L) {
     if (lua_isnumber(L, 1) && self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0, 0, (float)lua_tonumber(L, 1)};
+        if (lua_islightuserdata(L, 2)) {
+            sd->ptr_arg = lua_touserdata(L, 2);
+        }
         self->godotCmdFunc(GCMD_MOVE_Z, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -935,6 +1008,9 @@ int LuaScripting::lua_godotMoveAndCollide(lua_State* L) {
     if (lua_isnumber(L, 1) && lua_isnumber(L, 2) && lua_isnumber(L, 3) && self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {(float)lua_tonumber(L, 1), (float)lua_tonumber(L, 2), (float)lua_tonumber(L, 3)};
+        if (lua_islightuserdata(L, 4)) {
+            sd->ptr_arg = lua_touserdata(L, 4);
+        }
         self->godotCmdFunc(GCMD_MOVE_AND_COLLIDE, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -951,6 +1027,9 @@ int LuaScripting::lua_godotGetOverlappingAreas(lua_State* L) {
     if (self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0,0,0};
+        if (lua_islightuserdata(L, 1)) {
+            sd->ptr_arg = lua_touserdata(L, 1);
+        }
         self->godotCmdFunc(GCMD_GET_OVERLAPPING_AREAS, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -1015,6 +1094,9 @@ int LuaScripting::lua_godotDeleteNode(lua_State* L) {
     if (self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0,0,0};
+        if (lua_islightuserdata(L, 1)) {
+            sd->ptr_arg = lua_touserdata(L, 1);
+        }
         self->godotCmdFunc(GCMD_DELETE_NODE, "", fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -1049,7 +1131,10 @@ int LuaScripting::lua_godotSetProperty(lua_State* L) {
         if (lua_isnumber(L, 2)) {
             fargs[0] = (float)lua_tonumber(L, 2);
             fargs[1] = 0; // Number
-            self->godotCmdFunc(GCMD_SET_PROPERTY, name, fargs, sd, L, self);
+            if (lua_islightuserdata(L, 3)) {
+            sd->ptr_arg = lua_touserdata(L, 3);
+        }
+        self->godotCmdFunc(GCMD_SET_PROPERTY, name, fargs, sd, L, self);
         } else if (lua_isstring(L, 2)) {
             fargs[1] = 1; // String
             std::string combined = name + "|" + lua_tostring(L, 2);
@@ -1074,6 +1159,9 @@ int LuaScripting::lua_godotGetProperty(lua_State* L) {
     if (lua_isstring(L, 1) && self && self->godotCmdFunc) {
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0,0,0};
+        if (lua_islightuserdata(L, 2)) {
+            sd->ptr_arg = lua_touserdata(L, 2);
+        }
         self->godotCmdFunc(GCMD_GET_PROPERTY, lua_tostring(L, 1), fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {

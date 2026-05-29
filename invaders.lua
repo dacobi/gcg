@@ -10,7 +10,7 @@ ioMouseCapture()
 local shipX = 0.0
 local minX = -55.0
 local maxX = 55.0
-local inLiveLost = false
+
 
 addBouncer("[layer:1][fontsize:0.2][pos:20,20][rgb: 0,255,255]Level [global:\"level\"]")
 
@@ -53,7 +53,7 @@ function onGameWon()
     luaClearAndRun("winwin.lua")
 end
 
-
+local inLiveLost = false
 function onLiveLost()
     if inLiveLost then return end
     inLiveLost = true

@@ -24,24 +24,25 @@ public:
     void selectRoot(void* owner);
     bool selectNode(const std::string& name, void* owner);
     bool searchNode(const std::string& name, void* owner);
-    std::string getNodeType(void* owner);
-    std::string getName(void* owner);
-    int getChildCount(void* owner);
+    void* getNodePointer(const std::string& name, void* owner);
+    std::string getNodeType(void* owner, void* target_node = nullptr);
+    std::string getName(void* owner, void* target_node = nullptr);
+    int getChildCount(void* owner, void* target_node = nullptr);
     void printHierarchy();
-    void renameNode(const std::string& name, void* owner);
+    void renameNode(const std::string& name, void* owner, void* target_node = nullptr);
     bool setCamera(void* owner);
-    bool getPos(float& x, float& y, float& z, void* owner);
-    void setPos(float x, float y, float z, void* owner);
-    void setVisible(bool visible, void* owner);
-    bool getScale(float& x, float& y, float& z, void* owner);
-    void setScale(float x, float y, float z, void* owner);
-    void move(float x, float y, float z, void* owner);
-    bool moveAndCollide(float x, float y, float z, void* owner);
-    std::vector<std::string> getOverlappingAreas(void* owner);
+    bool getPos(float& x, float& y, float& z, void* owner, void* target_node = nullptr);
+    void setPos(float x, float y, float z, void* owner, void* target_node = nullptr);
+    void setVisible(bool visible, void* owner, void* target_node = nullptr);
+    bool getScale(float& x, float& y, float& z, void* owner, void* target_node = nullptr);
+    void setScale(float x, float y, float z, void* owner, void* target_node = nullptr);
+    void move(float x, float y, float z, void* owner, void* target_node = nullptr);
+    bool moveAndCollide(float x, float y, float z, void* owner, void* target_node = nullptr);
+    std::vector<std::string> getOverlappingAreas(void* owner, void* target_node = nullptr);
 
     bool createNode(const std::string& name, void* owner);
     bool loadNode(const std::string& path, void* owner, float x = 0, float y = 0, float z = 0, bool use_pos = false);
-    void deleteNode(void* owner);
+    void deleteNode(void* owner, void* target_node = nullptr);
 
     Node* getCurrentNode(void* owner) const { 
         auto it = current_nodes.find(owner);

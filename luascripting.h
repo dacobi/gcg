@@ -20,11 +20,14 @@ struct LuaSyncData {
     float f_res[3] = {0.0f, 0.0f, 0.0f};
     double d_res = 0.0;
     std::vector<std::string> vs_res;
+    void* ptr_res = nullptr;
+    void* ptr_arg = nullptr;
 };
 
 class LuaScripting {
 public:
     enum GodotCmd {
+        GCMD_GET_NODE_POINTER,
         GCMD_SELECT_ROOT,
         GCMD_SELECT_NODE,
         GCMD_SEARCH_NODE,
@@ -128,6 +131,8 @@ private:
     static int lua_imGuiShow(lua_State* L);
     static int lua_ioMouseCapture(lua_State* L);
     static int lua_ioMouseRelease(lua_State* L);
+    static int lua_luaGetMutex(lua_State* L);
+    static int lua_luaReleaseMutex(lua_State* L);
     static int lua_setGlobalVar(lua_State* L);
     static int lua_getGlobalVar(lua_State* L);
     static int lua_regGlobalVar(lua_State* L);
@@ -145,6 +150,7 @@ private:
     static int lua_ioMouseBTNUp(lua_State* L);
 
     // Godot Manipulation
+    static int lua_godotGetNodePointer(lua_State* L);
     static int lua_godotSelectRoot(lua_State* L);
     static int lua_godotSelectNode(lua_State* L);
     static int lua_godotSearchNode(lua_State* L);
