@@ -121,125 +121,31 @@ class AudioMixer {
 
 private:
     struct SourceState {
-        std::vector<float> buffer;
-        int64_t total_pushed = 0; // Total samples (frames * channels)
-        double start_pts = -1.0;
+        std::deque<float> buffer;
     };
 
     std::mutex mtx;
     std::map<void*, SourceState> sources;
     std::deque<int16_t> encoder_queue;
-
-    snd_pcm_t* alsa_handle = nullptr;
-    std::thread playback_thread;
-    std::atomic<bool> quit{false};
     int sample_rate;
-    int64_t total_written_to_alsa = 0; // In samples (frames * channels)
-
-    struct DelaySnap {
-        double delay;
-        std::chrono::steady_clock::time_point timestamp;
-    };
-    std::mutex snap_mtx;
-    DelaySnap last_snap;
-
-    void setupALSA(int channels, int rate) {
-        if (snd_pcm_open(&alsa_handle, "default", SND_PCM_STREAM_PLAYBACK, 0) < 0) return;
-        // 500ms buffer for stability
-        snd_pcm_set_params(alsa_handle, SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED,
-                           channels, rate, 1, 500000); 
-        snd_pcm_nonblock(alsa_handle, 1);
-        snd_pcm_prepare(alsa_handle);
-    }
-
-    void updateDelaySnap() {
-        snd_pcm_sframes_t delay_frames = 0;
-        double d = 0;
-        if (alsa_handle && snd_pcm_delay(alsa_handle, &delay_frames) == 0) {
-            d = (double)delay_frames / sample_rate;
-        }
-        std::lock_guard<std::mutex> lock(snap_mtx);
-        last_snap = {d, std::chrono::steady_clock::now()};
-    }
-
-    void playbackWorker() {
-        const int max_frames = 512;
-        std::vector<float> mix_buf(max_frames * 2);
-        std::vector<int16_t> out_buf(max_frames * 2);
-
-        while (!quit) {
-            int frames_to_write = 0;
-            {
-                std::lock_guard<std::mutex> lock(mtx);
-                int max_avail = 0;
-                for (auto& p : sources) max_avail = std::max(max_avail, (int)p.second.buffer.size());
-
-                if (max_avail > 0) {
-                    int samples = std::min(max_avail, (int)mix_buf.size());
-                    if (samples % 2 != 0) samples--;
-                    if (samples > 0) {
-                        std::fill(mix_buf.begin(), mix_buf.begin() + samples, 0.0f);
-                        for (auto& p : sources) {
-                            auto& src = p.second;
-                            int to_copy = std::min((int)src.buffer.size(), samples);
-                            for (int i = 0; i < to_copy; ++i) mix_buf[i] += src.buffer[i];
-                            src.buffer.erase(src.buffer.begin(), src.buffer.begin() + to_copy);
-                        }
-                        for (int i = 0; i < samples; ++i) {
-                            float s = std::max(-1.0f, std::min(1.0f, mix_buf[i]));
-                            out_buf[i] = static_cast<int16_t>(s * 32767.0f);
-                            encoder_queue.push_back(out_buf[i]);
-                        }
-                        if (encoder_queue.size() > (size_t)sample_rate * 2 * 5)
-                            encoder_queue.erase(encoder_queue.begin(), encoder_queue.begin() + (encoder_queue.size() - (size_t)sample_rate * 2 * 5));
-                        frames_to_write = samples / 2;
-                    }
-                }
-            }
-
-            if (frames_to_write == 0) {
-                updateDelaySnap();
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
-                continue;
-            }
-
-            int written = 0;
-            while (written < frames_to_write && !quit && alsa_handle) {
-                snd_pcm_sframes_t ret = snd_pcm_writei(alsa_handle, out_buf.data() + written * 2, frames_to_write - written);
-                if (ret == -EAGAIN) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); continue; }
-                if (ret == -EPIPE) { snd_pcm_prepare(alsa_handle); continue; }
-                if (ret < 0) break;
-                written += ret;
-                total_written_to_alsa += ret * 2;
-            }
-            updateDelaySnap();
-        }
-    }
 
 public:
-    AudioMixer(int rate) : sample_rate(rate) {
-        last_snap = {0.0, std::chrono::steady_clock::now()};
-        setupALSA(2, rate);
-        playback_thread = std::thread(&AudioMixer::playbackWorker, this);
-    }
+    AudioMixer(int rate) : sample_rate(rate) {}
 
-    ~AudioMixer() {
-        quit = true;
-        if (alsa_handle) snd_pcm_drop(alsa_handle);
-        if (playback_thread.joinable()) playback_thread.join();
-        if (alsa_handle) snd_pcm_close(alsa_handle);
-    }
+    ~AudioMixer() {}
 
     void addAudio(void* source, const int16_t* data, int nb_samples, double pts) {
         std::lock_guard<std::mutex> lock(mtx);
         auto& src = sources[source];
-        if (src.start_pts < 0 || std::abs(pts - (src.start_pts + (double)src.total_pushed / (sample_rate * 2))) > 0.5) {
-            src.start_pts = pts;
-            src.total_pushed = 0;
-            src.buffer.clear();
+        
+        for (int i = 0; i < nb_samples * 2; ++i) {
+            src.buffer.push_back(data[i] / 32768.0f);
         }
-        for (int i = 0; i < nb_samples * 2; ++i) src.buffer.push_back(data[i] / 32768.0f);
-        src.total_pushed += nb_samples * 2;
+        
+        // Safety: If buffer grows beyond 2 seconds (192000 samples), drop oldest data
+        if (src.buffer.size() > 192000) {
+            src.buffer.erase(src.buffer.begin(), src.buffer.begin() + (src.buffer.size() - 96000));
+        }
     }
 
     void removeSource(void* source) {
@@ -261,22 +167,36 @@ public:
         std::lock_guard<std::mutex> lock(mtx);
         if (sources.find(source) == sources.end()) return 0.0;
         auto& src = sources[source];
-        if (src.start_pts < 0) return 0.0;
-
-        DelaySnap snap;
-        {
-            std::lock_guard<std::mutex> slock(snap_mtx);
-            snap = last_snap;
-        }
-        auto now = std::chrono::steady_clock::now();
-        double elapsed = std::chrono::duration<double>(now - snap.timestamp).count();
-        double alsa_delay = std::max(0.0, snap.delay - elapsed);
-        double buffer_delay = (double)(src.buffer.size() / 2) / sample_rate;
-
-        double total_delay = alsa_delay + buffer_delay;
-        return src.start_pts + (double)(src.total_pushed / 2) / sample_rate - total_delay;
+        // Return the amount of buffered data in seconds
+        return (double)(src.buffer.size() / 2) / sample_rate;
     }
-};// ---------------------------------------------------------------------------
+
+    // Called by Godot's audio thread via exported C function
+    void mix_to_godot(float* interleaved_buffer, int frames) {
+        std::lock_guard<std::mutex> lock(mtx);
+        
+        // Zero the buffer (Godot expects stereo floats: L R L R ...)
+        std::fill(interleaved_buffer, interleaved_buffer + (frames * 2), 0.0f);
+
+        for (auto& p : sources) {
+            auto& src = p.second;
+            int to_copy = std::min((int)(src.buffer.size() / 2), frames);
+            for (int i = 0; i < to_copy; ++i) {
+                interleaved_buffer[i * 2]     += src.buffer.front();
+                src.buffer.pop_front();
+                interleaved_buffer[i * 2 + 1] += src.buffer.front();
+                src.buffer.pop_front();
+            }
+        }
+        
+        // Clip output
+        for (int i = 0; i < frames * 2; ++i) {
+            interleaved_buffer[i] = std::max(-1.0f, std::min(1.0f, interleaved_buffer[i]));
+        }
+    }
+};
+
+// ---------------------------------------------------------------------------
 // Audio Decoder — decode MPEG audio files using FFmpeg and feed to AudioMixer
 // ---------------------------------------------------------------------------
 struct AudioDecoder {
@@ -2432,6 +2352,12 @@ static void randomise_plasma_xy(CLPlasmaParams& p) {
 }
 
 
+extern "C" void gcg_audio_mix(float* interleaved_buffer, int frames) {
+    if (myMix) {
+        myMix->mix_to_godot(interleaved_buffer, frames);
+    }
+}
+
 //------------
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
@@ -2447,22 +2373,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
     myMix = new AudioMixer(MIXER_SAMPLE_RATE);
 
-    libgodot_set_audio_callback([](const int32_t* data, int frames, int channels, int rate) {
-        if (myMix) {
-            std::vector<int16_t> pcm(frames * channels);
-            for (int i = 0; i < frames * channels; ++i) {
-                pcm[i] = (int16_t)(data[i] >> 16);
-            }
-            static void* godot_source = (void*)"godot";
-            static double current_pts = 0.0;
-            myMix->addAudio(godot_source, pcm.data(), frames, current_pts);
-            current_pts += (double)frames / rate;
-        }
-    });
-
     state->godot_manager = new GodotManager();
-    const char* godot_args[] = { "gcg", "--offscreen", "--rendering-driver", "vulkan", "--audio-driver", "Dummy" };
-    state->godot_manager->init(6, (char**)godot_args);
+    const char* godot_args[] = { "gcg", "--display-driver", "offscreen", "--rendering-driver", "vulkan" };
+    state->godot_manager->init(5, (char**)godot_args);
 
     // --- Parse CLI arguments ---
     for (int i = 1; i < argc; ++i) {

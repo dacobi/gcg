@@ -11,7 +11,48 @@
 #include "resource_format_loader_wav.h"
 #include <iostream>
 
+
 #include "scene/main/node.h"
+#include "servers/audio/audio_stream.h"
+#include "scene/audio/audio_stream_player.h"
+
+extern "C" void gcg_audio_mix(float* interleaved_buffer, int frames);
+
+class AudioStreamPlaybackGCG : public AudioStreamPlaybackResampled {
+    GDCLASS(AudioStreamPlaybackGCG, AudioStreamPlaybackResampled);
+public:
+    virtual void start(double p_from_pos = 0.0) override {}
+    virtual void stop() override {}
+    virtual bool is_playing() const override { return true; }
+    virtual int get_loop_count() const override { return 0; }
+    virtual double get_playback_position() const override { return 0.0; }
+    virtual void seek(double p_time) override {}
+    virtual void tag_used_streams() override {}
+    virtual void set_parameter(const StringName &p_name, const Variant &p_value) override {}
+    virtual Variant get_parameter(const StringName &p_name) const override { return Variant(); }
+    
+protected:
+    virtual int _mix_internal(AudioFrame *p_buffer, int p_frames) override {
+        gcg_audio_mix((float*)p_buffer, p_frames);
+        return p_frames;
+    }
+    virtual float get_stream_sampling_rate() override {
+        return 48000.0f; // Match MIXER_SAMPLE_RATE
+    }
+};
+
+class AudioStreamGCG : public AudioStream {
+    GDCLASS(AudioStreamGCG, AudioStream);
+public:
+    virtual Ref<AudioStreamPlayback> instantiate_playback() override {
+        Ref<AudioStreamPlaybackGCG> pb = memnew(AudioStreamPlaybackGCG);
+        return pb;
+    }
+    virtual String get_stream_name() const override { return "AudioStreamGCG"; }
+    virtual double get_length() const override { return 0.0; }
+    virtual bool is_monophonic() const override { return false; }
+};
+
 
 std::queue<GodotSignalEvent> GodotManager::signal_queue;
 std::mutex GodotManager::signal_mutex;
@@ -73,7 +114,24 @@ bool GodotManager::init(int argc, char* argv[]) {
     wav_loader.instantiate();
     ResourceLoader::add_resource_format_loader(wav_loader);
 
+
     ClassDB::register_class<LuaEventBridge>();
+    ClassDB::register_class<AudioStreamGCG>();
+    ClassDB::register_class<AudioStreamPlaybackGCG>();
+
+    SceneTree* tree = SceneTree::get_singleton();
+    if (tree && tree->get_root()) {
+        AudioStreamPlayer* player = memnew(AudioStreamPlayer);
+        Ref<AudioStreamGCG> stream = memnew(AudioStreamGCG);
+        player->set_stream(stream);
+        player->set_name("GCG_AudioBridge");
+        tree->get_root()->add_child(player);
+        player->play();
+        std::printf("GCG_AudioBridge player added and started.\\n");
+    } else {
+        std::printf("ERROR: SceneTree or root is null. GCG_AudioBridge NOT added.\\n");
+    }
+
 
     is_running = true;    return true;
 }

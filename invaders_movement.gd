@@ -38,9 +38,17 @@ func _init():
 
 func _ready():
 	_reset_fire_timer()
-	var march_delay = 8.0 / speed
-	march_timer_node.wait_time = march_delay
-	march_timer_node.timeout.connect(_on_march_timer_timeout)
+	if march_timer_node:
+		march_timer_node.timeout.connect(_on_march_timer_timeout)
+		march_timer_node.wait_time = max(0.05, 8.0 / speed)
+		march_timer_node.start()
+
+func _on_march_timer_timeout():
+	if bAdvance and march_player:
+		march_player.play()
+	# Update wait_time for the next cycle based on current speed
+	if march_timer_node:
+		march_timer_node.wait_time = max(0.05, 8.0 / speed)
 
 func _process(delta):
 	# Prevent massive delta spikes from breaking movement
@@ -84,33 +92,6 @@ func _process(delta):
 		if fire_timer >= next_fire_time:
 			_fire_random_projectile()
 			_reset_fire_timer()
-	
-
-	# Dynamically update the timer's speed as the game gets faster
-	
-
-
-	# --- Marching Sound Logic ---
-	#if bAdvance:
-		
-		#march_timer += delta
-		#print("timer: ", march_timer)
-		#var march_delay = 8.0 / speed # Delay decreases as speed increases
-		#print("delay: ", march_delay)
-		#if march_timer >= march_delay:
-			#march_timer -= march_delay # Preserve timing overflow for consistent rhythm
-			#if march_player:
-				#print("Play")
-				#march_player.play()
-
-# Connect the MarchTimer's "timeout" signal to this function
-func _on_march_timer_timeout():
-	print("timeout")
-	if bAdvance and march_player:
-		march_player.play()
-	var march_delay = 8.0 / speed
-	if march_timer_node.wait_time != march_delay:
-		march_timer_node.wait_time = march_delay
 
 func _reset_fire_timer():
 	fire_timer = 0.0
