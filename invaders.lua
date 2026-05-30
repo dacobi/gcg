@@ -240,7 +240,7 @@ while true do
         end
     end
 
-    delay(16) -- run at roughly 60 fps
+    delay(5) -- run at roughly 60 fps
 end
 
 -- Release mouse on exit
