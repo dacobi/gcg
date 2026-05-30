@@ -8,6 +8,7 @@
 #include "core/object/class_db.h"
 #include "core/object/object.h"
 #include "resource_format_loader_gltf.h"
+#include "resource_format_loader_wav.h"
 #include <iostream>
 
 #include "scene/main/node.h"
@@ -67,6 +68,10 @@ bool GodotManager::init(int argc, char* argv[]) {
     Ref<ResourceFormatLoaderGLTF> gltf_loader;
     gltf_loader.instantiate();
     ResourceLoader::add_resource_format_loader(gltf_loader);
+
+    Ref<ResourceFormatLoaderWAV> wav_loader;
+    wav_loader.instantiate();
+    ResourceLoader::add_resource_format_loader(wav_loader);
 
     ClassDB::register_class<LuaEventBridge>();
 

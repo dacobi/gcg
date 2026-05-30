@@ -47,6 +47,8 @@
 #include "godot_renderer.h"
 #include "high_score_manager.h"
 
+extern "C" void libgodot_set_audio_callback(void (*callback)(const int32_t*, int, int, int));
+
 #ifdef USE_USD
 #include "usd_manager.h"
 #include "usd_hydra_renderer.h"
@@ -2443,11 +2445,24 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     AppState* state = new AppState();
     *appstate = state;
 
-    state->godot_manager = new GodotManager();
-    const char* godot_args[] = {"gcg", "--offscreen", "--rendering-driver", "vulkan"};
-    state->godot_manager->init(4, (char**)godot_args);
-
     myMix = new AudioMixer(MIXER_SAMPLE_RATE);
+
+    libgodot_set_audio_callback([](const int32_t* data, int frames, int channels, int rate) {
+        if (myMix) {
+            std::vector<int16_t> pcm(frames * channels);
+            for (int i = 0; i < frames * channels; ++i) {
+                pcm[i] = (int16_t)(data[i] >> 16);
+            }
+            static void* godot_source = (void*)"godot";
+            static double current_pts = 0.0;
+            myMix->addAudio(godot_source, pcm.data(), frames, current_pts);
+            current_pts += (double)frames / rate;
+        }
+    });
+
+    state->godot_manager = new GodotManager();
+    const char* godot_args[] = { "gcg", "--offscreen", "--rendering-driver", "vulkan", "--audio-driver", "Dummy" };
+    state->godot_manager->init(6, (char**)godot_args);
 
     // --- Parse CLI arguments ---
     for (int i = 1; i < argc; ++i) {

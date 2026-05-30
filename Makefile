@@ -526,6 +526,30 @@ resource_format_loader_gltf.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/resource_format_loader_gltf.cpp.s
 .PHONY : resource_format_loader_gltf.cpp.s
 
+resource_format_loader_wav.o: resource_format_loader_wav.cpp.o
+.PHONY : resource_format_loader_wav.o
+
+# target to build an object file
+resource_format_loader_wav.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/resource_format_loader_wav.cpp.o
+.PHONY : resource_format_loader_wav.cpp.o
+
+resource_format_loader_wav.i: resource_format_loader_wav.cpp.i
+.PHONY : resource_format_loader_wav.i
+
+# target to preprocess a source file
+resource_format_loader_wav.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/resource_format_loader_wav.cpp.i
+.PHONY : resource_format_loader_wav.cpp.i
+
+resource_format_loader_wav.s: resource_format_loader_wav.cpp.s
+.PHONY : resource_format_loader_wav.s
+
+# target to generate assembly for a file
+resource_format_loader_wav.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/resource_format_loader_wav.cpp.s
+.PHONY : resource_format_loader_wav.cpp.s
+
 shplasma.o: shplasma.cpp.o
 .PHONY : shplasma.o
 
@@ -608,6 +632,9 @@ help:
 	@echo "... resource_format_loader_gltf.o"
 	@echo "... resource_format_loader_gltf.i"
 	@echo "... resource_format_loader_gltf.s"
+	@echo "... resource_format_loader_wav.o"
+	@echo "... resource_format_loader_wav.i"
+	@echo "... resource_format_loader_wav.s"
 	@echo "... shplasma.o"
 	@echo "... shplasma.i"
 	@echo "... shplasma.s"

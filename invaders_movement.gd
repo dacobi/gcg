@@ -8,6 +8,8 @@ var direction = 1
 var boundary_x = 30.0
 var drop_height = 5.0
 
+var march_timer = 0.0
+
 # Firing parameters (Starting at double the previous rate)
 var fire_timer = 0.0
 var min_fire_delay = 0.25
@@ -77,6 +79,16 @@ func _process(delta):
 		if fire_timer >= next_fire_time:
 			_fire_random_projectile()
 			_reset_fire_timer()
+	
+	# --- Marching Sound Logic ---
+	if bAdvance:
+		march_timer += delta
+		var march_delay = 8.0 / speed # Delay decreases as speed increases
+		if march_timer >= march_delay:
+			march_timer = 0.0
+			var player = get_node_or_null("MarchPlayer")
+			if player:
+				player.play()
 
 func _reset_fire_timer():
 	fire_timer = 0.0
