@@ -15,8 +15,47 @@
 #include "scene/main/node.h"
 #include "servers/audio/audio_stream.h"
 #include "scene/audio/audio_stream_player.h"
+#include "servers/audio/audio_effect.h"
+#include "servers/audio/audio_server.h"
+#include <vector>
 
 extern "C" void gcg_audio_mix(float* interleaved_buffer, int frames);
+extern "C" void gcg_video_record_audio(const int16_t* pcm_data, int frames);
+
+extern "C" int gcg_get_godot_mix_rate() {
+    if (AudioServer::get_singleton()) {
+        return AudioServer::get_singleton()->get_mix_rate();
+    }
+    return 48000;
+}
+
+class AudioEffectInstanceGCG : public AudioEffectInstance {
+    GDCLASS(AudioEffectInstanceGCG, AudioEffectInstance);
+public:
+    virtual void process(const AudioFrame *p_src_frames, AudioFrame *p_dst_frames, int p_frame_count) override {
+        // Pass audio through transparently
+        for (int i = 0; i < p_frame_count; i++) {
+            p_dst_frames[i] = p_src_frames[i];
+        }
+
+        // Intercept and push to the video encoder
+        std::vector<int16_t> pcm(p_frame_count * 2);
+        const float* f_ptr = (const float*)p_src_frames;
+        for (int i = 0; i < p_frame_count * 2; ++i) {
+            pcm[i] = static_cast<int16_t>(std::max(-1.0f, std::min(1.0f, f_ptr[i])) * 32767.0f);
+        }
+        gcg_video_record_audio(pcm.data(), p_frame_count);
+    }
+};
+
+class AudioEffectGCG : public AudioEffect {
+    GDCLASS(AudioEffectGCG, AudioEffect);
+public:
+    virtual Ref<AudioEffectInstance> instantiate() override {
+        Ref<AudioEffectInstanceGCG> ins = memnew(AudioEffectInstanceGCG);
+        return ins;
+    }
+};
 
 class AudioStreamPlaybackGCG : public AudioStreamPlaybackResampled {
     GDCLASS(AudioStreamPlaybackGCG, AudioStreamPlaybackResampled);
@@ -118,6 +157,8 @@ bool GodotManager::init(int argc, char* argv[]) {
     ClassDB::register_class<LuaEventBridge>();
     ClassDB::register_class<AudioStreamGCG>();
     ClassDB::register_class<AudioStreamPlaybackGCG>();
+    ClassDB::register_class<AudioEffectGCG>();
+    ClassDB::register_class<AudioEffectInstanceGCG>();
 
     SceneTree* tree = SceneTree::get_singleton();
     if (tree && tree->get_root()) {
@@ -127,9 +168,15 @@ bool GodotManager::init(int argc, char* argv[]) {
         player->set_name("GCG_AudioBridge");
         tree->get_root()->add_child(player);
         player->play();
-        std::printf("GCG_AudioBridge player added and started.\\n");
+        
+        // Attach capture effect to Master bus
+        Ref<AudioEffectGCG> capture_effect = memnew(AudioEffectGCG);
+        int master_idx = AudioServer::get_singleton()->get_bus_index("Master");
+        AudioServer::get_singleton()->add_bus_effect(master_idx, capture_effect);
+        
+        std::printf("GCG_AudioBridge player and capture effect added.\\n");
     } else {
-        std::printf("ERROR: SceneTree or root is null. GCG_AudioBridge NOT added.\\n");
+        std::printf("ERROR: SceneTree or root is null.\\n");
     }
 
 

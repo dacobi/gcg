@@ -126,7 +126,6 @@ private:
 
     std::mutex mtx;
     std::map<void*, SourceState> sources;
-    std::deque<int16_t> encoder_queue;
     int sample_rate;
 
 public:
@@ -151,16 +150,6 @@ public:
     void removeSource(void* source) {
         std::lock_guard<std::mutex> lock(mtx);
         sources.erase(source);
-    }
-
-    std::vector<int16_t> consume(int nb_samples) {
-        std::lock_guard<std::mutex> lock(mtx);
-        int total = nb_samples * 2;
-        int available = std::min((int)encoder_queue.size(), total);
-        if (available == 0) return {};
-        std::vector<int16_t> out(available);
-        for (int i = 0; i < available; ++i) { out[i] = encoder_queue.front(); encoder_queue.pop_front(); }
-        return out;
     }
 
     double getSourcePTS(void* source) {
@@ -315,6 +304,9 @@ private:
     std::vector<RawFrame*> buffer_pool;
     std::mutex pool_mtx;
 
+    std::mutex a_queue_mtx;
+    std::deque<int16_t> audio_recording_queue;
+
     int width, height;
     double target_fps;
     int64_t a_pts = 0;
@@ -325,8 +317,21 @@ private:
     // Time-based Sync State
     std::chrono::steady_clock::time_point start_time;
     std::atomic<bool> recording_started{false};
-    const size_t MAX_QUEUE_SIZE = 15; 
+    const size_t MAX_QUEUE_SIZE = 15;
 
+public:
+    void addAudio(const int16_t* data, int samples) {
+        if (!recording_started) return;
+        std::lock_guard<std::mutex> lock(a_queue_mtx);
+        for (int i = 0; i < samples * 2; ++i) {
+            audio_recording_queue.push_back(data[i]);
+        }
+        while (audio_recording_queue.size() > 48000 * 2 * 5) {
+            audio_recording_queue.pop_front();
+        }
+    }
+
+private:
     void workerFunc() {
         while (!quit || !video_queue.empty()) {
             bool busy = false;
@@ -366,8 +371,20 @@ private:
 
             // 2. Process Audio (Only if recording has officially started)
             if (recording_started) {
-                // Request a decent chunk of audio to avoid frequent wakeups, but stay responsive
-                std::vector<int16_t> mixed = shared_mixer->consume(a_frame_size * 2);
+                std::vector<int16_t> mixed;
+                {
+                    std::lock_guard<std::mutex> lock(a_queue_mtx);
+                    int total_samples = a_frame_size * 2;
+                    int available = std::min((int)audio_recording_queue.size(), total_samples);
+                    if (available > 0) {
+                        mixed.resize(available);
+                        for (int i = 0; i < available; ++i) {
+                            mixed[i] = audio_recording_queue.front();
+                            audio_recording_queue.pop_front();
+                        }
+                    }
+                }
+
                 if (!mixed.empty()) {
                     busy = true;
                     audio_remainder_buf.insert(audio_remainder_buf.end(), mixed.begin(), mixed.end());
@@ -382,6 +399,7 @@ private:
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
+
         // Flush remaining audio on exit
         if (!audio_remainder_buf.empty()) {
             int samples = audio_remainder_buf.size() / 2;
@@ -1014,6 +1032,8 @@ struct Recorder {
 NvencEncoder* myNvec = NULL;
 
 
+extern "C" int gcg_get_godot_mix_rate();
+
 static bool recorder_start(Recorder& rec, int w, int h, const char* path, int fps = 60) {
     if (myNvec != NULL) return false; // already recording
     // h264 with yuv420p requires even dimensions
@@ -1027,11 +1047,12 @@ static bool recorder_start(Recorder& rec, int w, int h, const char* path, int fp
     rec.frame_count = 0;
     rec.output_path = path;
 
-    
     if (!myMix) myMix = new AudioMixer(MIXER_SAMPLE_RATE);
-    myNvec = new NvencEncoder(w, h, fps, MIXER_SAMPLE_RATE, myMix ,std::string(path));
+    
+    int audio_rate = gcg_get_godot_mix_rate();
+    myNvec = new NvencEncoder(w, h, fps, audio_rate, myMix ,std::string(path));
  
-    std::printf("Recording started: %s (%dx%d @ %d fps)\n", path, w, h, fps);
+    std::printf("Recording started: %s (%dx%d @ %d fps) [Audio: %d Hz]\n", path, w, h, fps, audio_rate);
     return true;
 }
 
@@ -2358,6 +2379,12 @@ extern "C" void gcg_audio_mix(float* interleaved_buffer, int frames) {
     }
 }
 
+extern "C" void gcg_video_record_audio(const int16_t* pcm_data, int frames) {
+    if (myNvec) {
+        myNvec->addAudio(pcm_data, frames);
+    }
+}
+
 //------------
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
@@ -2374,8 +2401,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     myMix = new AudioMixer(MIXER_SAMPLE_RATE);
 
     state->godot_manager = new GodotManager();
-    const char* godot_args[] = { "gcg", "--display-driver", "offscreen", "--rendering-driver", "vulkan" };
-    state->godot_manager->init(5, (char**)godot_args);
+    const char* godot_args[] = { "gcg", "--display-driver", "offscreen", "--rendering-driver", "vulkan", "--audio/driver/mix_rate", "48000" };
+    state->godot_manager->init(7, (char**)godot_args);
 
     // --- Parse CLI arguments ---
     for (int i = 1; i < argc; ++i) {
