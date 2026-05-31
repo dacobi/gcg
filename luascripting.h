@@ -64,6 +64,10 @@ public:
     using SetParamFunc = std::function<void(bool isPlasma, const std::string& name, double value)>;
     using RandomizeFunc = std::function<void(bool isPlasma, bool isXY)>;
     using SetAudioFunc = std::function<void(const std::string&)>;
+    using PlayAudioFunc = std::function<void()>;
+    using StopAudioFunc = std::function<void()>;
+    using RewindAudioFunc = std::function<void()>;
+    using SetAudioVolumeFunc = std::function<void(int)>;
     using RecordFunc = std::function<void(int type, const std::string& path, int val)>;
     using IsRecordingFunc = std::function<bool()>;
 #ifdef USE_USD
@@ -87,7 +91,10 @@ public:
     using LoadHighScoreFunc = std::function<void()>;
     using SaveHighScoreFunc = std::function<void()>;
 
-    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, RecordFunc recordFunc, IsRecordingFunc isRecFunc, 
+    LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, 
+        PlayAudioFunc playAudioFunc, StopAudioFunc stopAudioFunc, RewindAudioFunc rewindAudioFunc, SetAudioVolumeFunc setAudioVolumeFunc,
+        RecordFunc recordFunc, IsRecordingFunc isRecFunc,
+ 
 #ifdef USE_USD
         SelectUSDFunc selectUSDFunc, SetUSDParamFunc setUSDParamFunc, 
 #endif
@@ -120,6 +127,10 @@ private:
     static int lua_randomizePlasmaXY(lua_State* L);
     static int lua_randomizeFractalPalette(lua_State* L);
     static int lua_setAudio(lua_State* L);
+    static int lua_playAudio(lua_State* L);
+    static int lua_stopAudio(lua_State* L);
+    static int lua_rewindAudio(lua_State* L);
+    static int lua_setAudioVolume(lua_State* L);
     static int lua_startRecord(lua_State* L);
     static int lua_stopRecord(lua_State* L);
     static int lua_setRecordMax(lua_State* L);
@@ -206,6 +217,10 @@ private:
     SetParamFunc setParamFunc;
     RandomizeFunc randomizeFunc;
     SetAudioFunc setAudioFunc;
+    PlayAudioFunc playAudioFunc;
+    StopAudioFunc stopAudioFunc;
+    RewindAudioFunc rewindAudioFunc;
+    SetAudioVolumeFunc setAudioVolumeFunc;
     RecordFunc recordFunc;
     IsRecordingFunc isRecFunc;
 #ifdef USE_USD

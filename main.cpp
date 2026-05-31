@@ -122,6 +122,7 @@ class AudioMixer {
 private:
     struct SourceState {
         std::deque<float> buffer;
+        float volume = 1.0f;
     };
 
     std::mutex mtx;
@@ -171,9 +172,9 @@ public:
             auto& src = p.second;
             int to_copy = std::min((int)(src.buffer.size() / 2), frames);
             for (int i = 0; i < to_copy; ++i) {
-                interleaved_buffer[i * 2]     += src.buffer.front();
+                interleaved_buffer[i * 2]     += src.buffer.front() * src.volume;
                 src.buffer.pop_front();
-                interleaved_buffer[i * 2 + 1] += src.buffer.front();
+                interleaved_buffer[i * 2 + 1] += src.buffer.front() * src.volume;
                 src.buffer.pop_front();
             }
         }
@@ -181,6 +182,13 @@ public:
         // Clip output
         for (int i = 0; i < frames * 2; ++i) {
             interleaved_buffer[i] = std::max(-1.0f, std::min(1.0f, interleaved_buffer[i]));
+        }
+    }
+
+    void setSourceVolume(void* source, float vol) {
+        std::lock_guard<std::mutex> lock(mtx);
+        if (sources.count(source)) {
+            sources[source].volume = vol;
         }
     }
 };
@@ -199,6 +207,19 @@ struct AudioDecoder {
     std::atomic<bool> quit{false};
     std::thread      decode_thread;
     std::string      path;
+
+    std::atomic<bool> playing{true};
+    std::atomic<bool> need_rewind{false};
+    std::atomic<float> volume{1.0f};
+
+    void play() { playing = true; }
+    void stop() { playing = false; }
+    void setVolume(int v) { 
+        if (mixer) {
+            mixer->setSourceVolume(this, std::max(0.0f, std::min(1.0f, v / 100.0f)));
+        }
+    }
+    void rewind() { need_rewind = true; }
 
     AudioDecoder(const std::string& p, AudioMixer* m) : mixer(m), path(p) {
         if (avformat_open_input(&fmt_ctx, path.c_str(), nullptr, nullptr) < 0)
@@ -251,9 +272,22 @@ struct AudioDecoder {
     void decodeLoop() {
         int64_t total_out = 0;
         while (!quit) {
+            if (need_rewind) {
+                av_seek_frame(fmt_ctx, audio_stream_idx, 0, AVSEEK_FLAG_BACKWARD);
+                avcodec_flush_buffers(dec_ctx);
+                need_rewind = false;
+                total_out = 0;
+            }
+
+            if (!playing) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                continue;
+            }
+
             if (av_read_frame(fmt_ctx, pkt) < 0) {
                 av_seek_frame(fmt_ctx, audio_stream_idx, 0, AVSEEK_FLAG_BACKWARD);
                 avcodec_flush_buffers(dec_ctx);
+                total_out = 0;
                 continue;
             }
 
@@ -264,15 +298,15 @@ struct AudioDecoder {
                         std::vector<int16_t> out_buf(out_samples * 2);
                         uint8_t* out_data[1] = {(uint8_t*)out_buf.data()};
                         int converted = swr_convert(swr_ctx, out_data, out_samples, (const uint8_t**)frame->data, frame->nb_samples);
-                        
+
                         if (mixer && converted > 0) {
                             double pts = (double)total_out / (MIXER_SAMPLE_RATE * 1.0);
                             mixer->addAudio(this, out_buf.data(), converted, pts);
                             total_out += converted;
                         }
-                        
+
                         // Simple throttle to avoid overfilling mixer buffer (keep ~1 sec)
-                        while (!quit && mixer && mixer->getSourcePTS(this) > 1.0) {
+                        while (!quit && playing && !need_rewind && mixer && mixer->getSourcePTS(this) > 1.0) {
                              std::this_thread::sleep_for(std::chrono::milliseconds(10));
                         }
                     }
@@ -281,6 +315,7 @@ struct AudioDecoder {
             av_packet_unref(pkt);
         }
     }
+
 };// --- 2. Encoder Class ---
 class NvencEncoder {
 private:
@@ -1581,6 +1616,7 @@ struct AppState {
     GodotRenderer* bg_godot = nullptr;
     std::unique_ptr<MediaDecoder> bg_video;
     std::unique_ptr<AudioDecoder> loop_audio;
+    float bg_volume = 1.0f;
     SDL_GPUTexture* bg_tex = nullptr;
     SDL_GPUTexture* scratch_tex = nullptr;
     SDL_BlendMode SDL_BLENDMODE_STENCIL;
@@ -1633,7 +1669,7 @@ struct AppState {
 
 
     struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, CLEAR_AND_RUN, MOUSE_CAPTURE, MOUSE_RELEASE,
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, PLAY_AUDIO, STOP_AUDIO, REWIND_AUDIO, SET_AUDIO_VOLUME, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, CLEAR_AND_RUN, MOUSE_CAPTURE, MOUSE_RELEASE,
                     GODOT_GET_NODE_POINTER, GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_GET_CHILD_COUNT, GODOT_PRINT_HIERARCHY, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_SET_VISIBLE, GODOT_GET_SCALE, GODOT_SET_SCALE, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
                     GODOT_MOVE_AND_COLLIDE, GODOT_GET_OVERLAPPING_AREAS, GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE,
                     GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY, WATCH_PROPERTY, WATCH_SIGNAL };
@@ -2210,6 +2246,10 @@ static void print_help() {
     std::printf("  randomizePlasmaXY()        Randomizes selected plasma motion/scale\n");
     std::printf("  randomizeFractalPalette()  Randomizes selected fractal colors\n");
     std::printf("  setAudio(path)             Sets and loops background audio file\n");
+    std::printf("  playAudio()                Resumes background audio if stopped\n");
+    std::printf("  stopAudio()                Stops background audio\n");
+    std::printf("  rewindAudio()              Restarts background audio from the beginning\n");
+    std::printf("  setAudioVolume(0..100)     Sets background audio volume\n");
     std::printf("  startRecord(path)          Starts video recording to path\n");
     std::printf("  stopRecord(wait)           Stops recording (wait=1 to wait for max-time)\n");
     std::printf("  setRecordMax(seconds)      Sets auto-stop duration for recording\n");
@@ -2717,6 +2757,22 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             [state](const std::string& path) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({AppState::LuaCommand::SET_AUDIO, path, 0, 0.0});
+            },
+            [state]() {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::PLAY_AUDIO, "", 0, 0.0});
+            },
+            [state]() {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::STOP_AUDIO, "", 0, 0.0});
+            },
+            [state]() {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::REWIND_AUDIO, "", 0, 0.0});
+            },
+            [state](int v) { 
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::SET_AUDIO_VOLUME, "", 0, (double)v});
             },
             [state](int type, const std::string& path, int val) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
@@ -3401,10 +3457,21 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 if (!state->cli_audio_path.empty()) {
                     try {
                         state->loop_audio = std::make_unique<AudioDecoder>(state->cli_audio_path, myMix);
+                        // Apply persistent volume to new decoder
+                        state->loop_audio->setVolume((int)(state->bg_volume * 100.0f));
                     } catch (const std::exception& e) {
                         SDL_Log("Audio error (Lua): %s", e.what());
                     }
                 }
+            } else if (cmd.type == AppState::LuaCommand::PLAY_AUDIO) {
+                if (state->loop_audio) state->loop_audio->play();
+            } else if (cmd.type == AppState::LuaCommand::STOP_AUDIO) {
+                if (state->loop_audio) state->loop_audio->stop();
+            } else if (cmd.type == AppState::LuaCommand::REWIND_AUDIO) {
+                if (state->loop_audio) state->loop_audio->rewind();
+            } else if (cmd.type == AppState::LuaCommand::SET_AUDIO_VOLUME) {
+                state->bg_volume = std::max(0.0f, std::min(1.0f, (float)cmd.value / 100.0f));
+                if (state->loop_audio) state->loop_audio->setVolume((int)cmd.value);
             } else if (cmd.type == AppState::LuaCommand::START_RECORD) {
                 if (myNvec == NULL) {
                     std::snprintf(state->record_path_buf, sizeof(state->record_path_buf), "%s", cmd.syntax.c_str());
