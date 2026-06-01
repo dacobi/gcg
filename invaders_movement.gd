@@ -43,7 +43,7 @@ func _ready():
 func _process(delta):
 	# Prevent massive delta spikes from breaking movement
 	delta = min(delta, 0.1)
-	var level_scale = float(level)
+	var level_scale = pow(1.2, level - 1)
 
 	# --- Difficulty Scaling ---
 	speed += speed_increase_per_sec * delta * level_scale
@@ -69,7 +69,7 @@ func _process(delta):
 			if boundary_hit:
 				position.y -= step_y_size
 				direction *= -1
-				speed += 0.25 * level_scale # Speed boost on drop
+				speed += 0.05 * delta * level_scale # Speed boost on drop
 			else:
 				position.x = next_x
 			
