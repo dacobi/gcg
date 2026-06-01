@@ -10,7 +10,7 @@ roughness = 0.5
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_Panels"]
 albedo_texture = ExtResource("2_tardis_side")
 emission_enabled = true
-emission_energy_multiplier = 2.0
+emission_energy_multiplier = 0.5
 emission_texture = ExtResource("2_tardis_side")
 roughness = 0.5
 uv1_scale = Vector3(1, 1, 1)
