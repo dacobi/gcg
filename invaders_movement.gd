@@ -94,7 +94,7 @@ func vaderdie(height):
 		explosion_player.play()
 	vaders = vaders - 1
 	# print("vaders: ", vaders)
-	score = score + (10/speed) * level * height
+	score = score + (6/speed) * level * height
 	
 	var root_node = get_tree().root
 	if !root_node:
