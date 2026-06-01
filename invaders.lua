@@ -41,6 +41,20 @@ if clvs > 2 then
     addBouncer("[layer:1][pos:140,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
 end
 
+function onLivesReset()
+    setGlobalVar("lives",3)
+
+    delBouncer(4)
+    delBouncer(3)
+    delBouncer(2)
+
+    addBouncer("[layer:1][pos:20,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
+
+    addBouncer("[layer:1][pos:80,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
+
+    addBouncer("[layer:1][pos:140,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
+end
+
 function onGameOver()
     print("***************************")
     print("*        GAME OVER        *")
@@ -181,6 +195,7 @@ end
 godotSelectRoot()
 if godotSearchNode("Ship") then
     godotWatchSignal("live_lost", "onLiveLost")
+    godotWatchSignal("lives_reset", "onLivesReset")
 end
 
 godotSelectRoot()

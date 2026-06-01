@@ -8,6 +8,7 @@ var tardis_scene = preload("res://tardis.tscn")
 var active_tardis: Node3D = null
 
 @onready var audio_player = $TardisAudio
+@onready var explode_player = $TardisExplode
 
 func _on_spawn_tardis():
 	if active_tardis != null:
@@ -16,10 +17,21 @@ func _on_spawn_tardis():
 	active_tardis = tardis_scene.instantiate()
 	active_tardis.position = spawn_position
 	active_tardis.scale = Vector3(5, 5, 5)
+	active_tardis.connect("tardis_hit", _on_tardis_hit)
 	add_child(active_tardis)
 	
 	if audio_player:
 		audio_player.play()
+
+func _on_tardis_hit():
+	if audio_player:
+		audio_player.stop()
+	if explode_player:
+		explode_player.play()
+	
+	var invaders = get_node_or_null("../Invaders")
+	if invaders and invaders.has_method("tardis_hit"):
+		invaders.tardis_hit()
 
 func _process(delta: float) -> void:
 	if active_tardis != null:

@@ -1,6 +1,7 @@
 extends CharacterBody3D
 
 signal live_lost
+signal lives_reset
 
 var alive: bool = true
 var livelost: bool = false
@@ -32,6 +33,10 @@ func _process(delta: float) -> void:
 
 func set_score(newScore: int) -> void:	
 	cscore = newScore
+
+func reset_lives() -> void:
+	lives = 3
+	emit_signal("lives_reset")
 
 func kill() -> void:
 	if not alive: return

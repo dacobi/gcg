@@ -12,6 +12,7 @@ var step_timer = 0.0
 var step_x_size = 5.5
 var step_y_size = 5.0
 var drop_count = 0
+var tardis_destroyed = false
 
 # Firing parameters (Starting at double the previous rate)
 var fire_timer = 0.0
@@ -74,7 +75,8 @@ func _process(delta):
 				speed += 0.05 * delta * level_scale # Speed boost on drop
 				drop_count += 1
 				if drop_count >= 5:
-					emit_signal("spawn_tardis")
+					if not tardis_destroyed:
+						emit_signal("spawn_tardis")
 					drop_count = 0
 			else:
 				position.x = next_x
@@ -121,6 +123,31 @@ func vaderdie(height):
 	emit_signal("new_score")
 	if vaders <= 0:
 		emit_signal("game_won")
+
+func tardis_hit():
+	tardis_destroyed = true
+	var level_scale = pow(1.33, level - 1)
+	score = score + int(1500 * level_scale)
+	
+	var root_node = get_tree().root
+	if !root_node:
+		print("no root")
+
+	var my_game = root_node.find_child("SpaceInvadersGame", true, false) 
+	
+	if !my_game:
+		print("no game")
+
+	var my_ship = my_game.find_child("Ship", true, false)
+	
+	if !my_ship:
+		print("no ship")
+	else:
+		my_ship.set_score(score)
+		if my_ship.has_method("reset_lives"):
+			my_ship.reset_lives()
+	
+	emit_signal("new_score")
 
 func _fire_random_projectile():
 	var alive_invaders = []
