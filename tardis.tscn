@@ -1,0 +1,158 @@
+[gd_scene load_steps=6 format=3 uid="uid://tardis1234567"]
+
+[ext_resource type="Script" path="res://tardis.gd" id="1_tardis"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_Blue"]
+albedo_color = Color(0.1, 0.2, 0.5, 1)
+roughness = 0.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_White"]
+albedo_color = Color(0.9, 0.9, 0.9, 1)
+emission_enabled = true
+emission = Color(0.9, 0.9, 0.9, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_Window"]
+albedo_color = Color(0.8, 0.8, 0.5, 1)
+emission_enabled = true
+emission = Color(0.8, 0.8, 0.5, 1)
+emission_energy_multiplier = 8.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_Black"]
+albedo_color = Color(0.1, 0.1, 0.1, 1)
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_tardis"]
+sky_top_color = Color(0.1, 0.1, 0.2, 1)
+sky_horizon_color = Color(0.05, 0.05, 0.1, 1)
+
+[sub_resource type="Sky" id="Sky_tardis"]
+sky_material = SubResource("ProceduralSkyMaterial_tardis")
+
+[sub_resource type="Environment" id="Environment_tardis"]
+background_mode = 2
+sky = SubResource("Sky_tardis")
+ambient_light_source = 2
+ambient_light_color = Color(0.3, 0.3, 0.4, 1)
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 1.0
+glow_strength = 1.2
+glow_bloom = 0.5
+
+[node name="Tardis" type="Node3D"]
+script = ExtResource("1_tardis")
+transform = Transform3D(1, 0, 0, 0, 0.92388, 0.382683, 0, -0.382683, 0.92388, 0, 0, 0)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_tardis")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
+light_energy = 1.5
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 5)
+current = true
+
+[node name="Visuals" type="CSGCombiner3D" parent="."]
+material_override = SubResource("StandardMaterial3D_Blue")
+
+[node name="Base" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
+size = Vector3(1.6, 0.2, 1.6)
+
+[node name="Body" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+size = Vector3(1.4, 2.6, 1.4)
+
+[node name="P1" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 1.5, 0.75)
+size = Vector3(0.2, 2.8, 0.2)
+
+[node name="P2" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 1.5, 0.75)
+size = Vector3(0.2, 2.8, 0.2)
+
+[node name="P3" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 1.5, -0.75)
+size = Vector3(0.2, 2.8, 0.2)
+
+[node name="P4" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 1.5, -0.75)
+size = Vector3(0.2, 2.8, 0.2)
+
+[node name="SignBase" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.85, 0)
+size = Vector3(1.55, 0.3, 1.55)
+
+[node name="SignTextF" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.85, 0.78)
+size = Vector3(1.2, 0.2, 0.05)
+material = SubResource("StandardMaterial3D_White")
+
+[node name="SignTextB" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.85, -0.78)
+size = Vector3(1.2, 0.2, 0.05)
+material = SubResource("StandardMaterial3D_White")
+
+[node name="SignTextL" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.78, 2.85, 0)
+size = Vector3(0.05, 0.2, 1.2)
+material = SubResource("StandardMaterial3D_White")
+
+[node name="SignTextR" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.78, 2.85, 0)
+size = Vector3(0.05, 0.2, 1.2)
+material = SubResource("StandardMaterial3D_White")
+
+[node name="WindowF" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 0.7)
+size = Vector3(0.8, 0.5, 0.05)
+material = SubResource("StandardMaterial3D_Window")
+
+[node name="WindowB" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, -0.7)
+size = Vector3(0.8, 0.5, 0.05)
+material = SubResource("StandardMaterial3D_Window")
+
+[node name="WindowL" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7, 2.3, 0)
+size = Vector3(0.05, 0.5, 0.8)
+material = SubResource("StandardMaterial3D_Window")
+
+[node name="WindowR" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7, 2.3, 0)
+size = Vector3(0.05, 0.5, 0.8)
+material = SubResource("StandardMaterial3D_Window")
+
+[node name="Roof1" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.05, 0)
+size = Vector3(1.4, 0.1, 1.4)
+
+[node name="Roof2" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.15, 0)
+size = Vector3(1.2, 0.1, 1.2)
+
+[node name="Roof3" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.25, 0)
+size = Vector3(1.0, 0.1, 1.0)
+
+[node name="Lamp" type="CSGCylinder3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.4, 0)
+radius = 0.1
+height = 0.3
+material = SubResource("StandardMaterial3D_White")
+
+[node name="SpotLightContainer" type="Node3D" parent="Visuals/Lamp"]
+
+[node name="SpotLight3D" type="SpotLight3D" parent="Visuals/Lamp/SpotLightContainer"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.1)
+light_color = Color(1, 1, 0.8, 1)
+light_energy = 15.0
+spot_range = 20.0
+spot_angle = 30.0
+
+[node name="OmniLight3D" type="OmniLight3D" parent="Visuals/Lamp"]
+light_color = Color(1, 1, 0.8, 1)
+light_energy = 5.0
+omni_range = 5.0
