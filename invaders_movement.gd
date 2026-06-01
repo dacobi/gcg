@@ -150,6 +150,9 @@ func tardis_hit():
 	emit_signal("new_score")
 
 func clear_all_projectiles():
+	_do_clear_projectiles.call_deferred()
+
+func _do_clear_projectiles():
 	var root_node = get_tree().root
 	var my_game = root_node.find_child("SpaceInvadersGame", true, false)
 	if my_game:

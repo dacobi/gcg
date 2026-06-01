@@ -25,6 +25,7 @@ GodotRenderer::GodotRenderer(int w, int h, bool transparent) : width(w), height(
 }
 
 GodotRenderer::~GodotRenderer() {
+    clearSignalWatchers();
     if (viewport) {
         if (scene_instance) {
             viewport->remove_child(scene_instance);
@@ -41,6 +42,7 @@ GodotRenderer::~GodotRenderer() {
 }
 
 bool GodotRenderer::init(const std::string& tscn_path) {
+    current_nodes.clear();
     SceneTree* tree = Object::cast_to<SceneTree>(OS::get_singleton()->get_main_loop());
     if (!tree || !tree->get_root()) {
         return false;
@@ -343,8 +345,8 @@ Variant GodotRenderer::getProperty(const std::string& name, void* owner, void* t
     return Variant();
 }
 
-bool GodotRenderer::watchSignal(const std::string& signal_name, const std::string& callback_file, void* owner_thread, void* owner_engine) {
-    Node* current_node = getCurrentNode(owner_thread);
+bool GodotRenderer::watchSignal(const std::string& signal_name, const std::string& callback_file, void* owner_thread, void* owner_engine, void* target_node) {
+    Node* current_node = target_node ? static_cast<Node*>(target_node) : getCurrentNode(owner_thread);
     if (!current_node) return false;
     
     Object* bridge_obj = ClassDB::instantiate("LuaEventBridge");

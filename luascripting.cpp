@@ -247,10 +247,15 @@ int LuaScripting::lua_godotWatchSignal(lua_State* L) {
     if (lua_isstring(L, 1) && lua_isstring(L, 2) && self && self->godotCmdFunc) {
         std::string signal = lua_tostring(L, 1);
         std::string file = lua_tostring(L, 2);
-        
+
         std::string combined = signal + "|" + file;
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0,0,0};
+
+        if (lua_islightuserdata(L, 3)) {
+            sd->ptr_arg = lua_touserdata(L, 3);
+        }
+
         self->godotCmdFunc(GCMD_WATCH_SIGNAL, combined, fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
         while (!sd->done && self && self->systemRunning) {
@@ -261,7 +266,6 @@ int LuaScripting::lua_godotWatchSignal(lua_State* L) {
     }
     return 0;
 }
-
 int LuaScripting::lua_godotIsHighScore(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (lua_isnumber(L, 1) && self && self->checkHighScoreFunc) {

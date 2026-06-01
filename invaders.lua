@@ -117,55 +117,56 @@ function onLiveLost()
     print("*        HITMAN!          *")
     print("***************************")
     
-    godotSelectRoot()
-    if godotSearchNode("Invaders") then
-        godotSetProperty("bAdvance", false) -- Disable advancing and firing
-    end
+    --godotSelectRoot()
+    --if godotSearchNode("Invaders") then
+        godotSetProperty("bAdvance", false, myInvaders) -- Disable advancing and firing
+        if myInvaders then print("NoAdvance") end
+    --end
 
     -- remove all enemy projectiles
-    godotSelectRoot()
-    if godotSearchNode("EnemyProjectiles") then
-        godotDeleteNode()
-        godotSelectRoot()
-        godotCreateNode("EnemyProjectiles")
-    end
+    --godotSelectRoot()
+    --if godotSearchNode("EnemyProjectiles") then
+    --    godotDeleteNode()
+    --    godotSelectRoot()
+    --    godotCreateNode("EnemyProjectiles")
+   --end
 
     -- remove all player projectiles
-    godotSelectRoot()
-    if godotSearchNode("Projectiles") then
-        godotDeleteNode()
-        godotSelectRoot()
-        godotCreateNode("Projectiles")
-    end
+    --godotSelectRoot()
+    --if godotSearchNode("Projectiles") then
+    --    godotDeleteNode()
+    --    godotSelectRoot()
+    --    godotCreateNode("Projectiles")
+   -- end
 
-        godotSelectRoot()
-        if godotSearchNode("Ship") then
-            godotSetProperty("hit_glow", true)
-        end    
+        --godotSelectRoot()
+        --if godotSearchNode("Ship") then
+         --   godotSetProperty("hit_glow", true)
+        --end    
         
-        for i = 1,7 do
-            godotSelectRoot()
-            if godotSearchNode("Ship") then
+        --for i = 1,7 do
+           -- godotSelectRoot()
+           -- if godotSearchNode("Ship") then
                 -- godotSetVisible(true)
-                godotSetScale(1.2, 1.2, 1.2)
-            end
-            delay(40)
-            godotSelectRoot()
-            if godotSearchNode("Ship") then
-                godotSetScale(1.0, 1.0, 1.0)
-            end
-            delay(40)
-            godotSelectRoot()
-            if godotSearchNode("Ship") then
+           --     godotSetScale(1.2, 1.2, 1.2)
+          --  end
+          --  delay(40)
+          --  godotSelectRoot()
+         --   if godotSearchNode("Ship") then
+         --       godotSetScale(1.0, 1.0, 1.0)
+        --    end
+        --    delay(40)
+         --   godotSelectRoot()
+      --      if godotSearchNode("Ship") then
                 -- godotSetVisible(false)
-            end
-            delay(40)
-        end
+    --        end
+  --          delay(40)
+--        end
 
-        godotSelectRoot()
-        if godotSearchNode("Ship") then
-            godotSetProperty("hit_glow", false)
-        end
+        --godotSelectRoot()
+        --if godotSearchNode("Ship") then
+        --    godotSetProperty("hit_glow", false)
+        --end
 
         if livesleft == 2 then                
                 setGlobalVar("lives",2)
@@ -184,18 +185,18 @@ function onLiveLost()
             end
 
             delay(700)
-            godotSelectRoot()
-            if godotSearchNode("Ship") then
-                local _, sy, sz = godotGetPos()
+            --godotSelectRoot()
+            --if godotSearchNode("Ship") then
+                local _, sy, sz = godotGetPos(myShip)
                 shipX = 0.0
-            godotSelectRoot()
-            if godotSearchNode("Ship") then
-                godotSetPos(shipX, sy, sz)
-            end
-            godotSelectRoot()
-            if godotSearchNode("Ship") then
-                godotSetVisible(true)
-            end
+            --godotSelectRoot()
+            --if godotSearchNode("Ship") then
+                godotSetPos(shipX, sy, sz, myShip)
+            --end
+            --godotSelectRoot()
+            --if godotSearchNode("Ship") then
+            --    godotSetVisible(true)
+            --end
             --godotSelectRoot()
             --if godotSearchNode("Ship") then
             --    godotSetProperty("livelost", false)
@@ -203,38 +204,39 @@ function onLiveLost()
         
 
             
-            godotSelectRoot()
-            if godotSearchNode("Invaders") then
-                godotSetProperty("bAdvance", true) -- Enable advancing and firing
-            end
-        end 
+            --godotSelectRoot()
+            -- godotSearchNode("Invaders") then
+                godotSetProperty("bAdvance", true, myInvaders) -- Enable advancing and firing
+                if myInvaders then print("Advance") end
+            --end
+        --end 
     inLiveLost = false
 end
 
 function onNewScore()
     
-    godotSelectRoot()
-    if godotSearchNode("Ship") then        
-          local lscore = godotGetProperty("cscore")  
+    --godotSelectRoot()
+    --if godotSearchNode("Ship") then        
+          local lscore = godotGetProperty("cscore", myShip)  
          setGlobalVar("score",lscore)
         --godotSetProperty("bNewScore", false) -- Enable next score update
 
-    end
+    --end
 end
 
 
 -- Watchers are now polled natively via godotWatchSignal on selected nodes
-godotSelectRoot()
-if godotSearchNode("Ship") then
-    godotWatchSignal("live_lost", "onLiveLost")
-    godotWatchSignal("lives_reset", "onLivesReset")
-end
+--godotSelectRoot()
+--if godotSearchNode("Ship") then
+    godotWatchSignal("live_lost", "onLiveLost", myShip)
+    godotWatchSignal("lives_reset", "onLivesReset", myShip)
+--end
 
-godotSelectRoot()
-if godotSearchNode("Invaders") then
-    godotWatchSignal("new_score", "onNewScore")
-    godotWatchSignal("game_won", "onGameWon")
-end
+--godotSelectRoot()
+--if godotSearchNode("Invaders") then
+    godotWatchSignal("new_score", "onNewScore", myInvaders)
+    godotWatchSignal("game_won", "onGameWon", myInvaders)
+--end
 
 godotSelectRoot()
     if godotSearchNode("Invaders") then

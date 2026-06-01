@@ -3390,7 +3390,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                                     std::string sig = s.substr(0, p1);
                                     std::string file = s.substr(p1+1);
                                     if (cmd.sync) {
-                                        cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->watchSignal(sig, file, cmd.owner_thread, cmd.owner_engine);
+                                        void* target = cmd.sync->ptr_arg;
+                                        cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->watchSignal(sig, file, cmd.owner_thread, cmd.owner_engine, target);
                                     }
                                 }
                             }

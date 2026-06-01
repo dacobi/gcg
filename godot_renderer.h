@@ -53,7 +53,7 @@ public:
     bool attachScript(const std::string& path, void* owner);
     void setProperty(const std::string& name, const class Variant& value, void* owner, void* target_node = nullptr);
     class Variant getProperty(const std::string& name, void* owner, void* target_node = nullptr);
-    bool watchSignal(const std::string& signal_name, const std::string& callback_file, void* owner_thread, void* owner_engine);
+    bool watchSignal(const std::string& signal_name, const std::string& callback_file, void* owner_thread, void* owner_engine, void* target_node = nullptr);
     void clearSignalWatchers();
 
     int getWidth() const { return width; }
