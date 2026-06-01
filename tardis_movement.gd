@@ -1,8 +1,8 @@
 extends Node3D
 
-@export var speed: float = 20.0
-@export var spawn_position: Vector3 = Vector3(-45, 45, 0)
-@export var right_boundary: float = 45.0
+@export var speed: float = 40.0
+@export var spawn_position: Vector3 = Vector3(-90, 49.375, 0)
+@export var right_boundary: float = 90.0
 
 var tardis_scene = preload("res://tardis.tscn")
 var active_tardis: Node3D = null
@@ -15,6 +15,7 @@ func _on_spawn_tardis():
 
 	active_tardis = tardis_scene.instantiate()
 	active_tardis.position = spawn_position
+	active_tardis.scale = Vector3(5, 5, 5)
 	add_child(active_tardis)
 	
 	if audio_player:
