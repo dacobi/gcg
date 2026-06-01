@@ -67,6 +67,7 @@ public:
     using PlayAudioFunc = std::function<void()>;
     using StopAudioFunc = std::function<void()>;
     using RewindAudioFunc = std::function<void()>;
+    using SkipAudioFunc = std::function<void(int)>;
     using SetAudioVolumeFunc = std::function<void(int)>;
     using RecordFunc = std::function<void(int type, const std::string& path, int val)>;
     using IsRecordingFunc = std::function<bool()>;
@@ -92,7 +93,7 @@ public:
     using SaveHighScoreFunc = std::function<void()>;
 
     LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc setBGFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc setAudioFunc, 
-        PlayAudioFunc playAudioFunc, StopAudioFunc stopAudioFunc, RewindAudioFunc rewindAudioFunc, SetAudioVolumeFunc setAudioVolumeFunc,
+        PlayAudioFunc playAudioFunc, StopAudioFunc stopAudioFunc, RewindAudioFunc rewindAudioFunc, SkipAudioFunc skipAudioFunc, SetAudioVolumeFunc setAudioVolumeFunc,
         RecordFunc recordFunc, IsRecordingFunc isRecFunc,
  
 #ifdef USE_USD
@@ -130,6 +131,7 @@ private:
     static int lua_playAudio(lua_State* L);
     static int lua_stopAudio(lua_State* L);
     static int lua_rewindAudio(lua_State* L);
+    static int lua_skipAudio(lua_State* L);
     static int lua_setAudioVolume(lua_State* L);
     static int lua_startRecord(lua_State* L);
     static int lua_stopRecord(lua_State* L);
@@ -220,6 +222,7 @@ private:
     PlayAudioFunc playAudioFunc;
     StopAudioFunc stopAudioFunc;
     RewindAudioFunc rewindAudioFunc;
+    SkipAudioFunc skipAudioFunc;
     SetAudioVolumeFunc setAudioVolumeFunc;
     RecordFunc recordFunc;
     IsRecordingFunc isRecFunc;

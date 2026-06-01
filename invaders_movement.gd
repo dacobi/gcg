@@ -149,6 +149,26 @@ func tardis_hit():
 	
 	emit_signal("new_score")
 
+func clear_all_projectiles():
+	var root_node = get_tree().root
+	var my_game = root_node.find_child("SpaceInvadersGame", true, false)
+	if my_game:
+		var enemy_projs = my_game.find_child("EnemyProjectiles", true, false)
+		if enemy_projs:
+			enemy_projs.name = "OldEnemyProjectiles"
+			enemy_projs.queue_free()
+			var new_enemy_projs = Node3D.new()
+			new_enemy_projs.name = "EnemyProjectiles"
+			my_game.add_child(new_enemy_projs)
+			
+		var player_projs = my_game.find_child("Projectiles", true, false)
+		if player_projs:
+			player_projs.name = "OldProjectiles"
+			player_projs.queue_free()
+			var new_player_projs = Node3D.new()
+			new_player_projs.name = "Projectiles"
+			my_game.add_child(new_player_projs)
+
 func _fire_random_projectile():
 	var alive_invaders = []
 	for child in get_children():

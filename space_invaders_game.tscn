@@ -188,3 +188,4 @@ stream = ExtResource("9_tardis_audio")
 stream = ExtResource("10_player_explosion")
 
 [connection signal="spawn_tardis" from="Invaders" to="TardisMovement" method="_on_spawn_tardis"]
+[connection signal="live_lost" from="Ship" to="Invaders" method="clear_all_projectiles"]

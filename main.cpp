@@ -153,6 +153,13 @@ public:
         sources.erase(source);
     }
 
+    void clearSource(void* source) {
+        std::lock_guard<std::mutex> lock(mtx);
+        if (sources.count(source)) {
+            sources[source].buffer.clear();
+        }
+    }
+
     double getSourcePTS(void* source) {
         std::lock_guard<std::mutex> lock(mtx);
         if (sources.find(source) == sources.end()) return 0.0;
@@ -208,8 +215,13 @@ struct AudioDecoder {
     std::thread      decode_thread;
     std::string      path;
 
+    struct SeekEvent {
+        bool absolute;
+        int seconds;
+    };
+    std::mutex seek_mtx;
+    std::deque<SeekEvent> seek_queue;
     std::atomic<bool> playing{true};
-    std::atomic<bool> need_rewind{false};
     std::atomic<float> volume{1.0f};
 
     void play() { playing = true; }
@@ -219,7 +231,14 @@ struct AudioDecoder {
             mixer->setSourceVolume(this, std::max(0.0f, std::min(1.0f, v / 100.0f)));
         }
     }
-    void rewind() { need_rewind = true; }
+    void rewind() { 
+        std::lock_guard<std::mutex> lock(seek_mtx);
+        seek_queue.push_back({true, 0}); 
+    }
+    void skip(int seconds) { 
+        std::lock_guard<std::mutex> lock(seek_mtx);
+        seek_queue.push_back({false, seconds}); 
+    }
 
     AudioDecoder(const std::string& p, AudioMixer* m) : mixer(m), path(p) {
         if (avformat_open_input(&fmt_ctx, path.c_str(), nullptr, nullptr) < 0)
@@ -271,12 +290,31 @@ struct AudioDecoder {
 
     void decodeLoop() {
         int64_t total_out = 0;
+        AVRational stream_tb = fmt_ctx->streams[audio_stream_idx]->time_base;
+
         while (!quit) {
-            if (need_rewind) {
-                av_seek_frame(fmt_ctx, audio_stream_idx, 0, AVSEEK_FLAG_BACKWARD);
+            bool perform_seek = false;
+            double target_time = (double)total_out / MIXER_SAMPLE_RATE;
+
+            {
+                std::lock_guard<std::mutex> lock(seek_mtx);
+                while (!seek_queue.empty()) {
+                    auto ev = seek_queue.front();
+                    seek_queue.pop_front();
+                    if (ev.absolute) target_time = ev.seconds;
+                    else target_time += (double)ev.seconds;
+                    perform_seek = true;
+                }
+            }
+
+            if (perform_seek) {
+                if (target_time < 0) target_time = 0;
+                int64_t target_pts = (int64_t)(target_time / av_q2d(stream_tb));
+                av_seek_frame(fmt_ctx, audio_stream_idx, target_pts, AVSEEK_FLAG_BACKWARD);
                 avcodec_flush_buffers(dec_ctx);
-                need_rewind = false;
-                total_out = 0;
+                if (mixer) mixer->clearSource(this);
+                total_out = (int64_t)(target_time * MIXER_SAMPLE_RATE);
+                continue;
             }
 
             if (!playing) {
@@ -306,8 +344,12 @@ struct AudioDecoder {
                         }
 
                         // Simple throttle to avoid overfilling mixer buffer (keep ~1 sec)
-                        while (!quit && playing && !need_rewind && mixer && mixer->getSourcePTS(this) > 1.0) {
-                             std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                        while (!quit && playing && mixer && mixer->getSourcePTS(this) > 1.0) {
+                            {
+                                std::lock_guard<std::mutex> lock(seek_mtx);
+                                if (!seek_queue.empty()) break;
+                            }
+                            std::this_thread::sleep_for(std::chrono::milliseconds(10));
                         }
                     }
                 }
@@ -1669,7 +1711,7 @@ struct AppState {
 
 
     struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, PLAY_AUDIO, STOP_AUDIO, REWIND_AUDIO, SET_AUDIO_VOLUME, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, CLEAR_AND_RUN, MOUSE_CAPTURE, MOUSE_RELEASE,
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, PLAY_AUDIO, STOP_AUDIO, REWIND_AUDIO, SKIP_AUDIO, SET_AUDIO_VOLUME, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, CLEAR_AND_RUN, MOUSE_CAPTURE, MOUSE_RELEASE,
                     GODOT_GET_NODE_POINTER, GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_GET_CHILD_COUNT, GODOT_PRINT_HIERARCHY, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_SET_VISIBLE, GODOT_GET_SCALE, GODOT_SET_SCALE, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
                     GODOT_MOVE_AND_COLLIDE, GODOT_GET_OVERLAPPING_AREAS, GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE,
                     GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY, WATCH_PROPERTY, WATCH_SIGNAL };
@@ -2249,6 +2291,7 @@ static void print_help() {
     std::printf("  playAudio()                Resumes background audio if stopped\n");
     std::printf("  stopAudio()                Stops background audio\n");
     std::printf("  rewindAudio()              Restarts background audio from the beginning\n");
+    std::printf("  skipAudio(seconds)         Skips forward (positive) or backward (negative) in seconds\n");
     std::printf("  setAudioVolume(0..100)     Sets background audio volume\n");
     std::printf("  startRecord(path)          Starts video recording to path\n");
     std::printf("  stopRecord(wait)           Stops recording (wait=1 to wait for max-time)\n");
@@ -2770,6 +2813,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({AppState::LuaCommand::REWIND_AUDIO, "", 0, 0.0});
             },
+            [state](int seconds) {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::SKIP_AUDIO, "", seconds, 0.0});
+            },
             [state](int v) { 
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({AppState::LuaCommand::SET_AUDIO_VOLUME, "", 0, (double)v});
@@ -3280,21 +3327,25 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                             break;
                         case AppState::LuaCommand::GODOT_DELETE_NODE: state->selected_godots[cmd.owner_thread]->deleteNode(cmd.owner_thread, cmd.target_node); break;
                         case AppState::LuaCommand::GODOT_ATTACH_SCRIPT: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->attachScript(cmd.syntax, cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_SET_PROPERTY: 
-                            if (cmd.fargs[1] == 1.0f) {
-                                size_t sep = cmd.syntax.find('|');
-                                if (sep != std::string::npos) {
-                                    std::string prop = cmd.syntax.substr(0, sep);
-                                    std::string val = cmd.syntax.substr(sep + 1);
-                                    state->selected_godots[cmd.owner_thread]->setProperty(prop, Variant(val.c_str()), cmd.owner_thread);
+                        case AppState::LuaCommand::GODOT_SET_PROPERTY:
+                            {
+                                void* target = cmd.sync ? cmd.sync->ptr_arg : nullptr;
+                                if (cmd.fargs[1] == 1.0f) {
+                                    size_t sep = cmd.syntax.find('|');
+                                    if (sep != std::string::npos) {
+                                        std::string prop = cmd.syntax.substr(0, sep);
+                                        std::string val = cmd.syntax.substr(sep + 1);
+                                        state->selected_godots[cmd.owner_thread]->setProperty(prop, Variant(val.c_str()), cmd.owner_thread, target);
+                                    }
+                                } else {
+                                    state->selected_godots[cmd.owner_thread]->setProperty(cmd.syntax, Variant(cmd.fargs[0]), cmd.owner_thread, target);
                                 }
-                            } else {
-                                state->selected_godots[cmd.owner_thread]->setProperty(cmd.syntax, Variant(cmd.fargs[0]), cmd.owner_thread);
                             }
                             break;
                         case AppState::LuaCommand::GODOT_GET_PROPERTY:
                             if (cmd.sync) {
-                                Variant v = state->selected_godots[cmd.owner_thread]->getProperty(cmd.syntax, cmd.owner_thread);
+                                void* target = cmd.sync ? cmd.sync->ptr_arg : nullptr;
+                                Variant v = state->selected_godots[cmd.owner_thread]->getProperty(cmd.syntax, cmd.owner_thread, target);
                                 if (v.get_type() == Variant::INT || v.get_type() == Variant::FLOAT) {
                                     cmd.sync->b_res = true;
                                     cmd.sync->d_res = (double)v;
@@ -3304,6 +3355,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                                 }
                             }
                             break;
+
                         case AppState::LuaCommand::WATCH_PROPERTY:
                             {
                                 // node|prop|file|val
@@ -3469,6 +3521,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 if (state->loop_audio) state->loop_audio->stop();
             } else if (cmd.type == AppState::LuaCommand::REWIND_AUDIO) {
                 if (state->loop_audio) state->loop_audio->rewind();
+            } else if (cmd.type == AppState::LuaCommand::SKIP_AUDIO) {
+                if (state->loop_audio) state->loop_audio->skip((int)cmd.index);
             } else if (cmd.type == AppState::LuaCommand::SET_AUDIO_VOLUME) {
                 state->bg_volume = std::max(0.0f, std::min(1.0f, (float)cmd.value / 100.0f));
                 if (state->loop_audio) state->loop_audio->setVolume((int)cmd.value);

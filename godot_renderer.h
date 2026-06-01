@@ -51,8 +51,8 @@ public:
     void setCurrentNode(Node* n, void* owner) { current_nodes[owner] = n; }
 
     bool attachScript(const std::string& path, void* owner);
-    void setProperty(const std::string& name, const class Variant& value, void* owner);
-    class Variant getProperty(const std::string& name, void* owner);
+    void setProperty(const std::string& name, const class Variant& value, void* owner, void* target_node = nullptr);
+    class Variant getProperty(const std::string& name, void* owner, void* target_node = nullptr);
     bool watchSignal(const std::string& signal_name, const std::string& callback_file, void* owner_thread, void* owner_engine);
     void clearSignalWatchers();
 

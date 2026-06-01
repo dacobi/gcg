@@ -9,14 +9,14 @@ static std::mutex global_lua_mutex;
 LuaScripting* LuaScripting::instance = nullptr;
 
 LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBGFunc bgFunc, SelectFunc selectFunc, SetParamFunc setParamFunc, RandomizeFunc randomizeFunc, SetAudioFunc audioFunc, 
-    PlayAudioFunc playAudioFunc, StopAudioFunc stopAudioFunc, RewindAudioFunc rewindAudioFunc, SetAudioVolumeFunc setAudioVolumeFunc,
+    PlayAudioFunc playAudioFunc, StopAudioFunc stopAudioFunc, RewindAudioFunc rewindAudioFunc, SkipAudioFunc skipAudioFunc, SetAudioVolumeFunc setAudioVolumeFunc,
     RecordFunc recordFunc, IsRecordingFunc isRecFunc,
 #ifdef USE_USD
     SelectUSDFunc selectUSDFunc, SetUSDParamFunc setUSDParamFunc,
 #endif
     SelectGodotFunc selectGodotFunc, GodotCmdFunc godotFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetGlobalIntFunc setGlobalIntFunc, GetGlobalIntFunc getGlobalIntFunc, RegGlobalIntFunc regGlobalIntFunc, UnregGlobalIntFunc unregGlobalIntFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc)
     : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), 
-    playAudioFunc(playAudioFunc), stopAudioFunc(stopAudioFunc), rewindAudioFunc(rewindAudioFunc), setAudioVolumeFunc(setAudioVolumeFunc),
+    playAudioFunc(playAudioFunc), stopAudioFunc(stopAudioFunc), rewindAudioFunc(rewindAudioFunc), skipAudioFunc(skipAudioFunc), setAudioVolumeFunc(setAudioVolumeFunc),
     recordFunc(recordFunc), isRecFunc(isRecFunc),
  
 #ifdef USE_USD
@@ -141,6 +141,7 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("playAudio", lua_playAudio);
     reg("stopAudio", lua_stopAudio);
     reg("rewindAudio", lua_rewindAudio);
+    reg("skipAudio", lua_skipAudio);
     reg("setAudioVolume", lua_setAudioVolume);
     reg("startRecord", lua_startRecord);
     reg("stopRecord", lua_stopRecord);
@@ -508,6 +509,15 @@ int LuaScripting::lua_stopAudio(lua_State* L) {
 int LuaScripting::lua_rewindAudio(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (self && self->rewindAudioFunc) self->rewindAudioFunc();
+    return 0;
+}
+
+int LuaScripting::lua_skipAudio(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isnumber(L, 1)) {
+        int seconds = (int)lua_tonumber(L, 1);
+        if (self && self->skipAudioFunc) self->skipAudioFunc(seconds);
+    }
     return 0;
 }
 

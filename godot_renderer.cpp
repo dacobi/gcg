@@ -328,15 +328,15 @@ bool GodotRenderer::attachScript(const std::string& path, void* owner) {
     return false;
 }
 
-void GodotRenderer::setProperty(const std::string& name, const Variant& value, void* owner) {
-    Node* current_node = getCurrentNode(owner);
+void GodotRenderer::setProperty(const std::string& name, const Variant& value, void* owner, void* target_node) {
+    Node* current_node = target_node ? static_cast<Node*>(target_node) : getCurrentNode(owner);
     if (current_node) {
         current_node->set(String(name.c_str()), value);
     }
 }
 
-Variant GodotRenderer::getProperty(const std::string& name, void* owner) {
-    Node* current_node = getCurrentNode(owner);
+Variant GodotRenderer::getProperty(const std::string& name, void* owner, void* target_node) {
+    Node* current_node = target_node ? static_cast<Node*>(target_node) : getCurrentNode(owner);
     if (current_node) {
         return current_node->get(String(name.c_str()));
     }

@@ -18,19 +18,51 @@ addBouncer("[layer:1][fontsize:0.2][pos:850,20][rgb: 0,255,255]Score [global:\"s
 
 setAudioVolume(30)
 
+
 local clvs = getGlobalVar("lives")
 
-    godotSelectRoot()
-    if godotSearchNode("Ship") then
-        godotSetProperty("lives", clvs)
-    end
+--godotSelectRoot()
+--local myInvaders = godotGetNodePointer("Invaders")
+--if myInvaders then print("Got Waders") end
+--godotSelectRoot()
+--local myShip = godotGetNodePointer("Ship")
+--if myShip then print("Got Ship") end
+
+    --godotSelectRoot()
+    --if godotSearchNode("Ship") then
+     --   godotSetProperty("lives", clvs, myShip)
+    --end
+
+    --godotSelectRoot()
+    --if godotSearchNode("Invaders") then
+   --     godotSetProperty("vaders", 50, myInvaders)
+  --      local vtest = godotGetProperty("vaders",myInvaders)
+--        print("vaders: ",vtest)
+    --end
+
 
     godotSelectRoot()
-    if godotSearchNode("Invaders") then
-        godotSetProperty("vaders", 50)
-        local vtest = godotGetProperty("vaders")
-        print("vaders: ",vtest)
-    end
+    local myInvaders = godotGetNodePointer("Invaders")
+    if myInvaders then print("Got Waders") end
+    
+    godotSelectRoot()
+    local myShip = godotGetNodePointer("Ship")
+    if myShip then print("Got Ship") end
+
+    
+    godotSelectRoot()
+    godotSetProperty("lives", clvs, myShip)
+    godotSelectRoot()
+    local ltest = godotGetProperty("lives",myShip)
+    print("lives: ",ltest)
+
+
+    godotSelectRoot()
+    godotSetProperty("vaders", 50, myInvaders)
+    godotSelectRoot()
+    local vtest = godotGetProperty("vaders",myInvaders)
+    print("vaders: ",vtest)
+    
 
 addBouncer("[layer:1][pos:20,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
 
