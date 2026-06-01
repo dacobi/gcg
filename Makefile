@@ -526,6 +526,30 @@ resource_format_loader_gltf.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/resource_format_loader_gltf.cpp.s
 .PHONY : resource_format_loader_gltf.cpp.s
 
+resource_format_loader_png.o: resource_format_loader_png.cpp.o
+.PHONY : resource_format_loader_png.o
+
+# target to build an object file
+resource_format_loader_png.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/resource_format_loader_png.cpp.o
+.PHONY : resource_format_loader_png.cpp.o
+
+resource_format_loader_png.i: resource_format_loader_png.cpp.i
+.PHONY : resource_format_loader_png.i
+
+# target to preprocess a source file
+resource_format_loader_png.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/resource_format_loader_png.cpp.i
+.PHONY : resource_format_loader_png.cpp.i
+
+resource_format_loader_png.s: resource_format_loader_png.cpp.s
+.PHONY : resource_format_loader_png.s
+
+# target to generate assembly for a file
+resource_format_loader_png.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/resource_format_loader_png.cpp.s
+.PHONY : resource_format_loader_png.cpp.s
+
 resource_format_loader_wav.o: resource_format_loader_wav.cpp.o
 .PHONY : resource_format_loader_wav.o
 
@@ -632,6 +656,9 @@ help:
 	@echo "... resource_format_loader_gltf.o"
 	@echo "... resource_format_loader_gltf.i"
 	@echo "... resource_format_loader_gltf.s"
+	@echo "... resource_format_loader_png.o"
+	@echo "... resource_format_loader_png.i"
+	@echo "... resource_format_loader_png.s"
 	@echo "... resource_format_loader_wav.o"
 	@echo "... resource_format_loader_wav.i"
 	@echo "... resource_format_loader_wav.s"

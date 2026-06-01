@@ -9,6 +9,7 @@
 #include "core/object/object.h"
 #include "resource_format_loader_gltf.h"
 #include "resource_format_loader_wav.h"
+#include "resource_format_loader_png.h"
 #include <iostream>
 
 
@@ -152,6 +153,10 @@ bool GodotManager::init(int argc, char* argv[]) {
     Ref<ResourceFormatLoaderWAV> wav_loader;
     wav_loader.instantiate();
     ResourceLoader::add_resource_format_loader(wav_loader);
+
+    Ref<ResourceFormatLoaderPNG> png_loader;
+    png_loader.instantiate();
+    ResourceLoader::add_resource_format_loader(png_loader);
 
 
     ClassDB::register_class<LuaEventBridge>();

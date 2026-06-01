@@ -63,7 +63,7 @@ link_directories(/usr/local/lib)
 target_link_libraries(imgui PUBLIC PkgConfig::SDL3 SDL3_shadercross::SDL3_shadercross-shared)
 #target_compile_options(gcg PRIVATE -g -O2)
 # --- Our executable ---
-add_executable(gcg main.cpp clplasma.cpp clmandelbrot.cpp luascripting.cpp input_manager.cpp renderer.cpp shplasma.cpp godot_manager.cpp godot_renderer.cpp resource_format_loader_gltf.cpp resource_format_loader_wav.cpp ${USD_SOURCES})
+add_executable(gcg main.cpp clplasma.cpp clmandelbrot.cpp luascripting.cpp input_manager.cpp renderer.cpp shplasma.cpp godot_manager.cpp godot_renderer.cpp resource_format_loader_gltf.cpp resource_format_loader_wav.cpp resource_format_loader_png.cpp ${USD_SOURCES})
 
 if (USE_USD)
     target_compile_definitions(gcg PRIVATE USE_USD)
