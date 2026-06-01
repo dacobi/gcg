@@ -30,7 +30,7 @@ var bNewScore: bool = false
 @export var score: int = 0
 
 @onready var march_player = $MarchPlayer
-@onready var march_timer_node = $MarchTimer
+@onready var explosion_player = $ExplosionPlayer
 
 
 func _init():
@@ -90,6 +90,8 @@ func _reset_fire_timer():
 	next_fire_time = randf() * (max_fire_delay - min_fire_delay) + min_fire_delay
 
 func vaderdie(height):
+	if explosion_player:
+		explosion_player.play()
 	vaders = vaders - 1
 	# print("vaders: ", vaders)
 	score = score + (speed / 10) * level * height
