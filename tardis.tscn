@@ -3,8 +3,15 @@
 [ext_resource type="Script" path="res://tardis.gd" id="1_tardis"]
 [ext_resource type="Texture2D" path="res://tardis_side.png" id="2_tardis_side"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_Blue"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_BlueSolid"]
+albedo_color = Color(0.1, 0.2, 0.5, 1)
+roughness = 0.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_Panels"]
 albedo_texture = ExtResource("2_tardis_side")
+emission_enabled = true
+emission_energy_multiplier = 2.0
+emission_texture = ExtResource("2_tardis_side")
 roughness = 0.5
 uv1_scale = Vector3(1, 1, 1)
 
@@ -56,62 +63,85 @@ shadow_enabled = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 5)
 current = true
 
-[node name="Visuals" type="CSGCombiner3D" parent="."]
+[node name="Visuals" type="Node3D" parent="."]
 transform = Transform3D(0.92388, -0.382683, 0, 0.382683, 0.92388, 0, 0, 0, 1, 0, 0, 0)
-material_override = SubResource("StandardMaterial3D_Blue")
 
-[node name="Base" type="CSGBox3D" parent="Visuals"]
+[node name="Structure" type="CSGCombiner3D" parent="Visuals"]
+material_override = SubResource("StandardMaterial3D_BlueSolid")
+
+[node name="Base" type="CSGBox3D" parent="Visuals/Structure"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
 size = Vector3(1.6, 0.2, 1.6)
 
-[node name="Body" type="CSGBox3D" parent="Visuals"]
+[node name="Body" type="CSGBox3D" parent="Visuals/Structure"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 size = Vector3(1.4, 2.6, 1.4)
 
-[node name="P1" type="CSGBox3D" parent="Visuals"]
+[node name="P1" type="CSGBox3D" parent="Visuals/Structure"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 1.5, 0.75)
 size = Vector3(0.2, 2.8, 0.2)
 
-[node name="P2" type="CSGBox3D" parent="Visuals"]
+[node name="P2" type="CSGBox3D" parent="Visuals/Structure"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 1.5, 0.75)
 size = Vector3(0.2, 2.8, 0.2)
 
-[node name="P3" type="CSGBox3D" parent="Visuals"]
+[node name="P3" type="CSGBox3D" parent="Visuals/Structure"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 1.5, -0.75)
 size = Vector3(0.2, 2.8, 0.2)
 
-[node name="P4" type="CSGBox3D" parent="Visuals"]
+[node name="P4" type="CSGBox3D" parent="Visuals/Structure"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 1.5, -0.75)
 size = Vector3(0.2, 2.8, 0.2)
 
-[node name="Roof1" type="CSGBox3D" parent="Visuals"]
+[node name="FaceFront" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0.701)
+size = Vector3(1.3, 2.6, 0.01)
+material = SubResource("StandardMaterial3D_Panels")
+
+[node name="FaceBack" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 1.5, -0.701)
+size = Vector3(1.3, 2.6, 0.01)
+material = SubResource("StandardMaterial3D_Panels")
+
+[node name="FaceLeft" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -0.701, 1.5, 0)
+size = Vector3(1.3, 2.6, 0.01)
+material = SubResource("StandardMaterial3D_Panels")
+
+[node name="FaceRight" type="CSGBox3D" parent="Visuals"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.701, 1.5, 0)
+size = Vector3(1.3, 2.6, 0.01)
+material = SubResource("StandardMaterial3D_Panels")
+
+[node name="Roof1" type="CSGBox3D" parent="Visuals/Structure"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.05, 0)
 size = Vector3(1.4, 0.1, 1.4)
 
-[node name="Roof2" type="CSGBox3D" parent="Visuals"]
+[node name="Roof2" type="CSGBox3D" parent="Visuals/Structure"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.15, 0)
 size = Vector3(1.2, 0.1, 1.2)
 
-[node name="Roof3" type="CSGBox3D" parent="Visuals"]
+[node name="Roof3" type="CSGBox3D" parent="Visuals/Structure"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.25, 0)
 size = Vector3(1.0, 0.1, 1.0)
 
-[node name="Lamp" type="CSGCylinder3D" parent="Visuals"]
+[node name="Lamp" type="CSGCylinder3D" parent="Visuals/Structure"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.4, 0)
 radius = 0.1
 height = 0.3
 material = SubResource("StandardMaterial3D_White")
 
-[node name="SpotLightContainer" type="Node3D" parent="Visuals/Lamp"]
+[node name="SpotLightContainer" type="Node3D" parent="Visuals/Structure/Lamp"]
 
-[node name="SpotLight3D" type="SpotLight3D" parent="Visuals/Lamp/SpotLightContainer"]
+[node name="SpotLight3D" type="SpotLight3D" parent="Visuals/Structure/Lamp/SpotLightContainer"]
 transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 0, 0.1)
 light_color = Color(1, 1, 0.8, 1)
 light_energy = 30.0
 spot_range = 20.0
 spot_angle = 45.0
 
-[node name="OmniLight3D" type="OmniLight3D" parent="Visuals/Lamp"]
+[node name="OmniLight3D" type="OmniLight3D" parent="Visuals/Structure/Lamp"]
 light_color = Color(1, 1, 0.8, 1)
 light_energy = 5.0
 omni_range = 5.0
+
