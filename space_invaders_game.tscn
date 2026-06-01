@@ -7,6 +7,8 @@
 [ext_resource type="Script" path="res://invaders_movement.gd" id="5_invaders_movement"]
 [ext_resource type="AudioStream" path="res://alien_march.wav" id="6_alien_march"]
 [ext_resource type="AudioStream" path="res://alien_explosion.wav" id="7_alien_explosion"]
+[ext_resource type="Script" path="res://tardis_movement.gd" id="8_tardis_movement"]
+[ext_resource type="AudioStream" path="res://tardis.wav" id="9_tardis_audio"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_game"]
 sky_top_color = Color(0, 0, 0, 1)
@@ -174,3 +176,11 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -35, 0)
 [node name="Projectiles" type="Node3D" parent="."]
 
 [node name="EnemyProjectiles" type="Node3D" parent="."]
+
+[node name="TardisMovement" type="Node3D" parent="."]
+script = ExtResource("8_tardis_movement")
+
+[node name="TardisAudio" type="AudioStreamPlayer" parent="TardisMovement"]
+stream = ExtResource("9_tardis_audio")
+
+[connection signal="spawn_tardis" from="Invaders" to="TardisMovement" method="_on_spawn_tardis"]

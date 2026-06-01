@@ -2,6 +2,7 @@ extends Node3D
 
 signal new_score
 signal game_won
+signal spawn_tardis
 
 var speed = 2.0 # Steps per second
 var direction = 1
@@ -10,6 +11,7 @@ var boundary_x = 30.0
 var step_timer = 0.0
 var step_x_size = 5.5
 var step_y_size = 5.0
+var drop_count = 0
 
 # Firing parameters (Starting at double the previous rate)
 var fire_timer = 0.0
@@ -70,6 +72,10 @@ func _process(delta):
 				position.y -= step_y_size
 				direction *= -1
 				speed += 0.05 * delta * level_scale # Speed boost on drop
+				drop_count += 1
+				if drop_count >= 5:
+					emit_signal("spawn_tardis")
+					drop_count = 0
 			else:
 				position.x = next_x
 			
