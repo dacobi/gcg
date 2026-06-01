@@ -16,7 +16,7 @@ addBouncer("[layer:1][fontsize:0.2][pos:20,20][rgb: 0,255,255]Level [global:\"le
 
 addBouncer("[layer:1][fontsize:0.2][pos:850,20][rgb: 0,255,255]Score [global:\"score\"]")
 
-setAudioVolume(50)
+setAudioVolume(30)
 
 local clvs = getGlobalVar("lives")
 

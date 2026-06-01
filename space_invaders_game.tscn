@@ -44,9 +44,6 @@ transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 38, 0)
 stream = ExtResource("6_alien_march")
 max_polyphony = 3
 
-[node name="MarchTimer" type="Timer" parent="Invaders"]
-autostart = true
-
 [node name="Inv1_1" parent="Invaders" instance=ExtResource("1_invader")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90, 60, 0)
 [node name="Inv1_2" parent="Invaders" instance=ExtResource("1_invader")]

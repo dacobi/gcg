@@ -3,12 +3,13 @@ extends Node3D
 signal new_score
 signal game_won
 
-var speed = 10.0
+var speed = 2.0 # Steps per second
 var direction = 1
 var boundary_x = 30.0
-var drop_height = 5.0
 
-var march_timer = 0.0
+var step_timer = 0.0
+var step_x_size = 5.5
+var step_y_size = 5.0
 
 # Firing parameters (Starting at double the previous rate)
 var fire_timer = 0.0
@@ -38,17 +39,6 @@ func _init():
 
 func _ready():
 	_reset_fire_timer()
-	if march_timer_node:
-		march_timer_node.timeout.connect(_on_march_timer_timeout)
-		march_timer_node.wait_time = max(0.05, 8.0 / speed)
-		march_timer_node.start()
-
-func _on_march_timer_timeout():
-	if bAdvance and march_player:
-		march_player.play()
-	# Update wait_time for the next cycle based on current speed
-	if march_timer_node:
-		march_timer_node.wait_time = max(0.05, 8.0 / speed)
 
 func _process(delta):
 	# Prevent massive delta spikes from breaking movement
@@ -60,31 +50,32 @@ func _process(delta):
 	min_fire_delay *= pow(fire_delay_multiplier_per_sec, delta * level_scale)
 	max_fire_delay *= pow(fire_delay_multiplier_per_sec, delta * level_scale)
 
-	# --- Movement Logic ---
-	var step = direction * speed * delta
-	# Hard cap the maximum movement per frame to prevent boundary tunneling or infinite bounce loops
-	if step > 2.0: step = 2.0
-	elif step < -2.0: step = -2.0
-
-	position.x += step
-
-	var over_boundary = false
-	if position.x > boundary_x:
-		position.x = boundary_x
-		if direction == 1:
-			direction = -1
-			over_boundary = true
-	elif position.x < -boundary_x:
-		position.x = -boundary_x
-		if direction == -1:
-			direction = 1
-			over_boundary = true
-
-	if over_boundary and bAdvance:
-		# Drop down one step
-		position.y -= drop_height
-		# Classic drop speed boost, scaled by level
-		speed += 0.5 * level_scale
+	# --- Movement Logic (Stepped) ---
+	if bAdvance:
+		step_timer += delta * level_scale
+		var step_delay = 1.0 / speed
+		
+		if step_timer >= step_delay:
+			step_timer -= step_delay # Preserve overflow
+			
+			var next_x = position.x + (direction * step_x_size)
+			var boundary_hit = false
+			
+			if direction == 1 and next_x > boundary_x:
+				boundary_hit = true
+			elif direction == -1 and next_x < -boundary_x:
+				boundary_hit = true
+				
+			if boundary_hit:
+				position.y -= step_y_size
+				direction *= -1
+				speed += 0.25 * level_scale # Speed boost on drop
+			else:
+				position.x = next_x
+			
+			# Trigger sound exactly on move
+			if march_player:
+				march_player.play()
 
 	# --- Firing Logic ---
 	if bAdvance:
