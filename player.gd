@@ -12,6 +12,7 @@ var _glow_timer: float = 0.0
 @onready var main_geometry = get_node_or_null("Geometry")
 @onready var glow_light = get_node_or_null("HitGlowLight")
 @onready var glow_mesh = get_node_or_null("GlowGeometry")
+@onready var explosion_player = get_node_or_null("ExplosionPlayer")
 
 
 func _process(delta: float) -> void:
@@ -34,6 +35,7 @@ func set_score(newScore: int) -> void:
 
 func kill() -> void:
 	if not alive: return
+	if explosion_player: explosion_player.play()
 	lives = 0
 	alive = false
 	livelost = true
@@ -42,6 +44,7 @@ func kill() -> void:
 
 func hit()->void:
 	if not alive: return
+	if explosion_player: explosion_player.play()
 	lives -= 1
 	if lives == 0:
 		alive = false

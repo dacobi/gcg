@@ -1,6 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://b8r9t0y1u2i3o"]
 
 [ext_resource type="Script" path="res://player.gd" id="1_player"]
+[ext_resource type="AudioStream" path="res://player_explosion.wav" id="2_player_explosion"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_ship"]
 sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
@@ -44,6 +45,9 @@ size = Vector3(7, 3, 2)
 
 [node name="PlayerShip" type="CharacterBody3D"]
 script = ExtResource("1_player")
+
+[node name="ExplosionPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("2_player_explosion")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0)

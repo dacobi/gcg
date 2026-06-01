@@ -11,6 +11,9 @@ func _on_body_entered(body: Node) -> void:
 	queue_free()
 
 func die()->void:
+	var audio = get_node_or_null("../BunkerExplosions")
+	if audio:
+		audio.play()
 	queue_free()
 
 func hit()->void:
