@@ -3320,11 +3320,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                         case AppState::LuaCommand::GODOT_MOVE_AND_COLLIDE: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->moveAndCollide(cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.owner_thread, cmd.target_node); break;
                         case AppState::LuaCommand::GODOT_GET_OVERLAPPING_AREAS: if (cmd.sync) cmd.sync->vs_res = state->selected_godots[cmd.owner_thread]->getOverlappingAreas(cmd.owner_thread, cmd.target_node); break;
                         case AppState::LuaCommand::GODOT_CREATE_NODE: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->createNode(cmd.syntax, cmd.owner_thread); break;
-                        case AppState::LuaCommand::GODOT_LOAD_NODE: 
+                        case AppState::LuaCommand::GODOT_LOAD_NODE:
                             if (cmd.sync) {
-                                cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->loadNode(cmd.syntax, cmd.owner_thread, cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.sync->b_res);
+                                cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->loadNode(cmd.syntax, cmd.owner_thread, cmd.fargs[0], cmd.fargs[1], cmd.fargs[2], cmd.sync->b_res, cmd.target_node);
                             }
                             break;
+
                         case AppState::LuaCommand::GODOT_DELETE_NODE: state->selected_godots[cmd.owner_thread]->deleteNode(cmd.owner_thread, cmd.target_node); break;
                         case AppState::LuaCommand::GODOT_ATTACH_SCRIPT: if (cmd.sync) cmd.sync->b_res = state->selected_godots[cmd.owner_thread]->attachScript(cmd.syntax, cmd.owner_thread); break;
                         case AppState::LuaCommand::GODOT_SET_PROPERTY:

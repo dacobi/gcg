@@ -1124,9 +1124,13 @@ int LuaScripting::lua_godotLoadNode(lua_State* L) {
             fargs[2] = (float)lua_tonumber(L, 4);
             use_pos = 1;
         }
-        
+
+        if (lua_islightuserdata(L, 5)) {
+            sd->ptr_arg = lua_touserdata(L, 5);
+        }
+
         std::string path = lua_tostring(L, 1);
-        sd->b_res = (use_pos == 1); 
+        sd->b_res = (use_pos == 1);
 
         self->godotCmdFunc(GCMD_LOAD_NODE, path, fargs, sd, L, self);
         std::unique_lock<std::mutex> lock(sd->mtx);
@@ -1138,7 +1142,6 @@ int LuaScripting::lua_godotLoadNode(lua_State* L) {
     }
     return 0;
 }
-
 int LuaScripting::lua_godotDeleteNode(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (self && self->godotCmdFunc) {

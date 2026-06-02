@@ -289,9 +289,9 @@ bool GodotRenderer::createNode(const std::string& name, void* owner) {
     return false;
 }
 
-bool GodotRenderer::loadNode(const std::string& path, void* owner, float x, float y, float z, bool use_pos) {
-    Node* current_node = getCurrentNode(owner);
-    if (!current_node) return false;
+bool GodotRenderer::loadNode(const std::string& path, void* owner, float x, float y, float z, bool use_pos, void* target_node) {
+    Node* parent_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    if (!parent_node) return false;
     Ref<PackedScene> scene = ResourceLoader::load(String(path.c_str()));
     if (scene.is_valid()) {
         Node* instance = scene->instantiate();
@@ -302,7 +302,7 @@ bool GodotRenderer::loadNode(const std::string& path, void* owner, float x, floa
                     n3d->set_position(Vector3(x, y, z));
                 }
             }
-            current_node->add_child(instance);
+            parent_node->add_child(instance);
             current_nodes[owner] = instance;
             return true;
         }

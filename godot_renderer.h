@@ -41,7 +41,7 @@ public:
     std::vector<std::string> getOverlappingAreas(void* owner, void* target_node = nullptr);
 
     bool createNode(const std::string& name, void* owner);
-    bool loadNode(const std::string& path, void* owner, float x = 0, float y = 0, float z = 0, bool use_pos = false);
+    bool loadNode(const std::string& path, void* owner, float x = 0, float y = 0, float z = 0, bool use_pos = false, void* target_node = nullptr);
     void deleteNode(void* owner, void* target_node = nullptr);
 
     Node* getCurrentNode(void* owner) const { 

@@ -238,14 +238,14 @@ end
     godotWatchSignal("game_won", "onGameWon", myInvaders)
 --end
 
-godotSelectRoot()
-    if godotSearchNode("Invaders") then
+    --godotSelectRoot()
+    --if godotSearchNode("Invaders") then
         local mlvl = getGlobalVar("level")
         if mlvl == 0 then mlvl = 1 end
-        godotSetProperty("level", mlvl) -- Enable advancing and firing
+        godotSetProperty("level", mlvl, myInvaders) -- Enable advancing and firing
         local mscore = getGlobalVar("score")
-        godotSetProperty("score", mscore) -- Transfer score from last level
-    end
+        godotSetProperty("score", mscore, myInvaders) -- Transfer score from last level
+    --end
 
 while true do
     -- Allow exiting via ESC
@@ -265,28 +265,31 @@ while true do
         if shipX > maxX then shipX = maxX end
 
         
-        godotSelectRoot()
-        if godotSearchNode("Ship") then
-            local _, sy, sz = godotGetPos()
-            godotSetPos(shipX, sy, sz)
-        end
+        --godotSelectRoot()
+        --if godotSearchNode("Ship") then
+            local _, sy, sz = godotGetPos(myShip)
+            godotSetPos(shipX, sy, sz,myShip)
+        --end
     end
 
     -- Left mouse click to fire (Limit to 7 active projectiles)
     if ioMouseBTNClicked(1) then
         godotSelectRoot()
-        if godotSearchNode("Projectiles") then
-            local count = godotGetChildCount()
+        local myFire = godotGetNodePointer("Projectiles")
+        local sx, sy, sz = godotGetPos(myShip)
+        if myFire then
+            local count = godotGetChildCount(myFire)
+            print("child:", count)
             if count < 7 then
-                godotSelectRoot()
-                if godotSearchNode("Ship") then
-                    local sx, sy, sz = godotGetPos()
-                    godotSelectRoot()
-                    if godotSearchNode("Projectiles") then
+                --godotSelectRoot()
+                --if godotSearchNode("Ship") then
+                    
+                    --godotSelectRoot()
+                    --if godotSearchNode("Projectiles") then
                         -- Load and position atomically
-                        godotLoadNode("res://projectile.tscn", sx, sy + 3, sz)
-                    end
-                end
+                        godotLoadNode("res://projectile.tscn", sx, sy + 3, sz, myFire)
+                    --end
+                --end
             end
         end
     end
