@@ -21,49 +21,24 @@ setAudioVolume(30)
 
 local clvs = getGlobalVar("lives")
 
---godotSelectRoot()
---local myInvaders = godotGetNodePointer("Invaders")
---if myInvaders then print("Got Waders") end
---godotSelectRoot()
---local myShip = godotGetNodePointer("Ship")
---if myShip then print("Got Ship") end
-
-    --godotSelectRoot()
-    --if godotSearchNode("Ship") then
-     --   godotSetProperty("lives", clvs, myShip)
-    --end
-
-    --godotSelectRoot()
-    --if godotSearchNode("Invaders") then
-   --     godotSetProperty("vaders", 50, myInvaders)
-  --      local vtest = godotGetProperty("vaders",myInvaders)
---        print("vaders: ",vtest)
-    --end
-
-
-    godotSelectRoot()
-    local myInvaders = godotGetNodePointer("Invaders")
-    if myInvaders then print("Got Waders") end
+godotSelectRoot()
+local myInvaders = godotGetNodePointer("Invaders")
+if myInvaders then print("Got Waders") end
     
-    godotSelectRoot()
-    local myShip = godotGetNodePointer("Ship")
-    if myShip then print("Got Ship") end
-
+godotSelectRoot()
+local myShip = godotGetNodePointer("Ship")
+if myShip then print("Got Ship") end
     
-    godotSelectRoot()
-    godotSetProperty("lives", clvs, myShip)
-    godotSelectRoot()
-    local ltest = godotGetProperty("lives",myShip)
-    print("lives: ",ltest)
-
-
-    godotSelectRoot()
-    godotSetProperty("vaders", 50, myInvaders)
-    godotSelectRoot()
-    local vtest = godotGetProperty("vaders",myInvaders)
-    print("vaders: ",vtest)
+godotSetProperty("lives", clvs, myShip)
     
+local ltest = godotGetProperty("lives",myShip)
+print("lives: ",ltest)
 
+godotSetProperty("vaders", 50, myInvaders)
+
+local vtest = godotGetProperty("vaders",myInvaders)
+print("vaders: ",vtest)
+    
 addBouncer("[layer:1][pos:20,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
 
 if clvs > 1 then
@@ -117,135 +92,56 @@ function onLiveLost()
     print("*        HITMAN!          *")
     print("***************************")
     
-    --godotSelectRoot()
-    --if godotSearchNode("Invaders") then
-        godotSetProperty("bAdvance", false, myInvaders) -- Disable advancing and firing
-        if myInvaders then print("NoAdvance") end
-    --end
+    godotSetProperty("bAdvance", false, myInvaders) -- Disable advancing and firing
+    if myInvaders then print("NoAdvance") end
+    
+    if livesleft == 2 then                
+        setGlobalVar("lives",2)
+        delBouncer(4)
+    end
+    if livesleft == 1 then
+        setGlobalVar("lives",1)
+        delBouncer(3)
+    end
+    if livesleft == 0 then
+        setGlobalVar("lives",0)
+        delBouncer(2)
+        onGameOver()
+        inLiveLost = false
+        return
+    end
 
-    -- remove all enemy projectiles
-    --godotSelectRoot()
-    --if godotSearchNode("EnemyProjectiles") then
-    --    godotDeleteNode()
-    --    godotSelectRoot()
-    --    godotCreateNode("EnemyProjectiles")
-   --end
-
-    -- remove all player projectiles
-    --godotSelectRoot()
-    --if godotSearchNode("Projectiles") then
-    --    godotDeleteNode()
-    --    godotSelectRoot()
-    --    godotCreateNode("Projectiles")
-   -- end
-
-        --godotSelectRoot()
-        --if godotSearchNode("Ship") then
-         --   godotSetProperty("hit_glow", true)
-        --end    
+    delay(700)
         
-        --for i = 1,7 do
-           -- godotSelectRoot()
-           -- if godotSearchNode("Ship") then
-                -- godotSetVisible(true)
-           --     godotSetScale(1.2, 1.2, 1.2)
-          --  end
-          --  delay(40)
-          --  godotSelectRoot()
-         --   if godotSearchNode("Ship") then
-         --       godotSetScale(1.0, 1.0, 1.0)
-        --    end
-        --    delay(40)
-         --   godotSelectRoot()
-      --      if godotSearchNode("Ship") then
-                -- godotSetVisible(false)
-    --        end
-  --          delay(40)
---        end
-
-        --godotSelectRoot()
-        --if godotSearchNode("Ship") then
-        --    godotSetProperty("hit_glow", false)
-        --end
-
-        if livesleft == 2 then                
-                setGlobalVar("lives",2)
-                delBouncer(4)
-            end
-            if livesleft == 1 then
-                setGlobalVar("lives",1)
-                delBouncer(3)
-            end
-            if livesleft == 0 then
-                setGlobalVar("lives",0)
-                delBouncer(2)
-                onGameOver()
-                inLiveLost = false
-                return
-            end
-
-            delay(700)
-            --godotSelectRoot()
-            --if godotSearchNode("Ship") then
-                local _, sy, sz = godotGetPos(myShip)
-                shipX = 0.0
-            --godotSelectRoot()
-            --if godotSearchNode("Ship") then
-                godotSetPos(shipX, sy, sz, myShip)
-            --end
-            --godotSelectRoot()
-            --if godotSearchNode("Ship") then
-            --    godotSetVisible(true)
-            --end
-            --godotSelectRoot()
-            --if godotSearchNode("Ship") then
-            --    godotSetProperty("livelost", false)
-            --end
+    local _, sy, sz = godotGetPos(myShip)
+    shipX = 0.0
         
-
+    godotSetPos(shipX, sy, sz, myShip)
             
-            --godotSelectRoot()
-            -- godotSearchNode("Invaders") then
-                godotSetProperty("bAdvance", true, myInvaders) -- Enable advancing and firing
-                if myInvaders then print("Advance") end
-            --end
-        --end 
+    godotSetProperty("bAdvance", true, myInvaders) -- Enable advancing and firing
+    if myInvaders then print("Advance") end            
     inLiveLost = false
 end
 
 function onNewScore()
-    
-    --godotSelectRoot()
-    --if godotSearchNode("Ship") then        
-          local lscore = godotGetProperty("cscore", myShip)  
-         setGlobalVar("score",lscore)
-        --godotSetProperty("bNewScore", false) -- Enable next score update
-
-    --end
+    local lscore = godotGetProperty("cscore", myShip)  
+    setGlobalVar("score",lscore)
 end
 
 
 -- Watchers are now polled natively via godotWatchSignal on selected nodes
---godotSelectRoot()
---if godotSearchNode("Ship") then
     godotWatchSignal("live_lost", "onLiveLost", myShip)
     godotWatchSignal("lives_reset", "onLivesReset", myShip)
---end
 
---godotSelectRoot()
---if godotSearchNode("Invaders") then
     godotWatchSignal("new_score", "onNewScore", myInvaders)
     godotWatchSignal("game_won", "onGameWon", myInvaders)
---end
 
-    --godotSelectRoot()
-    --if godotSearchNode("Invaders") then
-        local mlvl = getGlobalVar("level")
-        if mlvl == 0 then mlvl = 1 end
-        godotSetProperty("level", mlvl, myInvaders) -- Enable advancing and firing
-        local mscore = getGlobalVar("score")
-        godotSetProperty("score", mscore, myInvaders) -- Transfer score from last level
-    --end
+    local mlvl = getGlobalVar("level")
+    if mlvl == 0 then mlvl = 1 end
+    godotSetProperty("level", mlvl, myInvaders) -- Enable advancing and firing
+    local mscore = getGlobalVar("score")
+    godotSetProperty("score", mscore, myInvaders) -- Transfer score from last level
+    
 
 while true do
     -- Allow exiting via ESC
@@ -256,20 +152,14 @@ while true do
 
     -- Mouse movement to control ship
     local rx, ry = ioMouseGetMotion()
-    if rx ~= 0 then
-        --print("rx: ",rx)
-        --print("ry: ",ry)
+    if rx ~= 0 then        
         shipX = shipX + (rx / 10.0)
         -- Clamp ship position
         if shipX < minX then shipX = minX end
         if shipX > maxX then shipX = maxX end
-
-        
-        --godotSelectRoot()
-        --if godotSearchNode("Ship") then
-            local _, sy, sz = godotGetPos(myShip)
-            godotSetPos(shipX, sy, sz,myShip)
-        --end
+                
+        local _, sy, sz = godotGetPos(myShip)
+        godotSetPos(shipX, sy, sz,myShip)        
     end
 
     -- Left mouse click to fire (Limit to 7 active projectiles)
@@ -279,22 +169,13 @@ while true do
         local sx, sy, sz = godotGetPos(myShip)
         if myFire then
             local count = godotGetChildCount(myFire)
-            print("child:", count)
-            if count < 7 then
-                --godotSelectRoot()
-                --if godotSearchNode("Ship") then
-                    
-                    --godotSelectRoot()
-                    --if godotSearchNode("Projectiles") then
-                        -- Load and position atomically
-                        godotLoadNode("res://projectile.tscn", sx, sy + 3, sz, myFire)
-                    --end
-                --end
+            if count < 7 then             
+                godotLoadNode("res://projectile.tscn", sx, sy + 3, sz, myFire)                          
             end
         end
     end
 
-    delay(5) -- run at roughly 60 fps
+    delay(5) 
 end
 
 -- Release mouse on exit
