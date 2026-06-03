@@ -1877,14 +1877,17 @@ public:
                 for (const auto& e : entries) current_data += e.name + std::to_string(e.score);
 
                 if (current_data != b.last_hs_data) {
-                    for (auto& et : b.extra_texs) SDL_ReleaseGPUTexture(g_renderer->getDevice(), et.tex);
+                    for (auto& et : b.extra_texs) {
+                        if (et.tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), et.tex);
+                    }
                     b.extra_texs.clear();
-                    
+
                     int w, h;
                     float pt = b.font_size_scale > 5.0f ? b.font_size_scale : 32.0f;
                     b.extra_texs.push_back({create_text_texture(g_renderer, "HIGH SCORES", &w, &h, pt * 1.2f), w, h});
-                    
+
                     int insert_idx = -1;
+
                     if (b.isHighScoreEntry) {
                         for(int i=0; i<(int)entries.size(); ++i) {
                             if (b.pendingScore >= entries[i].score) { insert_idx = i; break; }
@@ -1915,7 +1918,7 @@ public:
                         const char* parts[] = {rank_buf, name_buf, score_buf, level_buf};
                         for (auto p : parts) {
                             SDL_GPUTexture* t = create_text_texture(g_renderer, p, &w, &h, pt);
-                            if (t) b.extra_texs.push_back({t, w, h});
+                            b.extra_texs.push_back({t, w, h});
                         }
                         count++;
                     }

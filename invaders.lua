@@ -81,13 +81,10 @@ function onLiveLost()
     if inLiveLost then return end
     inLiveLost = true
     local livesleft = 3
-    
-    godotSelectRoot()
-    if godotSearchNode("Ship") then
-        livesleft = godotGetProperty("lives")        
-        print("livesleft: ",livesleft)
-    end
-    
+        
+    livesleft = godotGetProperty("lives", myShip)        
+    print("livesleft: ",livesleft)
+        
     print("***************************")
     print("*        HITMAN!          *")
     print("***************************")

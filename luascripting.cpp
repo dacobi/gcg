@@ -1181,13 +1181,15 @@ int LuaScripting::lua_godotSetProperty(lua_State* L) {
         std::string name = lua_tostring(L, 1);
         auto sd = std::make_shared<LuaSyncData>();
         float fargs[3] = {0,0,0};
+        
+        if (lua_islightuserdata(L, 3)) {
+            sd->ptr_arg = lua_touserdata(L, 3);
+        }
+
         if (lua_isnumber(L, 2)) {
             fargs[0] = (float)lua_tonumber(L, 2);
             fargs[1] = 0; // Number
-            if (lua_islightuserdata(L, 3)) {
-            sd->ptr_arg = lua_touserdata(L, 3);
-        }
-        self->godotCmdFunc(GCMD_SET_PROPERTY, name, fargs, sd, L, self);
+            self->godotCmdFunc(GCMD_SET_PROPERTY, name, fargs, sd, L, self);
         } else if (lua_isstring(L, 2)) {
             fargs[1] = 1; // String
             std::string combined = name + "|" + lua_tostring(L, 2);
