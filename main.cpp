@@ -1316,12 +1316,16 @@ public:
             } else if (tagType == "fontsize") {
                 try { fscale = safe_stof(tagContent, 1.0f); } catch(...) { fscale = 1.0f; }
             } else if (tagType == "global") {
-                std::string parsed_gvar = tagContent;
-                // Strip quotes if they exist
-                if (parsed_gvar.length() >= 2 && (parsed_gvar.front() == '"' || parsed_gvar.front() == '\'') && parsed_gvar.front() == parsed_gvar.back()) {
-                    parsed_gvar = parsed_gvar.substr(1, parsed_gvar.length() - 2);
+                std::vector<std::string> tokens = tokenize(tagContent);
+                if (!tokens.empty()) {
+                    gvar = tokens[0];
+                    if (tokens.size() >= 2) fscale = safe_stof(tokens[1], 1.0f);
+                    
+                    std::string initial_val = "0";
+                    if (gvar == "level_scale") initial_val = "1.00";
+                    
+                    results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, initial_val, 0, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, gvar, fscale, false, false, 0, 0});
                 }
-                results.push_back({px, py, vx, vy, bIsStatic, cr, cg, cb, "", 0, input, ow, oh, line_breaks, next_is_new_group, stencil_path, ttl, p_vx, p_vy, p_sx, p_sy, p_mass, p_bouncy, hasPhys, false, layer, hasHover, hr, hg, hb, hw, hasClicked, clua, parsed_gvar, fscale, false, false, 0, 0});
                 ow = 0; oh = 0; line_breaks = 0; next_is_new_group = false; stencil_path = ""; ttl = -1;
             } else if (tagType == "layer") {
                 layer = safe_stoi(tagContent, 1);
@@ -1700,9 +1704,6 @@ struct AppState {
     std::vector<PropertyWatcher> watchers;
     std::string pending_lua_path;
 
-    std::unordered_map<std::string, int> global_ints;
-    std::mutex globals_mutex;
-
     Uint64 last_ticks;
     Uint64 freq;
     Uint64 last_time;
@@ -1832,16 +1833,25 @@ public:
         for (auto& b : bouncers) {
             if (!b.global_var_name.empty()) {
                 int val = 0;
-                {
-                    std::lock_guard<std::mutex> lock(state->globals_mutex);
-                    auto it = state->global_ints.find(b.global_var_name);
-                    if (it != state->global_ints.end()) {
-                        val = it->second;
+                if (state->scriptSystem) {
+                    if (b.global_var_name == "level_scale") {
+                        int level = state->scriptSystem->getGlobalInt("level");
+                        val = (int)(std::pow(1.33, (double)level - 1.0) * 1000.0); // Store as 1000x for integer global
+                    } else {
+                        val = state->scriptSystem->getGlobalInt(b.global_var_name);
                     }
                 }
+                
                 if (val != b.last_global_val) {
                     if (b.tex) SDL_ReleaseGPUTexture(g_renderer->getDevice(), b.tex);
-                    std::string val_str = std::to_string(val);
+                    std::string val_str;
+                    if (b.global_var_name == "level_scale") {
+                         char buf[32];
+                         std::snprintf(buf, sizeof(buf), "%.2f", (double)val / 1000.0);
+                         val_str = buf;
+                    } else {
+                        val_str = std::to_string(val);
+                    }
                     b.tex = create_text_texture(g_renderer, val_str.c_str(), &b.tw, &b.th);
                     b.tw = (int)((float)b.tw * b.font_size_scale);
                     b.th = (int)((float)b.th * b.font_size_scale);
@@ -2912,24 +2922,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             [state](bool captured) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({captured ? AppState::LuaCommand::MOUSE_CAPTURE : AppState::LuaCommand::MOUSE_RELEASE, "", 0, 0.0});
-            },
-            [state](const std::string& name, int val) {
-                std::lock_guard<std::mutex> lock(state->globals_mutex);
-                state->global_ints[name] = val;
-            },
-            [state](const std::string& name) {
-                std::lock_guard<std::mutex> lock(state->globals_mutex);
-                auto it = state->global_ints.find(name);
-                if (it != state->global_ints.end()) return it->second;
-                return 0;
-            },
-            [state](const std::string& name, int val) {
-                std::lock_guard<std::mutex> lock(state->globals_mutex);
-                state->global_ints.insert({name, val});
-            },
-            [state](const std::string& name) {
-                std::lock_guard<std::mutex> lock(state->globals_mutex);
-                state->global_ints.erase(name);
             },
             [state](int score) {
                 return state->highScores.isHigher(score);

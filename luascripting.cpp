@@ -14,7 +14,7 @@ LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBG
 #ifdef USE_USD
     SelectUSDFunc selectUSDFunc, SetUSDParamFunc setUSDParamFunc,
 #endif
-    SelectGodotFunc selectGodotFunc, GodotCmdFunc godotFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetGlobalIntFunc setGlobalIntFunc, GetGlobalIntFunc getGlobalIntFunc, RegGlobalIntFunc regGlobalIntFunc, UnregGlobalIntFunc unregGlobalIntFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc)
+    SelectGodotFunc selectGodotFunc, GodotCmdFunc godotFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc)
     : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), 
     playAudioFunc(playAudioFunc), stopAudioFunc(stopAudioFunc), rewindAudioFunc(rewindAudioFunc), skipAudioFunc(skipAudioFunc), setAudioVolumeFunc(setAudioVolumeFunc),
     recordFunc(recordFunc), isRecFunc(isRecFunc),
@@ -22,7 +22,7 @@ LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBG
 #ifdef USE_USD
     selectUSDFunc(selectUSDFunc), setUSDParamFunc(setUSDParamFunc), 
 #endif
-    selectGodotFunc(selectGodotFunc), godotCmdFunc(godotFunc), quitFunc(quitFunc), setImGuiVisibleFunc(setImGuiVisibleFunc), clearAndRunFunc(clearAndRunFunc), setMouseCaptureFunc(setMouseCaptureFunc), setGlobalIntFunc(setGlobalIntFunc), getGlobalIntFunc(getGlobalIntFunc), regGlobalIntFunc(regGlobalIntFunc), unregGlobalIntFunc(unregGlobalIntFunc), checkHighScoreFunc(checkHSFunc), addHighScoreFunc(addHSFunc), loadHighScoreFunc(loadHSFunc), saveHighScoreFunc(saveHSFunc) {
+    selectGodotFunc(selectGodotFunc), godotCmdFunc(godotFunc), quitFunc(quitFunc), setImGuiVisibleFunc(setImGuiVisibleFunc), clearAndRunFunc(clearAndRunFunc), setMouseCaptureFunc(setMouseCaptureFunc), checkHighScoreFunc(checkHSFunc), addHighScoreFunc(addHSFunc), loadHighScoreFunc(loadHSFunc), saveHighScoreFunc(saveHSFunc) {
     instance = this;
     systemRunning = true;
 }
@@ -30,6 +30,28 @@ LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBG
 LuaScripting::~LuaScripting() {
     stop();
     if (instance == this) instance = nullptr;
+}
+
+void LuaScripting::setGlobalInt(const std::string& name, int val) {
+    std::lock_guard<std::mutex> lock(globals_mutex);
+    global_ints[name] = val;
+}
+
+int LuaScripting::getGlobalInt(const std::string& name) {
+    std::lock_guard<std::mutex> lock(globals_mutex);
+    auto it = global_ints.find(name);
+    if (it != global_ints.end()) return it->second;
+    return 0;
+}
+
+void LuaScripting::regGlobalInt(const std::string& name, int val) {
+    std::lock_guard<std::mutex> lock(globals_mutex);
+    global_ints.insert({name, val});
+}
+
+void LuaScripting::unregGlobalInt(const std::string& name) {
+    std::lock_guard<std::mutex> lock(globals_mutex);
+    global_ints.erase(name);
 }
 
 bool LuaScripting::runScript(const std::string& filename) {
@@ -302,32 +324,32 @@ int LuaScripting::lua_godotSaveHighScore(lua_State* L) {
 
 int LuaScripting::lua_regGlobalVar(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
-    if (lua_isstring(L, 1) && lua_isnumber(L, 2) && self && self->regGlobalIntFunc) {
-        self->regGlobalIntFunc(lua_tostring(L, 1), (int)lua_tonumber(L, 2));
+    if (lua_isstring(L, 1) && lua_isnumber(L, 2) && self) {
+        self->regGlobalInt(lua_tostring(L, 1), (int)lua_tonumber(L, 2));
     }
     return 0;
 }
 
 int LuaScripting::lua_unregGlobalVar(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
-    if (lua_isstring(L, 1) && self && self->unregGlobalIntFunc) {
-        self->unregGlobalIntFunc(lua_tostring(L, 1));
+    if (lua_isstring(L, 1) && self) {
+        self->unregGlobalInt(lua_tostring(L, 1));
     }
     return 0;
 }
 
 int LuaScripting::lua_setGlobalVar(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
-    if (lua_isstring(L, 1) && lua_isnumber(L, 2) && self && self->setGlobalIntFunc) {
-        self->setGlobalIntFunc(lua_tostring(L, 1), (int)lua_tonumber(L, 2));
+    if (lua_isstring(L, 1) && lua_isnumber(L, 2) && self) {
+        self->setGlobalInt(lua_tostring(L, 1), (int)lua_tonumber(L, 2));
     }
     return 0;
 }
 
 int LuaScripting::lua_getGlobalVar(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
-    if (lua_isstring(L, 1) && self && self->getGlobalIntFunc) {
-        int val = self->getGlobalIntFunc(lua_tostring(L, 1));
+    if (lua_isstring(L, 1) && self) {
+        int val = self->getGlobalInt(lua_tostring(L, 1));
         lua_pushinteger(L, val);
         return 1;
     }

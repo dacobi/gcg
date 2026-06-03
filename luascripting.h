@@ -83,10 +83,6 @@ public:
     using SetImGuiVisibleFunc = std::function<void(bool visible)>;
     using ClearAndRunFunc = std::function<void(const std::string& filename, std::shared_ptr<LuaSyncData> sync_data)>;
     using SetMouseCaptureFunc = std::function<void(bool captured)>;
-    using SetGlobalIntFunc = std::function<void(const std::string&, int)>;
-    using GetGlobalIntFunc = std::function<int(const std::string&)>;
-    using RegGlobalIntFunc = std::function<void(const std::string&, int)>;
-    using UnregGlobalIntFunc = std::function<void(const std::string&)>;
     using CheckHighScoreFunc = std::function<bool(int)>;
     using AddHighScoreFunc = std::function<void(const std::string&, int, int)>;
     using LoadHighScoreFunc = std::function<void()>;
@@ -99,7 +95,7 @@ public:
 #ifdef USE_USD
         SelectUSDFunc selectUSDFunc, SetUSDParamFunc setUSDParamFunc, 
 #endif
-        SelectGodotFunc selectGodotFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetGlobalIntFunc setGlobalIntFunc, GetGlobalIntFunc getGlobalIntFunc, RegGlobalIntFunc regGlobalIntFunc, UnregGlobalIntFunc unregGlobalIntFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc);
+        SelectGodotFunc selectGodotFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
@@ -108,6 +104,12 @@ public:
     lua_State* getL() const { return L; }
 
     void triggerCallback(const std::string& name);
+
+    // Global variables (now managed directly by LuaScripting)
+    void setGlobalInt(const std::string& name, int val);
+    int getGlobalInt(const std::string& name);
+    void regGlobalInt(const std::string& name, int val);
+    void unregGlobalInt(const std::string& name);
 
 private:
     static int lua_addBouncer(lua_State* L);
@@ -236,15 +238,14 @@ private:
     SetImGuiVisibleFunc setImGuiVisibleFunc;
     ClearAndRunFunc clearAndRunFunc;
     SetMouseCaptureFunc setMouseCaptureFunc;
-    SetGlobalIntFunc setGlobalIntFunc;
-    GetGlobalIntFunc getGlobalIntFunc;
-    RegGlobalIntFunc regGlobalIntFunc;
-    UnregGlobalIntFunc unregGlobalIntFunc;
 
     CheckHighScoreFunc checkHighScoreFunc;
     AddHighScoreFunc addHighScoreFunc;
     LoadHighScoreFunc loadHighScoreFunc;
     SaveHighScoreFunc saveHighScoreFunc;
+
+    std::unordered_map<std::string, int> global_ints;
+    std::mutex globals_mutex;
 
     static LuaScripting* instance;
 };

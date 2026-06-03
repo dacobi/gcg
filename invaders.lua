@@ -12,9 +12,9 @@ local minX = -55.0
 local maxX = 55.0
 
 
-addBouncer("[layer:1][fontsize:0.2][pos:20,20][rgb: 0,255,255]Level [global:\"level\"]")
+addBouncer("[layer:1][fontsize:0.2][pos:20,20][rgb: 0,255,255]Level [global:level]")
 
-addBouncer("[layer:1][fontsize:0.2][pos:850,20][rgb: 0,255,255]Score [global:\"score\"]")
+addBouncer("[layer:1][fontsize:0.2][pos:850,20][rgb: 0,255,255]Score [global:score]")
 
 setAudioVolume(30)
 
@@ -85,7 +85,7 @@ function onLiveLost()
     livesleft = godotGetProperty("lives", myShip)        
     print("livesleft: ",livesleft)
     
-    
+     
     print("***************************")
     print("*        HITMAN!          *")
     print("***************************")

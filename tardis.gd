@@ -10,6 +10,9 @@ var flash_timer = 0.0
 @onready var spotlight_container = get_node_or_null("Visuals/Structure/Lamp/SpotLightContainer")
 
 var orange_mat: StandardMaterial3D
+var is_spawning_sparks = false
+var spark_timer = 0.0
+var spark_script = preload("res://spark.gd")
 
 func _ready():
 	orange_mat = StandardMaterial3D.new()
@@ -23,6 +26,8 @@ func die():
 	is_dead = true
 	emit_signal("tardis_hit")
 	
+	is_spawning_sparks = true
+	
 	# Swap material on Structure
 	var structure = get_node_or_null("Visuals/Structure")
 	if structure:
@@ -33,7 +38,49 @@ func die():
 		var f = get_node_or_null("Visuals/" + face)
 		if f: f.visible = false
 
+func _spawn_one_spark():
+	var game_root = get_parent()
+	if !game_root: return
+
+	var spark = Area3D.new()
+	spark.set_script(spark_script)
+	
+	# Visual geometry for the spark (2x larger than 0.07)
+	var geom = CSGBox3D.new()
+	geom.size = Vector3(0.14, 0.14, 0.14) 
+	geom.material = orange_mat
+	spark.add_child(geom)
+	
+	# Collision shape (2x larger than 0.15)
+	var col = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(0.3, 0.3, 0.3)
+	col.shape = shape
+	spark.add_child(col)
+	
+	# Set velocity: Ejected backwards relative to world (-5.0 to -15.0 on X)
+	spark.velocity = Vector3(randf_range(-15.0, -5.0), randf_range(2.0, 10.0), randf_range(-3.0, 3.0))
+	
+	game_root.add_child(spark)
+
+	# Position at Tardis visuals (backside)
+	if visuals:
+		spark.global_transform = visuals.global_transform
+		# Move slightly back to ensure it doesn't hit the Tardis itself
+		spark.global_translate(visuals.global_transform.basis.z * 1.5)
+	else:
+		spark.global_position = global_position
+
 func _process(delta: float) -> void:
+	if is_spawning_sparks:
+		if position.x < 90:
+			spark_timer += delta
+			if spark_timer >= 0.05: # 20 sparks per second for density
+				_spawn_one_spark()
+				spark_timer = 0.0
+		else:
+			is_spawning_sparks = false
+
 	if is_dead:
 		flash_timer += delta
 		var structure = get_node_or_null("Visuals/Structure")
