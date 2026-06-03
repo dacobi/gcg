@@ -28,7 +28,15 @@ cp *.mp3 "$APP_DIR/usr/share/gcg/"
 cp project.godot "$APP_DIR/usr/share/gcg/"
 # Optional assets
 cp *.mp4 "$APP_DIR/usr/share/gcg/" 2>/dev/null || true
-cp icon.svg "$APP_DIR/icon.svg" 2>/dev/null || touch "$APP_DIR/icon.svg"
+
+# Copy the icon to the root so appimagetool can make the .DirIcon symlink
+cp ship_icon.png "$APP_DIR/ship_icon.png"
+# Explicitly create .DirIcon just to be safe
+cp ship_icon.png "$APP_DIR/.DirIcon"
+
+# Also place the icon in the standard hicolor directory for AppImageLauncher
+mkdir -p "$APP_DIR/usr/share/icons/hicolor/256x256/apps"
+cp ship_icon.png "$APP_DIR/usr/share/icons/hicolor/256x256/apps/ship_icon.png"
 
 # 5. Create AppRun script
 cat > "$APP_DIR/AppRun" << 'EOF'
@@ -45,9 +53,10 @@ cat > "$APP_DIR/${APP_NAME}.desktop" << EOF
 [Desktop Entry]
 Name=${APP_NAME}
 Exec=AppRun
-Icon=icon
+Icon=ship_icon
 Type=Application
 Categories=Game;
+StartupWMClass=gcg
 EOF
 
 # 7. Use appimagetool to build the final AppImage

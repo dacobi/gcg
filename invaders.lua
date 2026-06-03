@@ -84,7 +84,8 @@ function onLiveLost()
         
     livesleft = godotGetProperty("lives", myShip)        
     print("livesleft: ",livesleft)
-        
+    
+    
     print("***************************")
     print("*        HITMAN!          *")
     print("***************************")
