@@ -45,18 +45,34 @@ func _spawn_one_spark():
 	var spark = Area3D.new()
 	spark.set_script(spark_script)
 	
-	# Visual geometry for the spark (2x larger than 0.07)
-	var geom = CSGBox3D.new()
-	geom.size = Vector3(0.14, 0.14, 0.14) 
-	geom.material = orange_mat
+	# Visual geometry for the spark: A mechanical bolt
+	var geom = CSGCombiner3D.new()
+
+	# Shaft
+	var shaft = CSGCylinder3D.new()
+	shaft.radius = 0.03
+	shaft.height = 0.2
+	shaft.material = orange_mat
+	geom.add_child(shaft)
+
+	# Hex Head
+	var head = CSGCylinder3D.new()
+	head.radius = 0.08
+	head.height = 0.06
+	head.sides = 6 # Hexagonal shape
+	head.position.y = 0.1
+	head.material = orange_mat
+	geom.add_child(head)
+
 	spark.add_child(geom)
-	
-	# Collision shape (2x larger than 0.15)
+
+	# Collision shape (sized to fit the bolt)
 	var col = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
-	shape.size = Vector3(0.3, 0.3, 0.3)
+	shape.size = Vector3(0.2, 0.3, 0.2)
 	col.shape = shape
 	spark.add_child(col)
+
 	
 	# Set velocity: Ejected backwards relative to world (-5.0 to -15.0 on X)
 	spark.velocity = Vector3(randf_range(-15.0, -5.0), randf_range(2.0, 10.0), randf_range(-3.0, 3.0))
