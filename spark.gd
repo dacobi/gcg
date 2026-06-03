@@ -4,6 +4,7 @@ var velocity = Vector3.ZERO
 var spark_gravity = 25.0
 var bottom_limit = -50.0
 var rotation_speed = Vector3.ZERO
+var hits_remaining = 3
 
 func _ready():
 	area_entered.connect(_on_hit)
@@ -34,9 +35,17 @@ func _on_hit(node: Node) -> void:
 	if "Tardis" in node.name: return # Don't hit the Tardis!
 	if "Ship" in node.name: return # Don't hit the player!
 	
-	if node.has_method("die"):
-		node.die()
-		queue_free()
-	elif node.has_method("hit"):
-		node.hit()
-		queue_free()
+	if node.has_method("die") or node.has_method("hit"):
+		if node.has_method("die"):
+			node.die()
+		else:
+			node.hit()
+			
+		# Survive up to 3 bunker pixel hits
+		if "Bunker" in node.name:
+			hits_remaining -= 1
+			if hits_remaining <= 0:
+				queue_free()
+		else:
+			# Invaders or other objects destroy the bolt immediately
+			queue_free()

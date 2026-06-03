@@ -2625,7 +2625,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         return SDL_APP_FAILURE;
     }
 
-    SDL_Surface* icon_surf = IMG_Load("ship_icon.png");
+    SDL_Surface* icon_surf = IMG_Load("game_icon.png");
     if (icon_surf) {
         SDL_SetWindowIcon(window, icon_surf);
         SDL_DestroySurface(icon_surf);
