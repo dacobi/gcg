@@ -83,6 +83,7 @@ public:
     using SetImGuiVisibleFunc = std::function<void(bool visible)>;
     using ClearAndRunFunc = std::function<void(const std::string& filename, std::shared_ptr<LuaSyncData> sync_data)>;
     using SetMouseCaptureFunc = std::function<void(bool captured)>;
+    using SetResizeEnabledFunc = std::function<void(bool enabled)>;
     using CheckHighScoreFunc = std::function<bool(int)>;
     using AddHighScoreFunc = std::function<void(const std::string&, int, int)>;
     using LoadHighScoreFunc = std::function<void()>;
@@ -95,7 +96,7 @@ public:
 #ifdef USE_USD
         SelectUSDFunc selectUSDFunc, SetUSDParamFunc setUSDParamFunc, 
 #endif
-        SelectGodotFunc selectGodotFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc);
+        SelectGodotFunc selectGodotFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetResizeEnabledFunc setResizeEnabledFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
@@ -144,6 +145,7 @@ private:
     static int lua_luaClearAndRun(lua_State* L);
     static int lua_imGuiHide(lua_State* L);
     static int lua_imGuiShow(lua_State* L);
+    static int lua_ioResizeEnabled(lua_State* L);
     static int lua_ioMouseCapture(lua_State* L);
     static int lua_ioMouseRelease(lua_State* L);
     static int lua_luaGetMutex(lua_State* L);
@@ -238,6 +240,7 @@ private:
     SetImGuiVisibleFunc setImGuiVisibleFunc;
     ClearAndRunFunc clearAndRunFunc;
     SetMouseCaptureFunc setMouseCaptureFunc;
+    SetResizeEnabledFunc setResizeEnabledFunc;
 
     CheckHighScoreFunc checkHighScoreFunc;
     AddHighScoreFunc addHighScoreFunc;
