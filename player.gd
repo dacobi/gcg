@@ -9,6 +9,7 @@ var lives: int = 3
 @export var cscore: int = 0
 var is_hit_anim: bool = false
 var hit_anim_timer: float = 0.0
+var shrapnel_script = preload("res://ship_shrapnel.gd")
 
 @onready var main_geometry = get_node_or_null("Geometry")
 @onready var glow_light = get_node_or_null("HitGlowLight")
@@ -61,6 +62,7 @@ func reset_lives() -> void:
 func kill() -> void:
 	if not alive: return
 	if explosion_player: explosion_player.play()
+	_spawn_explosion_shrapnel()
 	is_hit_anim = true
 	hit_anim_timer = 0.0
 	lives = 0
@@ -72,6 +74,7 @@ func kill() -> void:
 func hit()->void:
 	if not alive: return
 	if explosion_player: explosion_player.play()
+	_spawn_explosion_shrapnel()
 	is_hit_anim = true
 	hit_anim_timer = 0.0
 	lives -= 1
@@ -84,3 +87,28 @@ func hit()->void:
 		livelost = true
 		emit_signal("live_lost")
 		print("Player Hit! Removing one Live")
+
+func _spawn_explosion_shrapnel():
+	var game_root = get_parent()
+	if !game_root: return
+	
+	var ship_mat = null
+	if main_geometry:
+		ship_mat = main_geometry.material_override
+	
+	var count = 12
+	for i in range(count):
+		var s = Area3D.new()
+		s.set_script(shrapnel_script)
+		s.material_override = ship_mat
+		
+		# Semi-circle: angle from 0 to PI
+		var angle = (float(i) / float(count - 1)) * PI
+		var dir = Vector3(cos(angle), sin(angle), 0.0)
+		
+		# Upward expanding speed
+		var force = randf_range(15.0, 25.0)
+		s.velocity = dir * force
+		
+		game_root.add_child(s)
+		s.global_position = global_position
