@@ -3,7 +3,7 @@
 # Exit on error
 set -e
 
-APP_NAME="SpaceInvaders"
+APP_NAME="DalekDefender"
 APP_DIR="AppDir"
 
 # 1. Clean up old AppDir
@@ -17,8 +17,8 @@ cp gcg "$APP_DIR/usr/share/gcg/"
 
 # 3. Copy local library
 # cp godot/bin/libgodot.linuxbsd.template_release.x86_64.so "$APP_DIR/usr/lib/"
-for f in $(ldd gcg |awk '{print $3}'); do cp $f "$APP_DIR/usr/lib/"; done 
-
+#for f in $(ldd gcg |awk '{print $3}'); do cp $f "$APP_DIR/usr/lib/"; done 
+sh check_libs_copy.sh gcg "$APP_DIR/usr/lib/"
 
 # 4. Copy all required assets
 cp *.lua "$APP_DIR/usr/share/gcg/"
