@@ -1,5 +1,7 @@
 extends Area3D
 
+var is_bunker = true
+
 func _ready():
 	area_entered.connect(_on_body_entered)
 	body_entered.connect(_on_body_entered)

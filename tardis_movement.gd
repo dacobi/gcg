@@ -3,6 +3,7 @@ extends Node3D
 @export var speed: float = 40.0
 @export var spawn_position: Vector3 = Vector3(-90, 49.375, 0)
 @export var right_boundary: float = 90.0
+@export var auto_hit_test: bool = false
 
 var tardis_scene = preload("res://tardis.tscn")
 var active_tardis: Node3D = null
@@ -36,6 +37,11 @@ func _on_tardis_hit():
 func _process(delta: float) -> void:
 	if active_tardis != null:
 		active_tardis.position.x += speed * delta
+		
+		# Auto-hit debug mode
+		if auto_hit_test and active_tardis.position.x > -70:
+			if active_tardis.has_method("die"):
+				active_tardis.die()
 		
 		if active_tardis.position.x > right_boundary:
 			active_tardis.queue_free()

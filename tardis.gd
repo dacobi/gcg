@@ -66,16 +66,17 @@ func _spawn_one_spark():
 
 	spark.add_child(geom)
 
-	# Collision shape (sized to fit the bolt)
+	# Collision shape (larger for better coverage of bunker pixels)
 	var col = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
-	shape.size = Vector3(0.2, 0.3, 0.2)
+	shape.size = Vector3(0.6, 0.6, 0.6)
 	col.shape = shape
 	spark.add_child(col)
 
 	
 	# Set velocity: Ejected backwards relative to world (-5.0 to -15.0 on X)
-	spark.velocity = Vector3(randf_range(-15.0, -5.0), randf_range(2.0, 10.0), randf_range(-3.0, 3.0))
+	# Forced Z-velocity to 0.0 for reliable plane collision
+	spark.velocity = Vector3(randf_range(-15.0, -5.0), randf_range(2.0, 10.0), 0.0)
 	
 	game_root.add_child(spark)
 
@@ -84,14 +85,17 @@ func _spawn_one_spark():
 		spark.global_transform = visuals.global_transform
 		# Move slightly back to ensure it doesn't hit the Tardis itself
 		spark.global_translate(visuals.global_transform.basis.z * 1.5)
+		# Forced global Z to 0.0 to stay in the gameplay plane
+		spark.global_position.z = 0.0
 	else:
 		spark.global_position = global_position
+		spark.global_position.z = 0.0
 
 func _process(delta: float) -> void:
 	if is_spawning_sparks:
 		if position.x < 90:
 			spark_timer += delta
-			if spark_timer >= 0.05: # 20 sparks per second for density
+			if spark_timer >= 0.2: # 5 sparks per second
 				_spawn_one_spark()
 				spark_timer = 0.0
 		else:
