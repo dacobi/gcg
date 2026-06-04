@@ -47,20 +47,20 @@ func _spawn_one_spark():
 	
 	# Visual geometry for the spark: A mechanical bolt
 	var geom = CSGCombiner3D.new()
-
+	var boltscale = 2.0
 	# Shaft
 	var shaft = CSGCylinder3D.new()
-	shaft.radius = 0.03
-	shaft.height = 0.2
+	shaft.radius = 0.15 * boltscale # 0.03 * 5
+	shaft.height = 1.0 * boltscale  # 0.2 * 5
 	shaft.material = orange_mat
 	geom.add_child(shaft)
 
 	# Hex Head
 	var head = CSGCylinder3D.new()
-	head.radius = 0.08
-	head.height = 0.06
+	head.radius = 0.4 * boltscale  # 0.08 * 5
+	head.height = 0.3 * boltscale  # 0.06 * 5
 	head.sides = 6 # Hexagonal shape
-	head.position.y = 0.1
+	head.position.y = 0.5 # 0.1 * 5
 	head.material = orange_mat
 	geom.add_child(head)
 
@@ -74,22 +74,22 @@ func _spawn_one_spark():
 	spark.add_child(col)
 
 	
-	# Set velocity: Ejected backwards relative to world (-5.0 to -15.0 on X)
-	# Forced Z-velocity to 0.0 for reliable plane collision
-	spark.velocity = Vector3(randf_range(-15.0, -5.0), randf_range(2.0, 10.0), 0.0)
+	# Set velocity: Ejected backwards relative to orientation
+	# rotation.y == 0 (L->R) -> back is -X
+	# rotation.y == PI (R->L) -> back is +X
+	var x_dir = -1.0
+	if abs(rotation.y - PI) < 0.1:
+		x_dir = 1.0
+	
+	spark.velocity = Vector3(x_dir * randf_range(5.0, 15.0), randf_range(2.0, 10.0), 0.0)
 	
 	game_root.add_child(spark)
 
-	# Position at Tardis visuals (backside)
-	if visuals:
-		spark.global_transform = visuals.global_transform
-		# Move slightly back to ensure it doesn't hit the Tardis itself
-		spark.global_translate(visuals.global_transform.basis.z * 1.5)
-		# Forced global Z to 0.0 to stay in the gameplay plane
-		spark.global_position.z = 0.0
-	else:
-		spark.global_position = global_position
-		spark.global_position.z = 0.0
+	# Position at Tardis (backside relative to motion)
+	spark.global_position = global_position
+	# Move slightly back relative to motion (x_dir is the spark velocity direction, which is backwards)
+	spark.global_translate(Vector3(x_dir * 1.5, 0.5, 0.0))
+	spark.global_position.z = 0.0
 
 func _process(delta: float) -> void:
 	if is_spawning_sparks:

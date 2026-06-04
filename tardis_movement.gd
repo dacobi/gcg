@@ -7,6 +7,7 @@ extends Node3D
 
 var tardis_scene = preload("res://tardis.tscn")
 var active_tardis: Node3D = null
+var current_speed: float = 0.0
 
 @onready var audio_player = $TardisAudio
 @onready var explode_player = $TardisExplode
@@ -16,7 +17,19 @@ func _on_spawn_tardis():
 		return # Tardis already active
 
 	active_tardis = tardis_scene.instantiate()
-	active_tardis.position = spawn_position
+	
+	# Randomize direction
+	if randf() > 0.5:
+		# Start on right, move left
+		active_tardis.position = Vector3(90, 49.375, 0)
+		active_tardis.rotation.y = PI # Flip 180 degrees
+		current_speed = -speed
+	else:
+		# Start on left, move right
+		active_tardis.position = spawn_position
+		active_tardis.rotation.y = 0
+		current_speed = speed
+
 	active_tardis.scale = Vector3(5, 5, 5)
 	active_tardis.connect("tardis_hit", _on_tardis_hit)
 	add_child(active_tardis)
@@ -36,14 +49,14 @@ func _on_tardis_hit():
 
 func _process(delta: float) -> void:
 	if active_tardis != null:
-		active_tardis.position.x += speed * delta
+		active_tardis.position.x += current_speed * delta
 		
 		# Auto-hit debug mode
-		if auto_hit_test and active_tardis.position.x > -70:
+		if auto_hit_test and abs(active_tardis.position.x) < 70:
 			if active_tardis.has_method("die"):
 				active_tardis.die()
 		
-		if active_tardis.position.x > right_boundary:
+		if abs(active_tardis.position.x) > 100:
 			active_tardis.queue_free()
 			active_tardis = null
 			if audio_player:
