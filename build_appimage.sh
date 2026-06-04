@@ -20,6 +20,31 @@ cp gcg "$APP_DIR/usr/share/gcg/"
 #for f in $(ldd gcg |awk '{print $3}'); do cp $f "$APP_DIR/usr/lib/"; done 
 sh check_libs_copy.sh gcg "$APP_DIR/usr/lib/"
 
+cp /usr/lib/libavcodec.so.62 "$APP_DIR/usr/lib/"
+cp /usr/lib/libavutil.so.60 "$APP_DIR/usr/lib/"
+cp /usr/lib/libavdevice.so.62 "$APP_DIR/usr/lib/"
+cp /usr/lib/libavformat.so.62 "$APP_DIR/usr/lib/"
+cp /usr/lib/libswscale.so.9 "$APP_DIR/usr/lib/"
+cp /usr/lib/libswresample.so.6 "$APP_DIR/usr/lib/"
+
+
+# --- NEW: Fixup symlinks in usr/lib based on SONAME ---
+echo "Fixing up library symlinks..."
+pushd "$APP_DIR/usr/lib" > /dev/null
+for lib in *; do
+    # Only process actual files
+    if [ -f "$lib" ] && [ ! -L "$lib" ]; then
+        # Try to find the SONAME using objdump
+        soname=$(objdump -p "$lib" | grep SONAME | awk '{print $2}' || true)
+        if [ -n "$soname" ] && [ "$soname" != "$lib" ]; then
+            echo "  -> Linking $soname to $lib"
+            ln -sf "$lib" "$soname"
+        fi
+    fi
+done
+popd > /dev/null
+# ------------------------------------------------------
+
 # 4. Copy all required assets
 cp *.lua "$APP_DIR/usr/share/gcg/"
 cp *.png "$APP_DIR/usr/share/gcg/"
