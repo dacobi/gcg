@@ -1,6 +1,5 @@
 extends Area3D
 
-var is_invader = true
 var is_dead = false
 
 func _ready():
