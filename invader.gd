@@ -18,5 +18,12 @@ func die()->void:
 	queue_free()
 
 func _on_hit(node: Node) -> void:
-	if node.has_method("kill"):
+	if "is_bunker" in node:
+		return # Pass through/destroy bunkers without dying
+		
+	if node.has_method("hit"):
+		node.hit()
+		die()
+	elif node.has_method("kill"):
 		node.kill()
+		die()

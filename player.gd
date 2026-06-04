@@ -107,7 +107,7 @@ func _spawn_explosion_shrapnel():
 		var dir = Vector3(cos(angle), sin(angle), 0.0)
 		
 		# Upward expanding speed
-		var force = randf_range(15.0, 25.0)
+		var force = randf_range(22.5, 37.5)
 		s.velocity = dir * force
 		
 		game_root.add_child(s)

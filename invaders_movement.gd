@@ -78,6 +78,15 @@ func _process(delta):
 					if not tardis_destroyed:
 						emit_signal("spawn_tardis")
 					drop_count = 0
+				
+				# Game Over if invaders reach the bottom
+				if position.y <= -43.0:
+					var root_node = get_tree().root
+					var my_game = root_node.find_child("SpaceInvadersGame", true, false)
+					if my_game:
+						var my_ship = my_game.find_child("Ship", true, false)
+						if my_ship and my_ship.has_method("kill"):
+							my_ship.kill()
 			else:
 				position.x = next_x
 			
