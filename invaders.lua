@@ -88,7 +88,10 @@ end
 
 
 function onLiveLost()
-    if not luaTryMutex(myLivesLostMutex) or luaCheckMutex(myGameOverMutex) then return end
+    if not luaTryMutex(myLivesLostMutex) or luaCheckMutex(myGameOverMutex) then 
+        print("no such luck")
+        return 
+    end
     
     local livesleft = 3
         
@@ -133,11 +136,17 @@ function onLiveLost()
 end
 
 
-
+local bGotTex = false
 function onLoosing()
     --if not luaTryMutex(myLivesLostMutex) or  then return end luaGetMutex(myGameOverMutex)
-    luaGetMutex(myLivesLostMutex)
-    luaGetMutex(myGameOverMutex)
+    if not bGotTex then
+        luaGetMutex(myLivesLostMutex)
+        luaGetMutex(myGameOverMutex)        
+        bGotTex = true
+    end
+
+    if luaCheckMutex(myGameOverMutex) then print("got myLivesLostMutex") end
+    if luaCheckMutex(myGameOverMutex) then print("got myGameOverMutex") end
 
     local livesleft = 3
         
