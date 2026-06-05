@@ -84,8 +84,14 @@ func _process(delta):
 						emit_signal("spawn_tardis")
 					drop_count = 0
 				
-				# Game Over if invaders reach the bottom
-				if not is_invading and position.y < -44.0:
+				# Game Over if the lowest surviving invader reaches the bottom
+				var lowest_y = 9999.0
+				for child in get_children():
+					if child is Area3D:
+						if child.global_position.y < lowest_y:
+							lowest_y = child.global_position.y
+				
+				if not is_invading and lowest_y < -44.0:
 					is_invading = true
 					bAdvance = false # Stop movement and firing
 					var root_node = get_tree().root
