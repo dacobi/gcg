@@ -17,15 +17,15 @@ cp gcg "$APP_DIR/usr/share/gcg/"
 
 # 3. Copy local library
 # cp godot/bin/libgodot.linuxbsd.template_release.x86_64.so "$APP_DIR/usr/lib/"
-#for f in $(ldd gcg |awk '{print $3}'); do cp $f "$APP_DIR/usr/lib/"; done 
-sh check_libs_copy.sh gcg "$APP_DIR/usr/lib/"
+for f in $(ldd gcg |awk '{print $3}'); do cp $f "$APP_DIR/usr/lib/"; done 
+#sh check_libs_copy.sh gcg "$APP_DIR/usr/lib/"
 
-cp /usr/lib/libavcodec.so.62 "$APP_DIR/usr/lib/"
-cp /usr/lib/libavutil.so.60 "$APP_DIR/usr/lib/"
-cp /usr/lib/libavdevice.so.62 "$APP_DIR/usr/lib/"
-cp /usr/lib/libavformat.so.62 "$APP_DIR/usr/lib/"
-cp /usr/lib/libswscale.so.9 "$APP_DIR/usr/lib/"
-cp /usr/lib/libswresample.so.6 "$APP_DIR/usr/lib/"
+#cp /usr/lib/libavcodec.so.62 "$APP_DIR/usr/lib/"
+#cp /usr/lib/libavutil.so.60 "$APP_DIR/usr/lib/"
+#cp /usr/lib/libavdevice.so.62 "$APP_DIR/usr/lib/"
+#cp /usr/lib/libavformat.so.62 "$APP_DIR/usr/lib/"
+#cp /usr/lib/libswscale.so.9 "$APP_DIR/usr/lib/"
+#cp /usr/lib/libswresample.so.6 "$APP_DIR/usr/lib/"
 
 
 # --- NEW: Fixup symlinks in usr/lib based on SONAME ---

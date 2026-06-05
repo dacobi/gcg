@@ -4036,6 +4036,16 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         SDL_SetWindowRelativeMouseMode(window, false);
         InputManager::getInstance().clearAccumulatedState();
         
+        // Clear all pending commands to avoid dangling pointer execution
+        while(!state->lua_commands.empty()) {
+            auto cmd = state->lua_commands.front();
+            if (cmd.sync) {
+                cmd.sync->done = true;
+                cmd.sync->cv.notify_all();
+            }
+            state->lua_commands.pop();
+        }
+
         // Reset selections
         state->selected_plasma = myPlasma;
         state->selected_mandel = myMandel;

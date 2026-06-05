@@ -48,26 +48,29 @@ if clvs > 2 then
     addBouncer("[layer:1][pos:140,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
 end
 
-function onLivesReset()
-    setGlobalVar("lives",3)
+local myGameOverMutex = luaCreateMutex()
+local myLivesLostMutex = luaCreateMutex()
 
+function onLivesReset()
+    if luaCheckMutex(myGameOverMutex) then return end
+    
+    luaGetMutex(myLivesLostMutex)
+    print("In lives_reset")
+
+    setGlobalVar("lives",3)
     delBouncer(4)
     delBouncer(3)
     delBouncer(2)
-
     addBouncer("[layer:1][pos:20,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
-
     addBouncer("[layer:1][pos:80,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
-
     addBouncer("[layer:1][pos:140,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
+
+    luaReleaseMutex(myLivesLostMutex)
+    print("Exit lives_reset")
 end
 
---local gameIsOver = false
-
-local myGameOverMutex = luaCreateMutex()
-local myLivesLostMutex = luaCreateMutex();
-
 function onGameOver()
+    -- We can call this directly from onLiveLost or onLoosing, so it assumes the mutex is already held or tries to grab it
     if not luaTryMutex(myGameOverMutex) then return end
     
     print("***************************")
@@ -79,31 +82,26 @@ end
 
 function onGameWon()
     if not luaTryMutex(myGameOverMutex) then return end
-
+    
     print("***************************")
     print("*        GAME WON!        *")
     print("***************************")
     luaClearAndRun("winwin.lua")
 end
 
-
 function onLiveLost()
-    if not luaTryMutex(myLivesLostMutex) or luaCheckMutex(myGameOverMutex) then 
-        print("no such luck")
-        return 
-    end
+    if luaCheckMutex(myGameOverMutex) then return end
     
-    local livesleft = 3
-        
-    livesleft = godotGetProperty("lives", myShip)        
+    if not luaTryMutex(myLivesLostMutex) then return end
+    
+    local livesleft = godotGetProperty("lives", myShip)        
     print("livesleft: ",livesleft)
-    
      
     print("***************************")
     print("*        HITMAN!          *")
     print("***************************")
     
-    godotSetProperty("bAdvance", false, myInvaders) -- Disable advancing and firing
+    godotSetProperty("bAdvance", false, myInvaders)
     if myInvaders then print("NoAdvance") end
     
     if livesleft == 2 then                
@@ -114,12 +112,22 @@ function onLiveLost()
         setGlobalVar("lives",1)
         delBouncer(3)
     end
-    if livesleft == 0 then
+    if livesleft <= 0 then
+        -- This is the final hit! Grab the Game Over lock IMMEDIATELY to win the race condition.
+        if not luaTryMutex(myGameOverMutex) then 
+            luaReleaseMutex(myLivesLostMutex)
+            return 
+        end
+        
         setGlobalVar("lives",0)
         delBouncer(2)
         delay(500)
-        onGameOver()
-        inLiveLost = false
+        
+        print("***************************")
+        print("*        GAME OVER        *")
+        print("***************************")
+        godotSetProperty("lives",0, myShip)        
+        luaClearAndRun("loozer.lua")
         return
     end
 
@@ -127,63 +135,53 @@ function onLiveLost()
         
     local _, sy, sz = godotGetPos(myShip)
     shipX = 0.0
-        
     godotSetPos(shipX, sy, sz, myShip)
             
-    godotSetProperty("bAdvance", true, myInvaders) -- Enable advancing and firing
+    godotSetProperty("bAdvance", true, myInvaders)
     if myInvaders then print("Advance") end            
+    
     luaReleaseMutex(myLivesLostMutex)
 end
 
-
-local bGotTex = false
-function onLoosing()
-    --if not luaTryMutex(myLivesLostMutex) or  then return end luaGetMutex(myGameOverMutex)
-    if not bGotTex then
-        luaGetMutex(myLivesLostMutex)
-        luaGetMutex(myGameOverMutex)        
-        bGotTex = true
+local bOnLoosingLocked = false
+function onLoosing()    
+    -- The invasion triggered. This is an immediate game over.
+    -- Grab the Game Over lock IMMEDIATELY to beat out any simultaneous player/invader hits.
+    if not bOnLoosingLocked then
+        if not luaTryMutex(myGameOverMutex) then return end
     end
-
-    if luaCheckMutex(myGameOverMutex) then print("got myLivesLostMutex") end
-    if luaCheckMutex(myGameOverMutex) then print("got myGameOverMutex") end
-
-    local livesleft = 3
-        
-    livesleft = godotGetProperty("lives", myShip)        
-    print("livesleft: ",livesleft)
+    bOnLoosingLocked = true
     
+    -- We won the race! The game is officially over. We can safely do our animations.
+    local livesleft = godotGetProperty("lives", myShip)        
+    print("livesleft: ",livesleft)
      
     print("***************************")
-    print("*        HITMAN!          *")
+    print("*      INVASION OVER      *")
     print("***************************")
     
-    godotSetProperty("bAdvance", false, myInvaders) -- Disable advancing and firing
-    if myInvaders then print("NoAdvance") end
+    godotSetProperty("bAdvance", false, myInvaders)
     
     if livesleft == 2 then                
-        setGlobalVar("lives",2)
         delBouncer(4)
+        return
     end
     if livesleft == 1 then
-        setGlobalVar("lives",1)
         delBouncer(3)
+        return
     end
     if livesleft == 0 then
         setGlobalVar("lives",0)
         delBouncer(2)
-        delay(300)
-    
-        print("***************************")
-        print("*        GAME OVER        *")
-        print("***************************")
-        godotSetProperty("lives",0, myShip)        
-        luaClearAndRun("loozer.lua")
-
-        return
     end
-        
     
+    delay(300)
+
+    print("***************************")
+    print("*        GAME OVER        *")
+    print("***************************")
+    godotSetProperty("lives",0, myShip)        
+    luaClearAndRun("loozer.lua")
 end
 
 function onNewScore()
@@ -214,27 +212,29 @@ while true do
         break
     end
 
-    -- Mouse movement to control ship
-    local rx, ry = ioMouseGetMotion()
-    if rx ~= 0 then        
-        shipX = shipX + (rx / 10.0)
-        -- Clamp ship position
-        if shipX < minX then shipX = minX end
-        if shipX > maxX then shipX = maxX end
+    if not luaCheckMutex(myGameOverMutex) then
+        -- Mouse movement to control ship
+        local rx, ry = ioMouseGetMotion()
+        if rx ~= 0 then        
+            shipX = shipX + (rx / 10.0)
+            -- Clamp ship position
+            if shipX < minX then shipX = minX end
+            if shipX > maxX then shipX = maxX end
                 
-        local _, sy, sz = godotGetPos(myShip)
-        godotSetPos(shipX, sy, sz,myShip)        
-    end
+            local _, sy, sz = godotGetPos(myShip)
+            godotSetPos(shipX, sy, sz,myShip)        
+        end
 
-    -- Left mouse click to fire (Limit to 7 active projectiles)
-    if ioMouseBTNClicked(1) then
-        godotSelectRoot()
-        local myFire = godotGetNodePointer("Projectiles")
-        local sx, sy, sz = godotGetPos(myShip)
-        if myFire then
-            local count = godotGetChildCount(myFire)
-            if count < 7 then             
-                godotLoadNode("res://projectile.tscn", sx, sy + 3, sz, myFire)                          
+        -- Left mouse click to fire (Limit to 7 active projectiles)
+        if ioMouseBTNClicked(1) then
+            godotSelectRoot()
+            local myFire = godotGetNodePointer("Projectiles")
+            local sx, sy, sz = godotGetPos(myShip)
+            if myFire then
+                local count = godotGetChildCount(myFire)
+                if count < 7 then             
+                    godotLoadNode("res://projectile.tscn", sx, sy + 3, sz, myFire)                          
+                end
             end
         end
     end
