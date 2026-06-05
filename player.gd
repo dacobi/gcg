@@ -2,6 +2,7 @@ extends CharacterBody3D
 
 signal live_lost
 signal lives_reset
+signal loosing
 
 var alive: bool = true
 var livelost: bool = false
@@ -58,6 +59,28 @@ func set_score(newScore: int) -> void:
 func reset_lives() -> void:
 	lives = 3
 	emit_signal("lives_reset")
+
+func invasion_kill() -> void:
+	if not alive: return
+	alive = false # Disable further interaction
+	
+	# Sequentially explode for every remaining life
+	while lives > 0:
+		if explosion_player: explosion_player.play()
+		_spawn_explosion_shrapnel()
+		
+		# Trigger the visual flashing/pulsing animation
+		is_hit_anim = true
+		hit_anim_timer = 0.0
+		
+		lives -= 1
+		emit_signal("loosing")
+		
+		# If we still have lives to "burn", wait 700ms
+		if lives > 0:
+			await get_tree().create_timer(0.7).timeout
+	
+	print("Invasion destruction complete.")
 
 func kill() -> void:
 	if not alive: return

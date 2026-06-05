@@ -66,8 +66,20 @@ function onGameOver()
     print("***************************")
     print("*        GAME OVER        *")
     print("***************************")
+    godotSetProperty("lives",0, myShip)        
     luaClearAndRun("loozer.lua")
 end
+
+function onInvsWon()
+    print("***************************")
+    print("*        GAME OVER        *")
+    print("***************************")
+    delBouncer(4)
+    delBouncer(3)
+    godotSetProperty("lives",0, myShip)        
+    onLiveLost()
+end
+
 
 function onGameWon()
     print("***************************")
@@ -121,6 +133,43 @@ function onLiveLost()
     inLiveLost = false
 end
 
+
+local inLoosing = false
+function onLoosing()
+    if inLoosing then return end
+    inLoosing = true
+    local livesleft = 3
+        
+    livesleft = godotGetProperty("lives", myShip)        
+    print("livesleft: ",livesleft)
+    
+     
+    print("***************************")
+    print("*        HITMAN!          *")
+    print("***************************")
+    
+    godotSetProperty("bAdvance", false, myInvaders) -- Disable advancing and firing
+    if myInvaders then print("NoAdvance") end
+    
+    if livesleft == 2 then                
+        setGlobalVar("lives",2)
+        delBouncer(4)
+    end
+    if livesleft == 1 then
+        setGlobalVar("lives",1)
+        delBouncer(3)
+    end
+    if livesleft == 0 then
+        setGlobalVar("lives",0)
+        delBouncer(2)
+        onGameOver()
+        inLoosing = false
+        return
+    end
+        
+    inLoosing = false
+end
+
 function onNewScore()
     local lscore = godotGetProperty("cscore", myShip)  
     setGlobalVar("score",lscore)
@@ -130,9 +179,11 @@ end
 -- Watchers are now polled natively via godotWatchSignal on selected nodes
     godotWatchSignal("live_lost", "onLiveLost", myShip)
     godotWatchSignal("lives_reset", "onLivesReset", myShip)
+    godotWatchSignal("loosing", "onLoosing", myShip)
 
     godotWatchSignal("new_score", "onNewScore", myInvaders)
     godotWatchSignal("game_won", "onGameWon", myInvaders)
+    -- godotWatchSignal("invs_won", "onInvsWon", myInvaders)
 
     local mlvl = getGlobalVar("level")
     if mlvl == 0 then mlvl = 1 end

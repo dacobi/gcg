@@ -2,6 +2,7 @@ extends Node3D
 
 signal new_score
 signal game_won
+signal invs_won
 signal spawn_tardis
 
 var speed = 2.0 # Steps per second
@@ -13,6 +14,7 @@ var step_x_size = 5.5
 var step_y_size = 5.0
 var drop_count = 0
 var tardis_destroyed = false
+var is_invading = false
 
 # Firing parameters (Starting at double the previous rate)
 var fire_timer = 0.0
@@ -80,13 +82,16 @@ func _process(delta):
 					drop_count = 0
 				
 				# Game Over if invaders reach the bottom
-				if position.y <= -43.0:
+				if not is_invading and position.y < -44.0:
+					is_invading = true
+					bAdvance = false # Stop movement and firing
 					var root_node = get_tree().root
 					var my_game = root_node.find_child("SpaceInvadersGame", true, false)
 					if my_game:
 						var my_ship = my_game.find_child("Ship", true, false)
-						if my_ship and my_ship.has_method("kill"):
-							my_ship.kill()
+						if my_ship and my_ship.has_method("invasion_kill"):
+							await my_ship.invasion_kill()
+							emit_signal("invs_won")
 			else:
 				position.x = next_x
 			
