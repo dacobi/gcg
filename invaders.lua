@@ -135,8 +135,10 @@ end
 
 
 function onLoosing()
-    if not luaTryMutex(myLivesLostMutex) or luaCheckMutex(myGameOverMutex) then return end
-    
+    --if not luaTryMutex(myLivesLostMutex) or  then return end luaGetMutex(myGameOverMutex)
+    luaGetMutex(myLivesLostMutex)
+    luaGetMutex(myGameOverMutex)
+
     local livesleft = 3
         
     livesleft = godotGetProperty("lives", myShip)        
@@ -162,12 +164,17 @@ function onLoosing()
         setGlobalVar("lives",0)
         delBouncer(2)
         delay(300)
-        onGameOver()
-        inLoosing = false
+    
+        print("***************************")
+        print("*        GAME OVER        *")
+        print("***************************")
+        godotSetProperty("lives",0, myShip)        
+        luaClearAndRun("loozer.lua")
+
         return
     end
         
-    luaReleaseMutex(myLivesLostMutex)
+    
 end
 
 function onNewScore()
