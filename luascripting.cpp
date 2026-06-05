@@ -178,7 +178,10 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("ioMouseCapture", lua_ioMouseCapture);
     reg("ioMouseRelease", lua_ioMouseRelease);
 
+    reg("luaCreateMutex", lua_luaCreateMutex);
     reg("luaGetMutex", lua_luaGetMutex);
+    reg("luaTryMutex", lua_luaTryMutex);
+    reg("luaCheckMutex", lua_luaCheckMutex);
     reg("luaReleaseMutex", lua_luaReleaseMutex);
 
     // Input Framework
@@ -633,20 +636,111 @@ int LuaScripting::lua_appQuit(lua_State* L) {
     return 0;
 }
 
+int LuaScripting::lua_luaCreateMutex(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (self) {
+        std::lock_guard<std::mutex> lock(self->globals_mutex);
+        int handle = self->next_mutex_id++;
+        self->dynamic_mutexes[handle] = std::make_unique<std::mutex>();
+        lua_pushinteger(L, handle);
+        return 1;
+    }
+    return 0;
+}
+
 int LuaScripting::lua_luaGetMutex(lua_State* L) {
-    bool locked = global_lua_mutex.try_lock();
-    lua_pushboolean(L, locked);
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isnumber(L, 1) && self) {
+        int handle = (int)lua_tonumber(L, 1);
+        std::mutex* target_mutex = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(self->globals_mutex);
+            auto it = self->dynamic_mutexes.find(handle);
+            if (it != self->dynamic_mutexes.end()) {
+                target_mutex = it->second.get();
+            }
+        }
+        if (target_mutex) {
+            target_mutex->lock();
+            return 0; // successfully locked
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_luaTryMutex(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isnumber(L, 1) && self) {
+        int handle = (int)lua_tonumber(L, 1);
+        std::mutex* target_mutex = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(self->globals_mutex);
+            auto it = self->dynamic_mutexes.find(handle);
+            if (it != self->dynamic_mutexes.end()) {
+                target_mutex = it->second.get();
+            }
+        }
+        if (target_mutex) {
+            bool locked_successfully = target_mutex->try_lock();
+            lua_pushboolean(L, locked_successfully);
+            return 1;
+        }
+    }
+    lua_pushboolean(L, false); // invalid mutex fails to lock
+    return 1;
+}
+
+int LuaScripting::lua_luaCheckMutex(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isnumber(L, 1) && self) {
+        int handle = (int)lua_tonumber(L, 1);
+        std::mutex* target_mutex = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(self->globals_mutex);
+            auto it = self->dynamic_mutexes.find(handle);
+            if (it != self->dynamic_mutexes.end()) {
+                target_mutex = it->second.get();
+            }
+        }
+        if (target_mutex) {
+            bool locked = !target_mutex->try_lock();
+            if (!locked) {
+                target_mutex->unlock(); // wasn't locked, so unlock it
+            }
+            lua_pushboolean(L, locked);
+            return 1;
+        }
+    }
+    lua_pushboolean(L, false); // invalid mutex is not locked
     return 1;
 }
 
 int LuaScripting::lua_luaReleaseMutex(lua_State* L) {
-    global_lua_mutex.unlock();
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isnumber(L, 1) && self) {
+        int handle = (int)lua_tonumber(L, 1);
+        std::mutex* target_mutex = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(self->globals_mutex);
+            auto it = self->dynamic_mutexes.find(handle);
+            if (it != self->dynamic_mutexes.end()) {
+                target_mutex = it->second.get();
+            }
+        }
+        if (target_mutex) {
+            target_mutex->unlock();
+        }
+    }
     return 0;
 }
 
 int LuaScripting::lua_luaClearAndRun(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (lua_isstring(L, 1) && self && self->clearAndRunFunc) {
+        {
+            std::lock_guard<std::mutex> lock(self->globals_mutex);
+            self->dynamic_mutexes.clear();
+        }
         self->clearAndRunFunc(lua_tostring(L, 1), nullptr); // Non-blocking
     }
     return 0;

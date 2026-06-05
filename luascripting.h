@@ -148,8 +148,11 @@ private:
     static int lua_ioResizeEnabled(lua_State* L);
     static int lua_ioMouseCapture(lua_State* L);
     static int lua_ioMouseRelease(lua_State* L);
+    static int lua_luaCreateMutex(lua_State* L);
     static int lua_luaGetMutex(lua_State* L);
+    static int lua_luaTryMutex(lua_State* L);
     static int lua_luaReleaseMutex(lua_State* L);
+    static int lua_luaCheckMutex(lua_State* L);
     static int lua_setGlobalVar(lua_State* L);
     static int lua_getGlobalVar(lua_State* L);
     static int lua_regGlobalVar(lua_State* L);
@@ -249,6 +252,9 @@ private:
 
     std::unordered_map<std::string, int> global_ints;
     std::mutex globals_mutex;
+
+    std::unordered_map<int, std::unique_ptr<std::mutex>> dynamic_mutexes;
+    int next_mutex_id = 1;
 
     static LuaScripting* instance;
 };

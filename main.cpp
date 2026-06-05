@@ -2315,7 +2315,16 @@ static void print_help() {
     std::printf("  luaClearAndRun(file)       Deletes all bouncers and runs Lua script\n");
     std::printf("  imGuiHide()                Hides the ImGui overlay\n");
     std::printf("  imGuiShow()                Shows the ImGui overlay\n");
-    std::printf("  ioResizeEnabled(bool)      Toggles window resizability\n\n");
+    std::printf("  ioResizeEnabled(bool)      Toggles window resizability\n");
+    std::printf("  luaCreateMutex()           Creates a dynamic mutex and returns its handle\n");
+    std::printf("  luaGetMutex(handle)        Locks the dynamic mutex (blocking)\n");
+    std::printf("  luaTryMutex(handle)        Attempts to lock the mutex, returns true if successful\n");
+    std::printf("  luaCheckMutex(handle)      Returns true if the mutex is currently locked\n");
+    std::printf("  luaReleaseMutex(handle)    Unlocks the dynamic mutex\n");
+    std::printf("  setGlobalVar(name, val)    Sets a global integer variable\n");
+    std::printf("  getGlobalVar(name)         Returns a global integer variable\n");
+    std::printf("  regGlobalVar(name, val)    Registers a new global integer variable\n");
+    std::printf("  unregGlobalVar(name)       Unregisters a global integer variable\n\n");
 
     std::printf("Input Framework Functions:\n");
     std::printf("  ioKBClicked(key)           Returns true if key (\"SDLK_...\") was clicked\n");

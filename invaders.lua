@@ -62,7 +62,14 @@ function onLivesReset()
     addBouncer("[layer:1][pos:140,730][rect:40,20][rgb:255,255,255][image:ship_icon.png]")
 end
 
+--local gameIsOver = false
+
+local myGameOverMutex = luaCreateMutex()
+local myLivesLostMutex = luaCreateMutex();
+
 function onGameOver()
+    if not luaTryMutex(myGameOverMutex) then return end
+    
     print("***************************")
     print("*        GAME OVER        *")
     print("***************************")
@@ -70,28 +77,19 @@ function onGameOver()
     luaClearAndRun("loozer.lua")
 end
 
-function onInvsWon()
-    print("***************************")
-    print("*        GAME OVER        *")
-    print("***************************")
-    delBouncer(4)
-    delBouncer(3)
-    godotSetProperty("lives",0, myShip)        
-    onLiveLost()
-end
-
-
 function onGameWon()
+    if not luaTryMutex(myGameOverMutex) then return end
+
     print("***************************")
     print("*        GAME WON!        *")
     print("***************************")
     luaClearAndRun("winwin.lua")
 end
 
-local inLiveLost = false
+
 function onLiveLost()
-    if inLiveLost then return end
-    inLiveLost = true
+    if not luaTryMutex(myLivesLostMutex) or luaCheckMutex(myGameOverMutex) then return end
+    
     local livesleft = 3
         
     livesleft = godotGetProperty("lives", myShip)        
@@ -131,14 +129,14 @@ function onLiveLost()
             
     godotSetProperty("bAdvance", true, myInvaders) -- Enable advancing and firing
     if myInvaders then print("Advance") end            
-    inLiveLost = false
+    luaReleaseMutex(myLivesLostMutex)
 end
 
 
-local inLoosing = false
+
 function onLoosing()
-    if inLoosing then return end
-    inLoosing = true
+    if not luaTryMutex(myLivesLostMutex) or luaCheckMutex(myGameOverMutex) then return end
+    
     local livesleft = 3
         
     livesleft = godotGetProperty("lives", myShip)        
@@ -169,7 +167,7 @@ function onLoosing()
         return
     end
         
-    inLoosing = false
+    luaReleaseMutex(myLivesLostMutex)
 end
 
 function onNewScore()
@@ -185,7 +183,6 @@ end
 
     godotWatchSignal("new_score", "onNewScore", myInvaders)
     godotWatchSignal("game_won", "onGameWon", myInvaders)
-    -- godotWatchSignal("invs_won", "onInvsWon", myInvaders)
 
     local mlvl = getGlobalVar("level")
     if mlvl == 0 then mlvl = 1 end
