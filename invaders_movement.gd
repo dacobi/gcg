@@ -16,6 +16,9 @@ var drop_count = 0
 var tardis_destroyed = false
 var is_invading = false
 
+var anim_is_open = true
+var idle_anim_timer = 0.0
+
 # Firing parameters (Starting at double the previous rate)
 var fire_timer = 0.0
 var min_fire_delay = 0.25
@@ -95,6 +98,9 @@ func _process(delta):
 			else:
 				position.x = next_x
 			
+			anim_is_open = not anim_is_open
+			_update_invader_frames()
+			
 			# Trigger sound exactly on move
 			if march_player:
 				march_player.play()
@@ -105,6 +111,23 @@ func _process(delta):
 		if fire_timer >= next_fire_time:
 			_fire_random_projectile()
 			_reset_fire_timer()
+	else:
+		# --- Idle Animation Logic ---
+		idle_anim_timer += delta
+		var base_speed = 2.0 * level_scale
+		var step_delay = 1.0 / base_speed
+		if idle_anim_timer >= step_delay:
+			idle_anim_timer -= step_delay
+			anim_is_open = not anim_is_open
+			_update_invader_frames()
+
+func _update_invader_frames():
+	var count = 0
+	for child in get_children():
+		if child.has_method("set_frame"):
+			child.set_frame(anim_is_open)
+			count += 1
+	# print("Updated ", count, " invader frames to ", anim_is_open)
 
 func _reset_fire_timer():
 	fire_timer = 0.0

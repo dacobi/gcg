@@ -116,6 +116,7 @@ function onLiveLost()
     if livesleft == 0 then
         setGlobalVar("lives",0)
         delBouncer(2)
+        delay(500)
         onGameOver()
         inLiveLost = false
         return
@@ -162,6 +163,7 @@ function onLoosing()
     if livesleft == 0 then
         setGlobalVar("lives",0)
         delBouncer(2)
+        delay(300)
         onGameOver()
         inLoosing = false
         return
