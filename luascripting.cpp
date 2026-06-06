@@ -641,7 +641,7 @@ int LuaScripting::lua_luaCreateMutex(lua_State* L) {
     if (self) {
         std::lock_guard<std::mutex> lock(self->globals_mutex);
         int handle = self->next_mutex_id++;
-        self->dynamic_mutexes[handle] = std::make_unique<std::mutex>();
+        self->dynamic_mutexes[handle] = std::make_unique<std::recursive_mutex>();
         lua_pushinteger(L, handle);
         return 1;
     }
@@ -652,7 +652,7 @@ int LuaScripting::lua_luaGetMutex(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (lua_isnumber(L, 1) && self) {
         int handle = (int)lua_tonumber(L, 1);
-        std::mutex* target_mutex = nullptr;
+        std::recursive_mutex* target_mutex = nullptr;
         {
             std::lock_guard<std::mutex> lock(self->globals_mutex);
             auto it = self->dynamic_mutexes.find(handle);
@@ -672,7 +672,7 @@ int LuaScripting::lua_luaTryMutex(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (lua_isnumber(L, 1) && self) {
         int handle = (int)lua_tonumber(L, 1);
-        std::mutex* target_mutex = nullptr;
+        std::recursive_mutex* target_mutex = nullptr;
         {
             std::lock_guard<std::mutex> lock(self->globals_mutex);
             auto it = self->dynamic_mutexes.find(handle);
@@ -694,7 +694,7 @@ int LuaScripting::lua_luaCheckMutex(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (lua_isnumber(L, 1) && self) {
         int handle = (int)lua_tonumber(L, 1);
-        std::mutex* target_mutex = nullptr;
+        std::recursive_mutex* target_mutex = nullptr;
         {
             std::lock_guard<std::mutex> lock(self->globals_mutex);
             auto it = self->dynamic_mutexes.find(handle);
@@ -719,7 +719,7 @@ int LuaScripting::lua_luaReleaseMutex(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (lua_isnumber(L, 1) && self) {
         int handle = (int)lua_tonumber(L, 1);
-        std::mutex* target_mutex = nullptr;
+        std::recursive_mutex* target_mutex = nullptr;
         {
             std::lock_guard<std::mutex> lock(self->globals_mutex);
             auto it = self->dynamic_mutexes.find(handle);

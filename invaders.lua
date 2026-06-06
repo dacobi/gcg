@@ -232,8 +232,9 @@ while true do
             local sx, sy, sz = godotGetPos(myShip)
             if myFire then
                 local count = godotGetChildCount(myFire)
-                if count < 7 then             
-                    godotLoadNode("res://projectile.tscn", sx, sy + 3, sz, myFire)                          
+                if count < 7 then
+                    myFire = godotGetNodePointer("Projectiles")
+                    if myFire then godotLoadNode("res://projectile.tscn", sx, sy + 3, sz, myFire) end
                 end
             end
         end

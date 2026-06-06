@@ -253,7 +253,7 @@ private:
     std::unordered_map<std::string, int> global_ints;
     std::mutex globals_mutex;
 
-    std::unordered_map<int, std::unique_ptr<std::mutex>> dynamic_mutexes;
+    std::unordered_map<int, std::unique_ptr<std::recursive_mutex>> dynamic_mutexes;
     int next_mutex_id = 1;
 
     static LuaScripting* instance;

@@ -48,6 +48,9 @@ public:
         auto it = current_nodes.find(owner);
         return it != current_nodes.end() ? it->second : nullptr; 
     }
+
+    Node* resolveTargetNode(void* owner, void* target_node) const;
+
     void setCurrentNode(Node* n, void* owner) { current_nodes[owner] = n; }
 
     bool attachScript(const std::string& path, void* owner);

@@ -21,6 +21,19 @@
 #include "imgui.h"
 #include <cstring>
 
+Node* GodotRenderer::resolveTargetNode(void* owner, void* target_node) const {
+    if (target_node) {
+        uint64_t id_val = (uint64_t)(uintptr_t)target_node;
+        ObjectID id(id_val);
+        Object* obj = ObjectDB::get_instance(id);
+        if (obj) {
+            return Object::cast_to<Node>(obj);
+        }
+        return nullptr;
+    }
+    return getCurrentNode(owner);
+}
+
 GodotRenderer::GodotRenderer(int w, int h, bool transparent) : width(w), height(h), bTransparent(transparent) {
 }
 
@@ -133,19 +146,19 @@ bool GodotRenderer::searchNode(const std::string& name, void* owner) {
 }
 
 std::string GodotRenderer::getNodeType(void* owner, void* target_node) {
-    Node* current_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (!current_node) return "None";
     return current_node->get_class().utf8().get_data();
 }
 
 std::string GodotRenderer::getName(void* owner, void* target_node) {
-    Node* current_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (!current_node) return "";
     return String(current_node->get_name()).utf8().get_data();
 }
 
 int GodotRenderer::getChildCount(void* owner, void* target_node) {
-    Node* current_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (!current_node) return 0;
     return current_node->get_child_count();
 }
@@ -168,7 +181,7 @@ void GodotRenderer::printHierarchy() {
 }
 
 void GodotRenderer::renameNode(const std::string& name, void* owner, void* target_node) {
-    Node* current_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (current_node) {
         current_node->set_name(String(name.c_str()));
     }
@@ -186,7 +199,7 @@ bool GodotRenderer::setCamera(void* owner) {
 }
 
 bool GodotRenderer::getPos(float& x, float& y, float& z, void* owner, void* target_node) {
-    Node* current_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (!current_node) return false;
     Node3D* n3d = Object::cast_to<Node3D>(current_node);
     if (n3d) {
@@ -198,7 +211,7 @@ bool GodotRenderer::getPos(float& x, float& y, float& z, void* owner, void* targ
 }
 
 void GodotRenderer::setPos(float x, float y, float z, void* owner, void* target_node) {
-    Node* current_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (!current_node || current_node == scene_instance) return;
     Node3D* n3d = Object::cast_to<Node3D>(current_node);
     if (n3d) {
@@ -207,7 +220,7 @@ void GodotRenderer::setPos(float x, float y, float z, void* owner, void* target_
 }
 
 void GodotRenderer::setVisible(bool visible, void* owner, void* target_node) {
-    Node* current_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (current_node) {
         if (current_node->has_method("set_visible")) {
             current_node->call("set_visible", visible);
@@ -216,7 +229,7 @@ void GodotRenderer::setVisible(bool visible, void* owner, void* target_node) {
 }
 
 bool GodotRenderer::getScale(float& x, float& y, float& z, void* owner, void* target_node) {
-    Node* current_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (!current_node) return false;
     Node3D* n3d = Object::cast_to<Node3D>(current_node);
     if (n3d) {
@@ -228,7 +241,7 @@ bool GodotRenderer::getScale(float& x, float& y, float& z, void* owner, void* ta
 }
 
 void GodotRenderer::setScale(float x, float y, float z, void* owner, void* target_node) {
-    Node* current_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (!current_node) return;
     Node3D* n3d = Object::cast_to<Node3D>(current_node);
     if (n3d) {
@@ -237,7 +250,7 @@ void GodotRenderer::setScale(float x, float y, float z, void* owner, void* targe
 }
 
 void GodotRenderer::move(float x, float y, float z, void* owner, void* target_node) {
-    Node* current_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (!current_node) return;
     Node3D* n3d = Object::cast_to<Node3D>(current_node);
     if (n3d) {
@@ -246,7 +259,7 @@ void GodotRenderer::move(float x, float y, float z, void* owner, void* target_no
 }
 
 bool GodotRenderer::moveAndCollide(float x, float y, float z, void* owner, void* target_node) {
-    Node* current_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (!current_node) return false;
     PhysicsBody3D* body = Object::cast_to<PhysicsBody3D>(current_node);
     if (body) {
@@ -260,7 +273,7 @@ bool GodotRenderer::moveAndCollide(float x, float y, float z, void* owner, void*
 }
 
 std::vector<std::string> GodotRenderer::getOverlappingAreas(void* owner, void* target_node) {
-    Node* current_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     std::vector<std::string> overlaps;
     if (!current_node) return overlaps;
     Area3D* area = Object::cast_to<Area3D>(current_node);
@@ -290,7 +303,7 @@ bool GodotRenderer::createNode(const std::string& name, void* owner) {
 }
 
 bool GodotRenderer::loadNode(const std::string& path, void* owner, float x, float y, float z, bool use_pos, void* target_node) {
-    Node* parent_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* parent_node = resolveTargetNode(owner, target_node);
     if (!parent_node) return false;
     Ref<PackedScene> scene = ResourceLoader::load(String(path.c_str()));
     if (scene.is_valid()) {
@@ -311,7 +324,7 @@ bool GodotRenderer::loadNode(const std::string& path, void* owner, float x, floa
 }
 
 void GodotRenderer::deleteNode(void* owner, void* target_node) {
-    Node* current_node = target_node ? (Node*)target_node : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (!current_node || current_node == scene_instance) return;
     Node* to_delete = current_node;
     current_nodes[owner] = to_delete->get_parent();
@@ -331,14 +344,14 @@ bool GodotRenderer::attachScript(const std::string& path, void* owner) {
 }
 
 void GodotRenderer::setProperty(const std::string& name, const Variant& value, void* owner, void* target_node) {
-    Node* current_node = target_node ? static_cast<Node*>(target_node) : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (current_node) {
         current_node->set(String(name.c_str()), value);
     }
 }
 
 Variant GodotRenderer::getProperty(const std::string& name, void* owner, void* target_node) {
-    Node* current_node = target_node ? static_cast<Node*>(target_node) : getCurrentNode(owner);
+    Node* current_node = resolveTargetNode(owner, target_node);
     if (current_node) {
         return current_node->get(String(name.c_str()));
     }
@@ -346,7 +359,7 @@ Variant GodotRenderer::getProperty(const std::string& name, void* owner, void* t
 }
 
 bool GodotRenderer::watchSignal(const std::string& signal_name, const std::string& callback_file, void* owner_thread, void* owner_engine, void* target_node) {
-    Node* current_node = target_node ? static_cast<Node*>(target_node) : getCurrentNode(owner_thread);
+    Node* current_node = resolveTargetNode(owner_thread, target_node);
     if (!current_node) return false;
     
     Object* bridge_obj = ClassDB::instantiate("LuaEventBridge");
@@ -466,5 +479,9 @@ void GodotRenderer::clearSignalWatchers() {
 void* GodotRenderer::getNodePointer(const std::string& name, void* owner) {
     Node* current_node = getCurrentNode(owner);
     if (!current_node) return nullptr;
-    return _searchNodeRecursive(current_node, name);
+    Node* found = _searchNodeRecursive(current_node, name);
+    if (found) {
+        return (void*)(uintptr_t)(found->get_instance_id());
+    }
+    return nullptr;
 }
