@@ -165,7 +165,19 @@ func vaderdie(height):
 	
 	emit_signal("new_score")
 	if vaders <= 0:
-		emit_signal("game_won")
+		_check_win_condition.call_deferred()
+
+func _check_win_condition():
+	var root_node = get_tree().root
+	var my_game = root_node.find_child("SpaceInvadersGame", true, false) 
+	if my_game:
+		var my_ship = my_game.find_child("Ship", true, false)
+		# Loss takes precedence: do not emit game_won if the ship is dead!
+		if my_ship and "alive" in my_ship and not my_ship.alive:
+			print("Last invader died, but ship is dead! Denying win.")
+			return
+			
+	emit_signal("game_won")
 
 func tardis_hit():
 	tardis_destroyed = true
@@ -201,19 +213,13 @@ func _do_clear_projectiles():
 	if my_game:
 		var enemy_projs = my_game.find_child("EnemyProjectiles", true, false)
 		if enemy_projs:
-			enemy_projs.name = "OldEnemyProjectiles"
-			enemy_projs.queue_free()
-			var new_enemy_projs = Node3D.new()
-			new_enemy_projs.name = "EnemyProjectiles"
-			my_game.add_child(new_enemy_projs)
+			for child in enemy_projs.get_children():
+				child.queue_free()
 			
 		var player_projs = my_game.find_child("Projectiles", true, false)
 		if player_projs:
-			player_projs.name = "OldProjectiles"
-			player_projs.queue_free()
-			var new_player_projs = Node3D.new()
-			new_player_projs.name = "Projectiles"
-			my_game.add_child(new_player_projs)
+			for child in player_projs.get_children():
+				child.queue_free()
 
 func _fire_random_projectile():
 	var alive_invaders = []
