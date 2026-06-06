@@ -86,6 +86,7 @@ function onGameWon()
     print("***************************")
     print("*        GAME WON!        *")
     print("***************************")
+    delay(400)
     luaClearAndRun("winwin.lua")
 end
 
@@ -175,7 +176,7 @@ function onLoosing()
         delBouncer(2)
     end
     
-    delay(300)
+    delay(500)
 
     print("***************************")
     print("*        GAME OVER        *")
