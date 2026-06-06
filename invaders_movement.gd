@@ -91,7 +91,7 @@ func _process(delta):
 						if child.global_position.y < lowest_y:
 							lowest_y = child.global_position.y
 				
-				if not is_invading and lowest_y < -44.0:
+				if not is_invading and lowest_y < -42.0:
 					is_invading = true
 					bAdvance = false # Stop movement and firing
 					var root_node = get_tree().root
