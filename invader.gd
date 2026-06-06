@@ -55,11 +55,11 @@ func _spawn_death_particles():
 	sparks.scale_amount_max = 2.0
 
 	var gradient = Gradient.new()
-	gradient.set_color(0, Color(4.0, 2.0, 0.0, 1))
+	gradient.set_color(0, Color(8.0, 6.0, 0.0, 1))
 	gradient.set_offset(0, 0.0)
 	gradient.add_point(0.1, Color(6.0, 3.0, 0, 1))
-	gradient.add_point(0.5, Color(7.0, 1.0, 0, 1))
-	gradient.set_color(1, Color(8.0, 0, 0, 1)) # Solid dark red, no alpha fade
+	gradient.add_point(0.5, Color(8.0, 0.0, 0, 1))
+	gradient.set_color(1, Color(3.0, 0, 0, 1)) # Solid dark red, no alpha fade
 	gradient.set_offset(1, 1.0)
 	
 	sparks.color_ramp = gradient
