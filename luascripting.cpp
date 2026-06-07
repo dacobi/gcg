@@ -519,9 +519,19 @@ int LuaScripting::lua_setAudio(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (lua_isstring(L, 1)) {
         std::string path = lua_tostring(L, 1);
-        if (self && self->setAudioFunc) self->setAudioFunc(path);
+        if (self && self->setAudioFunc) {
+            auto sync_data = std::make_shared<LuaSyncData>();
+            self->setAudioFunc(path, sync_data);
+            std::unique_lock<std::mutex> lock(sync_data->mtx);
+            sync_data->cv.wait(lock, [sync_data, self]{ 
+                return sync_data->done || !self->systemRunning; 
+            });
+            lua_pushboolean(L, sync_data->b_res);
+            return 1;
+        }
     }
-    return 0;
+    lua_pushboolean(L, false);
+    return 1;
 }
 
 int LuaScripting::lua_playAudio(lua_State* L) {

@@ -8,11 +8,14 @@ regGlobalVar("score",0)
 
 godotLoadHighScore()
 
---setAudio("drwho.mp3")
-setAudio("ytdlp://https://www.youtube.com/watch?v=DsAVx0u9Cw4")
--- rewindAudio()
--- skipAudio(20)
+local loads = setAudio("ytdlp://https://www.youtube.com/watch?v=DsAVx0u9Cw4")
 
-delay(2500)
+if not loads then
+	print("Using Fallback Audio")
+	setAudio("slingshot.mp3")
+else
+	print("\n\nThe Timelords have spoken")
+end
+
 
 luaClearAndRun("startspace.lua")

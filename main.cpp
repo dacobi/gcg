@@ -214,6 +214,7 @@ struct AudioDecoder {
     std::atomic<bool> quit{false};
     std::thread      decode_thread;
     std::string      path;
+    std::shared_ptr<LuaSyncData> init_sync;
 
     struct SeekEvent {
         bool absolute;
@@ -240,13 +241,23 @@ struct AudioDecoder {
         seek_queue.push_back({false, seconds}); 
     }
 
-    AudioDecoder(const std::string& p, AudioMixer* m) : mixer(m), path(p) {
+    AudioDecoder(const std::string& p, AudioMixer* m, std::shared_ptr<LuaSyncData> sync_data = nullptr) : mixer(m), path(p), init_sync(sync_data) {
         decode_thread = std::thread(&AudioDecoder::decodeLoop, this);
     }
 
     ~AudioDecoder() {
         quit = true;
         if (decode_thread.joinable()) decode_thread.join();
+    }
+
+    void signal_sync(bool success) {
+        if (init_sync) {
+            std::lock_guard<std::mutex> lock(init_sync->mtx);
+            init_sync->b_res = success;
+            init_sync->done = true;
+            init_sync->cv.notify_one();
+            init_sync.reset();
+        }
     }
 
     void decodeLoop() {
@@ -271,33 +282,42 @@ struct AudioDecoder {
                     actual_path = result;
                 } else {
                     SDL_Log("yt-dlp failed to resolve URL: %s", url.c_str());
+                    signal_sync(false);
                     return;
                 }
             } else {
                 SDL_Log("Failed to execute yt-dlp");
+                signal_sync(false);
                 return;
             }
         }
 
         AVDictionary* opts = nullptr;
-        // Enable fast seeking over HTTP by allowing seek to any point
-        av_dict_set(&opts, "seekable", "1", 0);
-        // Required for seeking unbuffered ranges in some HTTP streams
-        av_dict_set(&opts, "reconnect", "1", 0);
-        av_dict_set(&opts, "reconnect_streamed", "1", 0);
-        av_dict_set(&opts, "reconnect_delay_max", "5", 0);
-        // Reduce analyze duration to speed up startup
+        
+        // Only apply HTTP-specific options for web streams to avoid breaking local file playback
+        if (actual_path.rfind("http://", 0) == 0 || actual_path.rfind("https://", 0) == 0) {
+            // Enable fast seeking over HTTP by allowing seek to any point
+            av_dict_set(&opts, "seekable", "1", 0);
+            // Required for seeking unbuffered ranges in some HTTP streams
+            av_dict_set(&opts, "reconnect", "1", 0);
+            av_dict_set(&opts, "reconnect_streamed", "1", 0);
+            av_dict_set(&opts, "reconnect_delay_max", "5", 0);
+        }
+        
+        // Reduce analyze duration to speed up startup for all inputs
         av_dict_set(&opts, "probesize", "5000000", 0);
         
         if (avformat_open_input(&fmt_ctx, actual_path.c_str(), nullptr, &opts) < 0) {
             SDL_Log("Could not open audio file: %s", actual_path.c_str());
             av_dict_free(&opts);
+            signal_sync(false);
             return;
         }
         av_dict_free(&opts);
         if (avformat_find_stream_info(fmt_ctx, nullptr) < 0) {
             SDL_Log("Could not find stream info");
             avformat_close_input(&fmt_ctx);
+            signal_sync(false);
             return;
         }
 
@@ -311,6 +331,7 @@ struct AudioDecoder {
         if (audio_stream_idx == -1) {
             SDL_Log("No audio stream found");
             avformat_close_input(&fmt_ctx);
+            signal_sync(false);
             return;
         }
 
@@ -321,6 +342,7 @@ struct AudioDecoder {
             SDL_Log("Could not open decoder");
             avcodec_free_context(&dec_ctx);
             avformat_close_input(&fmt_ctx);
+            signal_sync(false);
             return;
         }
 
@@ -338,6 +360,8 @@ struct AudioDecoder {
         av_opt_set_int(swr_ctx, "out_sample_rate", MIXER_SAMPLE_RATE, 0);
         av_opt_set_int(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_S16, 0);
         swr_init(swr_ctx);
+
+        signal_sync(true);
 
         int64_t total_out = 0;
         AVRational stream_tb = fmt_ctx->streams[audio_stream_idx]->time_base;
@@ -2883,9 +2907,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                 else t = AppState::LuaCommand::RANDOMIZE_FRACTAL_PALETTE;
                 state->lua_commands.push({t, "", 0, 0.0});
             },
-            [state](const std::string& path) {
+            [state](const std::string& path, std::shared_ptr<LuaSyncData> sync_data) {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
-                state->lua_commands.push({AppState::LuaCommand::SET_AUDIO, path, 0, 0.0});
+                state->lua_commands.push({AppState::LuaCommand::SET_AUDIO, path, 0, 0.0, {0,0,0}, sync_data});
             },
             [state]() {
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
@@ -3585,12 +3609,23 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 state->loop_audio.reset();
                 if (!state->cli_audio_path.empty()) {
                     try {
-                        state->loop_audio = std::make_unique<AudioDecoder>(state->cli_audio_path, myMix);
+                        state->loop_audio = std::make_unique<AudioDecoder>(state->cli_audio_path, myMix, cmd.sync);
                         // Apply persistent volume to new decoder
                         state->loop_audio->setVolume((int)(state->bg_volume * 100.0f));
                     } catch (const std::exception& e) {
                         SDL_Log("Audio error (Lua): %s", e.what());
+                        if (cmd.sync) {
+                            std::lock_guard<std::mutex> lock(cmd.sync->mtx);
+                            cmd.sync->b_res = false;
+                            cmd.sync->done = true;
+                            cmd.sync->cv.notify_one();
+                        }
                     }
+                } else if (cmd.sync) {
+                    std::lock_guard<std::mutex> lock(cmd.sync->mtx);
+                    cmd.sync->b_res = true;
+                    cmd.sync->done = true;
+                    cmd.sync->cv.notify_one();
                 }
             } else if (cmd.type == AppState::LuaCommand::PLAY_AUDIO) {
                 if (state->loop_audio) state->loop_audio->play();

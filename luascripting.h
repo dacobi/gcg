@@ -63,7 +63,7 @@ public:
     using SelectFunc = std::function<void(bool isPlasma, int index, std::shared_ptr<LuaSyncData> sync_data)>;
     using SetParamFunc = std::function<void(bool isPlasma, const std::string& name, double value)>;
     using RandomizeFunc = std::function<void(bool isPlasma, bool isXY)>;
-    using SetAudioFunc = std::function<void(const std::string&)>;
+    using SetAudioFunc = std::function<void(const std::string&, std::shared_ptr<LuaSyncData>)>;
     using PlayAudioFunc = std::function<void()>;
     using StopAudioFunc = std::function<void()>;
     using RewindAudioFunc = std::function<void()>;
