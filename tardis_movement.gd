@@ -31,6 +31,18 @@ func _on_spawn_tardis():
 		current_speed = speed
 
 	active_tardis.scale = Vector3(5, 5, 5)
+	
+	# Prune auxiliary nodes that shouldn't affect the main game scene
+	for node_name in ["WorldEnvironment", "DirectionalLight3D", "Camera3D"]:
+		var aux_node = active_tardis.get_node_or_null(node_name)
+		if aux_node:
+			aux_node.queue_free()
+	
+	# Remove any extra lights from the visuals (like the lamp's OmniLight3D)
+	var extra_light = active_tardis.find_child("OmniLight3D", true, false)
+	if extra_light:
+		extra_light.queue_free()
+
 	active_tardis.connect("tardis_hit", _on_tardis_hit)
 	add_child(active_tardis)
 	
