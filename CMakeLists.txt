@@ -48,11 +48,10 @@ endif()
 
 find_package(Threads REQUIRED)
 find_package(X11 REQUIRED)
-find_package(hdf5 REQUIRED)
-
 option(USE_USD "Build with OpenUSD support" OFF)
 
 if (USE_USD)
+    find_package(hdf5 REQUIRED)
     set(pxr_DIR "/usr/local")
     find_package(pxr REQUIRED)
     find_package(Python3 COMPONENTS Development REQUIRED)
