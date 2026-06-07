@@ -25,6 +25,12 @@ background_mode = 2
 sky = SubResource("Sky_game")
 tonemap_mode = 2
 glow_enabled = true
+glow_intensity = 1.0
+glow_strength = 1.0
+glow_bloom = 0.5
+glow_hdr_threshold = 1.0
+glow_blend_mode = 0
+
 
 [node name="SpaceInvadersGame" type="Node3D"]
 

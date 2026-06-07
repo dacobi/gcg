@@ -148,15 +148,6 @@ radius = 0.1
 height = 0.3
 material = SubResource("StandardMaterial3D_White")
 
-[node name="SpotLightContainer" type="Node3D" parent="Visuals/Structure/Lamp"]
-
-[node name="SpotLight3D" type="SpotLight3D" parent="Visuals/Structure/Lamp/SpotLightContainer"]
-transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 0, 0.1)
-light_color = Color(1, 1, 0.8, 1)
-light_energy = 30.0
-spot_range = 20.0
-spot_angle = 45.0
-
 [node name="OmniLight3D" type="OmniLight3D" parent="Visuals/Structure/Lamp"]
 light_color = Color(1, 1, 0.8, 1)
 light_energy = 5.0

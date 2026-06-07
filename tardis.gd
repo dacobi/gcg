@@ -7,7 +7,7 @@ var is_dead = false
 var flash_timer = 0.0
 
 @onready var visuals = get_node_or_null("Visuals")
-@onready var spotlight_container = get_node_or_null("Visuals/Structure/Lamp/SpotLightContainer")
+#@onready var spotlight_container = get_node_or_null("Visuals/Structure/Lamp/SpotLightContainer")
 
 var orange_mat: StandardMaterial3D
 var is_spawning_sparks = false
@@ -116,5 +116,5 @@ func _process(delta: float) -> void:
 		visuals.rotate_object_local(Vector3.UP, rotation_speed * delta)
 	
 	# Rotate the spotlight independently
-	if spotlight_container:
-		spotlight_container.rotate_y(4.0 * delta)
+	#if spotlight_container:
+	#	spotlight_container.rotate_y(4.0 * delta)

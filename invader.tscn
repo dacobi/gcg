@@ -138,10 +138,3 @@ material = SubResource("StandardMaterial3D_cyan_glow")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 1, 0.2)
 size = Vector3(0.8, 0.8, 0.8)
 material = SubResource("StandardMaterial3D_cyan_glow")
-
-[node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 2.5, 12)
-
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
-shadow_enabled = true

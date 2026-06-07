@@ -233,7 +233,13 @@ func _fire_random_projectile():
 		var container = get_node_or_null("../EnemyProjectiles")
 		if container:
 			container.add_child(proj)
-			proj.global_position = shooter.global_position
+			var pos = shooter.global_position
+			pos.z = 0.0 # Force to gameplay plane
+			proj.global_position = pos
+			proj.rotation = Vector3.ZERO # Reset rotation
 		else:
 			get_parent().add_child(proj)
-			proj.global_position = shooter.global_position
+			var pos = shooter.global_position
+			pos.z = 0.0 # Force to gameplay plane
+			proj.global_position = pos
+			proj.rotation = Vector3.ZERO # Reset rotation
