@@ -1,14 +1,6 @@
 #pragma once
 
 #include <SDL3/SDL.h>
-#define CL_TARGET_OPENCL_VERSION 300
-#include <CL/cl.h>
-#include <vector>
-#include <string>
-#include <thread>
-#include <atomic>
-#include <mutex>
-
 
 struct CLMandelbrotParams {
     double x_offset = -0.5;
@@ -21,6 +13,15 @@ struct CLMandelbrotParams {
     float color_speed = 1.0f;
     float transparency = 4.0f;
     };
+
+#ifdef USE_OPENCL
+#define CL_TARGET_OPENCL_VERSION 300
+#include <CL/cl.h>
+#include <vector>
+#include <string>
+#include <thread>
+#include <atomic>
+#include <mutex>
 
 class MandelbrotOpenCL {
 public:
@@ -101,3 +102,21 @@ private:
 
     CLMandelbrotParams params;
 };
+#else
+class MandelbrotOpenCL {
+public:
+    MandelbrotOpenCL(int w, int h) {}
+    ~MandelbrotOpenCL() {}
+    bool init(int cFractalIXD = -1) { return false; }
+    bool init(const char* cKS) { return false; }
+    void start() {}
+    void stop() {}
+    void resize(int w, int h) {}
+    void updateTexture(class Renderer* renderer, SDL_GPUTexture* tex) {}
+    void setArgs(const CLMandelbrotParams& p) { params = p; }
+    CLMandelbrotParams getArgs() { return params; }
+    void cleanup() {}
+    int iFractalIDX = -1;
+    CLMandelbrotParams params;
+};
+#endif

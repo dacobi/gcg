@@ -3743,6 +3743,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             }
             ImGui::EndMenu();
         }
+#ifdef USE_OPENCL
         if (ImGui::BeginMenu("Fractal")) {
             if (ImGui::BeginMenu("Select Fractal")) {
                 if (myMandel) {
@@ -3812,6 +3813,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             }
             ImGui::EndMenu();
         }
+#endif
 #ifdef USE_USD
         if (ImGui::BeginMenu("USD")) {
             if (ImGui::BeginMenu("Select USD Bouncer")) {

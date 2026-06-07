@@ -34,7 +34,17 @@ pkg_check_modules(libswscale REQUIRED IMPORTED_TARGET libswscale)
 pkg_check_modules(libswresample REQUIRED IMPORTED_TARGET libswresample)
 pkg_check_modules(ALSA REQUIRED IMPORTED_TARGET alsa)
 pkg_check_modules(LUA REQUIRED IMPORTED_TARGET lua5.4)
-find_package(OpenCL REQUIRED)
+
+option(USE_OPENCL "Build with OpenCL support" OFF)
+
+if (USE_OPENCL)
+    find_package(OpenCL REQUIRED)
+    set(OPENCL_SOURCES clplasma.cpp clmandelbrot.cpp)
+    set(OPENCL_LIBS OpenCL::OpenCL)
+else()
+    set(OPENCL_SOURCES "")
+    set(OPENCL_LIBS "")
+endif()
 
 find_package(Threads REQUIRED)
 find_package(X11 REQUIRED)
@@ -63,7 +73,11 @@ link_directories(/usr/local/lib)
 target_link_libraries(imgui PUBLIC PkgConfig::SDL3 SDL3_shadercross::SDL3_shadercross-shared)
 #target_compile_options(gcg PRIVATE -g -O2)
 # --- Our executable ---
-add_executable(gcg main.cpp clplasma.cpp clmandelbrot.cpp luascripting.cpp input_manager.cpp renderer.cpp shplasma.cpp godot_manager.cpp godot_renderer.cpp resource_format_loader_gltf.cpp resource_format_loader_wav.cpp resource_format_loader_png.cpp ${USD_SOURCES})
+add_executable(gcg main.cpp luascripting.cpp input_manager.cpp renderer.cpp shplasma.cpp godot_manager.cpp godot_renderer.cpp resource_format_loader_gltf.cpp resource_format_loader_wav.cpp resource_format_loader_png.cpp ${OPENCL_SOURCES} ${USD_SOURCES})
+
+if (USE_OPENCL)
+    target_compile_definitions(gcg PRIVATE USE_OPENCL)
+endif()
 
 if (USE_USD)
     target_compile_definitions(gcg PRIVATE USE_USD)
@@ -71,6 +85,6 @@ endif()
 
 target_include_directories(gcg PRIVATE ${USD_INCLUDES} ${CMAKE_CURRENT_SOURCE_DIR}/godot ${CMAKE_CURRENT_SOURCE_DIR}/godot/platform/linuxbsd)
 target_compile_options(gcg PRIVATE "-g")
-target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA PkgConfig::LUA ${USD_LIBS} OpenCL::OpenCL m SDL3_shadercross::SDL3_shadercross-shared OpenGL::GL ${CMAKE_CURRENT_SOURCE_DIR}/godot/bin/libgodot.linuxbsd.template_release.x86_64.so)
+target_link_libraries(gcg PRIVATE imgui PkgConfig::SDL3_TTF  PkgConfig::SDL3_image PkgConfig::libavcodec PkgConfig::libavutil PkgConfig::libavdevice PkgConfig::libavformat PkgConfig::libswscale PkgConfig::libswresample PkgConfig::ALSA PkgConfig::LUA ${USD_LIBS} ${OPENCL_LIBS} m SDL3_shadercross::SDL3_shadercross-shared OpenGL::GL ${CMAKE_CURRENT_SOURCE_DIR}/godot/bin/libgodot.linuxbsd.template_release.x86_64.so)
 set_target_properties(gcg PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE INSTALL_RPATH "${CMAKE_CURRENT_SOURCE_DIR}/godot/bin")
 

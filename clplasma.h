@@ -1,14 +1,6 @@
 #pragma once
 
 #include <SDL3/SDL.h>
-#define CL_TARGET_OPENCL_VERSION 300
-#include <CL/cl.h>
-#include <vector>
-#include <string>
-#include <thread>
-#include <atomic>
-#include <mutex>
-
 
 struct CLPlasmaParams {
     float drift_amp = 0.05f;
@@ -38,6 +30,14 @@ struct CLPlasmaParams {
     float zoom = 1.0f;
 };
 
+#ifdef USE_OPENCL
+#define CL_TARGET_OPENCL_VERSION 300
+#include <CL/cl.h>
+#include <vector>
+#include <string>
+#include <thread>
+#include <atomic>
+#include <mutex>
 
 class PlasmaOpenCL {
 public:
@@ -139,4 +139,22 @@ private:
 
     CLPlasmaParams params;
 };
+#else
+class PlasmaOpenCL {
+public:
+    PlasmaOpenCL(int w, int h) {}
+    ~PlasmaOpenCL() {}
+    bool init(int cPlasmaIDX = -1) { return false; }
+    bool init(const char* cKS) { return false; }
+    void start() {}
+    void stop() {}
+    void resize(int w, int h) {}
+    void updateTexture(class Renderer* renderer, SDL_GPUTexture* tex) {}
+    void setArgs(const CLPlasmaParams& p) { params = p; }
+    CLPlasmaParams getArgs() { return params; }
+    void cleanup() {}
+    int iPlasmaIDX = 0;
+    CLPlasmaParams params;
+};
+#endif
 

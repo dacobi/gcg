@@ -142,54 +142,6 @@ gcg/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/build
 .PHONY : gcg/fast
 
-clmandelbrot.o: clmandelbrot.cpp.o
-.PHONY : clmandelbrot.o
-
-# target to build an object file
-clmandelbrot.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clmandelbrot.cpp.o
-.PHONY : clmandelbrot.cpp.o
-
-clmandelbrot.i: clmandelbrot.cpp.i
-.PHONY : clmandelbrot.i
-
-# target to preprocess a source file
-clmandelbrot.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clmandelbrot.cpp.i
-.PHONY : clmandelbrot.cpp.i
-
-clmandelbrot.s: clmandelbrot.cpp.s
-.PHONY : clmandelbrot.s
-
-# target to generate assembly for a file
-clmandelbrot.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clmandelbrot.cpp.s
-.PHONY : clmandelbrot.cpp.s
-
-clplasma.o: clplasma.cpp.o
-.PHONY : clplasma.o
-
-# target to build an object file
-clplasma.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clplasma.cpp.o
-.PHONY : clplasma.cpp.o
-
-clplasma.i: clplasma.cpp.i
-.PHONY : clplasma.i
-
-# target to preprocess a source file
-clplasma.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clplasma.cpp.i
-.PHONY : clplasma.cpp.i
-
-clplasma.s: clplasma.cpp.s
-.PHONY : clplasma.s
-
-# target to generate assembly for a file
-clplasma.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/gcg.dir/build.make CMakeFiles/gcg.dir/clplasma.cpp.s
-.PHONY : clplasma.cpp.s
-
 godot_manager.o: godot_manager.cpp.o
 .PHONY : godot_manager.o
 
@@ -608,12 +560,6 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... gcg"
 	@echo "... imgui"
-	@echo "... clmandelbrot.o"
-	@echo "... clmandelbrot.i"
-	@echo "... clmandelbrot.s"
-	@echo "... clplasma.o"
-	@echo "... clplasma.i"
-	@echo "... clplasma.s"
 	@echo "... godot_manager.o"
 	@echo "... godot_manager.i"
 	@echo "... godot_manager.s"
