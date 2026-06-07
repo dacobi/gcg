@@ -70,6 +70,28 @@ cat > "$APP_DIR/AppRun" << 'EOF'
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "${0}")")"
 export LD_LIBRARY_PATH="$HERE/usr/lib:$LD_LIBRARY_PATH"
+export LIBDECOR_PLUGIN_DIR="$HERE/usr/lib/libdecor/plugins-1"
+cd "$HERE/usr/share/gcg"
+exec "$HERE/usr/share/gcg/gcg" --lua start.lua "$@"
+EOF
+chmod +x "$APP_DIR/AppRun"
+
+# 6. Create .desktop file
+cat > "$APP_DIR/${APP_NAME}.desktop" << EOF
+[Desktop Entry]
+Name=${APP_NAME}
+Exec=AppRun
+Icon=game_icon
+Type=Application
+Categories=Game;
+StartupWMClass=gcg
+EOF
+
+# 7. Use appimagetool to build the final AppImage
+~/bin/appimagetool "$APP_DIR"
+
+echo "AppImage created successfully!"
+BRARY_PATH"
 cd "$HERE/usr/share/gcg"
 exec "$HERE/usr/share/gcg/gcg" --lua start.lua "$@"
 EOF

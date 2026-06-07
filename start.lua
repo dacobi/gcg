@@ -8,6 +8,11 @@ regGlobalVar("score",0)
 
 godotLoadHighScore()
 
-setAudio("drwho.mp3")
+--setAudio("drwho.mp3")
+setAudio("ytdlp://https://www.youtube.com/watch?v=DsAVx0u9Cw4")
+-- rewindAudio()
+-- skipAudio(20)
+
+delay(2500)
 
 luaClearAndRun("startspace.lua")

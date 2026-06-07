@@ -241,10 +241,65 @@ struct AudioDecoder {
     }
 
     AudioDecoder(const std::string& p, AudioMixer* m) : mixer(m), path(p) {
-        if (avformat_open_input(&fmt_ctx, path.c_str(), nullptr, nullptr) < 0)
-            throw std::runtime_error("Could not open audio file");
-        if (avformat_find_stream_info(fmt_ctx, nullptr) < 0)
-            throw std::runtime_error("Could not find stream info");
+        decode_thread = std::thread(&AudioDecoder::decodeLoop, this);
+    }
+
+    ~AudioDecoder() {
+        quit = true;
+        if (decode_thread.joinable()) decode_thread.join();
+    }
+
+    void decodeLoop() {
+        std::string actual_path = path;
+        
+        // Handle yt-dlp resolution
+        if (path.rfind("ytdlp://", 0) == 0) {
+            std::string url = path.substr(8);
+            // Force m4a format as its internal index (moov/sidx) is more seek-friendly for FFmpeg over HTTP
+            std::string cmd = "yt-dlp -f \"bestaudio[ext=m4a]/bestaudio\" -g \"" + url + "\" 2>/dev/null";
+            FILE* pipe = popen(cmd.c_str(), "r");
+            if (pipe) {
+                char buffer[1024];
+                std::string result = "";
+                while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                    result += buffer;
+                }
+                pclose(pipe);
+                if (!result.empty()) {
+                    // Remove trailing newline
+                    result.erase(result.find_last_not_of(" \n\r\t") + 1);
+                    actual_path = result;
+                } else {
+                    SDL_Log("yt-dlp failed to resolve URL: %s", url.c_str());
+                    return;
+                }
+            } else {
+                SDL_Log("Failed to execute yt-dlp");
+                return;
+            }
+        }
+
+        AVDictionary* opts = nullptr;
+        // Enable fast seeking over HTTP by allowing seek to any point
+        av_dict_set(&opts, "seekable", "1", 0);
+        // Required for seeking unbuffered ranges in some HTTP streams
+        av_dict_set(&opts, "reconnect", "1", 0);
+        av_dict_set(&opts, "reconnect_streamed", "1", 0);
+        av_dict_set(&opts, "reconnect_delay_max", "5", 0);
+        // Reduce analyze duration to speed up startup
+        av_dict_set(&opts, "probesize", "5000000", 0);
+        
+        if (avformat_open_input(&fmt_ctx, actual_path.c_str(), nullptr, &opts) < 0) {
+            SDL_Log("Could not open audio file: %s", actual_path.c_str());
+            av_dict_free(&opts);
+            return;
+        }
+        av_dict_free(&opts);
+        if (avformat_find_stream_info(fmt_ctx, nullptr) < 0) {
+            SDL_Log("Could not find stream info");
+            avformat_close_input(&fmt_ctx);
+            return;
+        }
 
         for (unsigned int i = 0; i < fmt_ctx->nb_streams; i++) {
             if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
@@ -252,13 +307,22 @@ struct AudioDecoder {
                 break;
             }
         }
-        if (audio_stream_idx == -1) throw std::runtime_error("No audio stream");
+        
+        if (audio_stream_idx == -1) {
+            SDL_Log("No audio stream found");
+            avformat_close_input(&fmt_ctx);
+            return;
+        }
 
         const AVCodec* codec = avcodec_find_decoder(fmt_ctx->streams[audio_stream_idx]->codecpar->codec_id);
         dec_ctx = avcodec_alloc_context3(codec);
         avcodec_parameters_to_context(dec_ctx, fmt_ctx->streams[audio_stream_idx]->codecpar);
-        if (avcodec_open2(dec_ctx, codec, nullptr) < 0)
-            throw std::runtime_error("Could not open decoder");
+        if (avcodec_open2(dec_ctx, codec, nullptr) < 0) {
+            SDL_Log("Could not open decoder");
+            avcodec_free_context(&dec_ctx);
+            avformat_close_input(&fmt_ctx);
+            return;
+        }
 
         frame = av_frame_alloc();
         pkt = av_packet_alloc();
@@ -275,20 +339,6 @@ struct AudioDecoder {
         av_opt_set_int(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_S16, 0);
         swr_init(swr_ctx);
 
-        decode_thread = std::thread(&AudioDecoder::decodeLoop, this);
-    }
-
-    ~AudioDecoder() {
-        quit = true;
-        if (decode_thread.joinable()) decode_thread.join();
-        if (swr_ctx) swr_free(&swr_ctx);
-        av_frame_free(&frame);
-        av_packet_free(&pkt);
-        avcodec_free_context(&dec_ctx);
-        avformat_close_input(&fmt_ctx);
-    }
-
-    void decodeLoop() {
         int64_t total_out = 0;
         AVRational stream_tb = fmt_ctx->streams[audio_stream_idx]->time_base;
 
@@ -355,10 +405,15 @@ struct AudioDecoder {
                 }
             }
             av_packet_unref(pkt);
-        }
-    }
+            }
 
-};// --- 2. Encoder Class ---
+            if (swr_ctx) swr_free(&swr_ctx);
+            if (frame) av_frame_free(&frame);
+            if (pkt) av_packet_free(&pkt);
+            if (dec_ctx) avcodec_free_context(&dec_ctx);
+            if (fmt_ctx) avformat_close_input(&fmt_ctx);
+            }
+            };// --- 2. Encoder Class ---
 class NvencEncoder {
 private:
     struct RawFrame {
