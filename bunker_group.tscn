@@ -729,8 +729,8 @@ size = Vector3(1, 1, 1)
 
 [node name="BunkerExplosions" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("2_bunker_hit")
-volume_db = -7.96
-max_polyphony = 8
+volume_db = -1.96
+max_polyphony = 12
 
 [node name="P1_1" type="Area3D" parent="."]
 script = ExtResource("1_hitdit")
