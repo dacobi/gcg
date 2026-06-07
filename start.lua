@@ -17,5 +17,4 @@ else
 	print("\n\nThe Timelords have spoken")
 end
 
-
 luaClearAndRun("startspace.lua")

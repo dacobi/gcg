@@ -234,7 +234,12 @@ while true do
             if myFire then
                 local count = godotGetChildCount(myFire)
                 if count < 7 then
-                    godotLoadNode("res://projectile.tscn", sx, sy + 3, 0.0, myFire)
+                    if not luaCheckMutex(myLivesLostMutex) then
+                        myFire = godotGetNodePointer("Projectiles")
+                        if myFire then   
+                            godotLoadNode("res://projectile.tscn", sx, sy + 3, 0.0, myFire)
+                        end
+                    end
                 end
             end
         end
