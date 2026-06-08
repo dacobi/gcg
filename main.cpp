@@ -268,7 +268,8 @@ struct AudioDecoder {
         if (path.rfind("ytdlp://", 0) == 0) {
             std::string url = path.substr(8);
             // Force m4a format as its internal index (moov/sidx) is more seek-friendly for FFmpeg over HTTP
-            std::string cmd = "yt-dlp -f \"bestaudio[ext=m4a]/bestaudio\" -g \"" + url + "\" 2>/dev/null";
+            // Use 'env -u LD_LIBRARY_PATH' to prevent AppImage bundled libraries from breaking the host system's python/yt-dlp
+            std::string cmd = "env -u LD_LIBRARY_PATH yt-dlp -f \"bestaudio[ext=m4a]/bestaudio\" -g \"" + url + "\" 2>/dev/null";
             FILE* pipe = popen(cmd.c_str(), "r");
             if (pipe) {
                 char buffer[1024];
