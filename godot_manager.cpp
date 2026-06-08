@@ -179,9 +179,9 @@ bool GodotManager::init(int argc, char* argv[]) {
         int master_idx = AudioServer::get_singleton()->get_bus_index("Master");
         AudioServer::get_singleton()->add_bus_effect(master_idx, capture_effect);
         
-        std::printf("GCG_AudioBridge player and capture effect added.\\n");
+        std::printf("GCG_AudioBridge player and capture effect added.\n");
     } else {
-        std::printf("ERROR: SceneTree or root is null.\\n");
+        std::printf("ERROR: SceneTree or root is null.\n");
     }
 
 

@@ -3,7 +3,7 @@
 # Exit on error
 set -e
 
-APP_NAME="DalekDefender"
+APP_NAME="DaDaDefender"
 APP_DIR="AppDir"
 
 # 1. Clean up old AppDir
@@ -13,12 +13,12 @@ mkdir -p "$APP_DIR/usr/lib"
 mkdir -p "$APP_DIR/usr/share/gcg"
 
 # 2. Copy the executable
-cp gcg "$APP_DIR/usr/share/gcg/"
+cp gcg "$APP_DIR/usr/bin/"
 
 # 3. Copy local library
 # cp godot/bin/libgodot.linuxbsd.template_release.x86_64.so "$APP_DIR/usr/lib/"
-for f in $(ldd gcg |awk '{print $3}'); do cp $f "$APP_DIR/usr/lib/"; done 
-#sh check_libs_copy.sh gcg "$APP_DIR/usr/lib/"
+# for f in $(ldd gcg |awk '{print $3}'); do cp $f "$APP_DIR/usr/lib/"; done 
+bash check_libs_copy.sh gcg "$APP_DIR/usr/lib/"
 
 #cp /usr/lib/libavcodec.so.62 "$APP_DIR/usr/lib/"
 #cp /usr/lib/libavutil.so.60 "$APP_DIR/usr/lib/"
@@ -53,8 +53,6 @@ cp *.tscn "$APP_DIR/usr/share/gcg/"
 cp *.wav "$APP_DIR/usr/share/gcg/"
 cp *.mp3 "$APP_DIR/usr/share/gcg/"
 cp project.godot "$APP_DIR/usr/share/gcg/"
-# Optional assets
-cp *.mp4 "$APP_DIR/usr/share/gcg/" 2>/dev/null || true
 
 # Copy the icon to the root so appimagetool can make the .DirIcon symlink
 cp game_icon.png "$APP_DIR/game_icon.png"
@@ -71,29 +69,7 @@ cat > "$APP_DIR/AppRun" << 'EOF'
 HERE="$(dirname "$(readlink -f "${0}")")"
 export LD_LIBRARY_PATH="$HERE/usr/lib:$LD_LIBRARY_PATH"
 export LIBDECOR_PLUGIN_DIR="$HERE/usr/lib/libdecor/plugins-1"
-cd "$HERE/usr/share/gcg"
-exec "$HERE/usr/share/gcg/gcg" --lua start.lua "$@"
-EOF
-chmod +x "$APP_DIR/AppRun"
-
-# 6. Create .desktop file
-cat > "$APP_DIR/${APP_NAME}.desktop" << EOF
-[Desktop Entry]
-Name=${APP_NAME}
-Exec=AppRun
-Icon=game_icon
-Type=Application
-Categories=Game;
-StartupWMClass=gcg
-EOF
-
-# 7. Use appimagetool to build the final AppImage
-~/bin/appimagetool "$APP_DIR"
-
-echo "AppImage created successfully!"
-BRARY_PATH"
-cd "$HERE/usr/share/gcg"
-exec "$HERE/usr/share/gcg/gcg" --lua start.lua "$@"
+exec "$HERE/usr/bin/gcg" --path "$HERE/usr/share/gcg" "$@"
 EOF
 chmod +x "$APP_DIR/AppRun"
 

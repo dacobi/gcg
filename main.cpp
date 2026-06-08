@@ -32,6 +32,7 @@
 #include <atomic>
 #include <chrono>
 #include <cassert>
+#include <filesystem>
 #include "clplasma.h"
 #include "clmandelbrot.h"
 #include "luascripting.h"
@@ -2346,6 +2347,7 @@ static void print_help() {
     std::printf("SDL3 + Dear ImGui Animated Backgrounds and Text Overlay\n");
     std::printf("Usage: ./gcg [options] [text...]\n\n");
     std::printf("CLI Options:\n");
+    std::printf("  --path DIR            set the working directory (for project.godot and assets)\n");
     std::printf("  --record FILE         start recording frames to FILE on launch\n");
     std::printf("  --lua FILE            run Lua script on launch\n");
     std::printf("  --audio FILE          play audio file on loop\n");
@@ -2575,6 +2577,21 @@ extern "C" void gcg_video_record_audio(const int16_t* pcm_data, int frames) {
 //------------
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 {
+    // --- Pre-parse --path before anything else to set CWD ---
+    bool path_given = false;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--path") == 0 && i + 1 < argc) {
+            try {
+                std::filesystem::current_path(argv[i + 1]);
+                SDL_Log("Changed CWD to project path: %s", argv[i + 1]);
+                path_given = true;
+            } catch (const std::exception& e) {
+                SDL_Log("Failed to change CWD to %s: %s", argv[i + 1], e.what());
+            }
+            break;
+        }
+    }
+
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--help") == 0) {
             print_help();
@@ -2593,7 +2610,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
     // --- Parse CLI arguments ---
     for (int i = 1; i < argc; ++i) {
-        if (std::strcmp(argv[i], "--record") == 0 && i + 1 < argc) {
+        if (std::strcmp(argv[i], "--path") == 0 && i + 1 < argc) {
+            ++i; // skip, already handled
+        } else if (std::strcmp(argv[i], "--record") == 0 && i + 1 < argc) {
             state->cli_record_path = argv[++i];
         } else if (std::strcmp(argv[i], "--lua") == 0 && i + 1 < argc) {
             state->cli_lua_path = argv[++i];
@@ -2679,6 +2698,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             state->cli_plasma_tile = true;       
         } else {
             state->cli_texts.push_back(argv[i]);
+        }
+    }
+
+    if (state->cli_lua_path.empty() && path_given) {
+        if (std::filesystem::exists("init.lua")) {
+            state->cli_lua_path = "init.lua";
+            SDL_Log("Auto-detected init.lua in project path");
         }
     }
     
