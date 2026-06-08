@@ -1655,6 +1655,8 @@ static SDL_GPUTexture* create_text_texture(Renderer* renderer,
         "/usr/share/fonts/liberation/LiberationSans-Bold.ttf",
         "/usr/share/fonts/TTF/Hack-Bold.ttf",
         "/usr/share/fonts/Adwaita/AdwaitaSans-Regular.ttf",
+        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
     };
 
     TTF_Font* font = nullptr;
