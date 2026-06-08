@@ -213,7 +213,7 @@ while true do
         break
     end
 
-    if not luaCheckMutex(myGameOverMutex) then
+    if not luaCheckMutex(myGameOverMutex) and not luaCheckMutex(myLivesLostMutex) then
         -- Mouse movement to control ship
         local rx, ry = ioMouseGetMotion()
         if rx ~= 0 then        
@@ -237,7 +237,11 @@ while true do
                     if not luaCheckMutex(myLivesLostMutex) then
                         myFire = godotGetNodePointer("Projectiles")
                         if myFire then   
-                            godotLoadNode("res://projectile.tscn", sx, sy + 3, 0.0, myFire)
+                            local myAlive = godotGetProperty("alive",myShip)
+                            local nyHit = godotGetProperty("is_hit_anim", myShip)
+                            if myAlive and not myHit then
+                                godotLoadNode("res://projectile.tscn", sx, sy + 3, 0.0, myFire)
+                            end
                         end
                     end
                 end
