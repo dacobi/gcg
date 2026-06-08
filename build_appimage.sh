@@ -63,6 +63,11 @@ cp game_icon.png "$APP_DIR/.DirIcon"
 mkdir -p "$APP_DIR/usr/share/icons/hicolor/256x256/apps"
 cp game_icon.png "$APP_DIR/usr/share/icons/hicolor/256x256/apps/game_icon.png"
 
+mkdir "$APP_DIR/usr/lib/libdecor/"
+mkdir "$APP_DIR/usr/lib/libdecor/plugins-1/"
+
+cp /usr/lib/libdecor/plugins-1/* "$APP_DIR/usr/lib/libdecor/plugins-1/"
+
 # 5. Create AppRun script
 cat > "$APP_DIR/AppRun" << 'EOF'
 #!/bin/bash
