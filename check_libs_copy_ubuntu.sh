@@ -42,9 +42,11 @@ while read -r line; do
     if [[ "$line" =~ =\>\ ([^[:space:]]+) ]]; then
         lib_path="${BASH_REMATCH[1]}"
         
-        # Check if dpkg owns the file
-        if pkg_info=$(dpkg -S "$lib_path" 2>/dev/null); then
-            pkg_name=$(echo "$pkg_info" | cut -d: -f1)
+        real_lib_path=$(realpath "$lib_path" 2>/dev/null || echo "$lib_path")
+        
+        # Check if dpkg owns the file (try both resolved and original path due to usrmerge)
+        if pkg_info=$(dpkg -S "$real_lib_path" 2>/dev/null || dpkg -S "$lib_path" 2>/dev/null); then
+            pkg_name=$(echo "$pkg_info" | cut -d: -f1 | head -n 1)
             
             # Heuristic: Libraries in /lib or /usr/lib that belong to "standard" 
             # packages are often safe to skip in AppImages, but for safety 
