@@ -1795,7 +1795,7 @@ struct AppState {
 
 
     struct LuaCommand {
-        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, PLAY_AUDIO, STOP_AUDIO, REWIND_AUDIO, SKIP_AUDIO, SET_AUDIO_VOLUME, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, WINDOW_RESIZE_ENABLED, CLEAR_AND_RUN, MOUSE_CAPTURE, MOUSE_RELEASE,
+        enum Type { ADD_BOUNCER, DEL_BOUNCER, SET_BG, SELECT_PLASMA, SELECT_FRACTAL, SELECT_USD, SELECT_GODOT, SET_PLASMA_PARAM, SET_FRACTAL_PARAM, SET_USD_PARAM, RANDOMIZE_PLASMA_PALETTE, RANDOMIZE_PLASMA_XY, RANDOMIZE_FRACTAL_PALETTE, SET_AUDIO, PLAY_AUDIO, STOP_AUDIO, REWIND_AUDIO, SKIP_AUDIO, SET_AUDIO_VOLUME, START_RECORD, STOP_RECORD, SET_RECORD_MAX, QUIT_APP, IMGUI_HIDE, IMGUI_SHOW, WINDOW_RESIZE_ENABLED, WINDOW_MAXIMIZE, CLEAR_AND_RUN, MOUSE_CAPTURE, MOUSE_RELEASE,
                     GODOT_GET_NODE_POINTER, GODOT_SELECT_ROOT, GODOT_SELECT_NODE, GODOT_SEARCH_NODE, GODOT_GET_NODE_TYPE, GODOT_GET_NAME, GODOT_GET_CHILD_COUNT, GODOT_PRINT_HIERARCHY, GODOT_RENAME_NODE, GODOT_SET_CAMERA, GODOT_GET_POS, GODOT_SET_POS, GODOT_SET_VISIBLE, GODOT_GET_SCALE, GODOT_SET_SCALE, GODOT_MOVE_X, GODOT_MOVE_Y, GODOT_MOVE_Z,
                     GODOT_MOVE_AND_COLLIDE, GODOT_GET_OVERLAPPING_AREAS, GODOT_CREATE_NODE, GODOT_LOAD_NODE, GODOT_DELETE_NODE,
                     GODOT_ATTACH_SCRIPT, GODOT_SET_PROPERTY, GODOT_GET_PROPERTY, WATCH_PROPERTY, WATCH_SIGNAL };
@@ -2410,7 +2410,8 @@ static void print_help() {
     std::printf("Window Control Functions:\n");
     std::printf("  imGuiHide()                Hides the ImGui overlay\n");
     std::printf("  imGuiShow()                Shows the ImGui overlay\n");
-    std::printf("  ioResizeEnabled(bool)      Toggles window resizability\n\n");
+    std::printf("  ioResizeEnabled(bool)      Toggles window resizability\n");
+    std::printf("  ioMaximizeWindow()         Maximizes the window\n\n");
 
     std::printf("Input Framework Functions:\n");
     std::printf("  ioKBClicked(key)           Returns true if key (\"SDLK_...\") was clicked\n");
@@ -3047,6 +3048,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                 std::lock_guard<std::mutex> lock(state->lua_mutex);
                 state->lua_commands.push({AppState::LuaCommand::WINDOW_RESIZE_ENABLED, "", 0, enabled ? 1.0 : 0.0});
             },
+            [state]() {
+                std::lock_guard<std::mutex> lock(state->lua_mutex);
+                state->lua_commands.push({AppState::LuaCommand::WINDOW_MAXIMIZE, "", 0, 0.0});
+            },
             [state](int score) {
                 return state->highScores.isHigher(score);
             },
@@ -3542,6 +3547,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                state->show_imgui = true;
             } else if (cmd.type == AppState::LuaCommand::WINDOW_RESIZE_ENABLED) {
                SDL_SetWindowResizable(window, (bool)(cmd.value > 0.5));
+            } else if (cmd.type == AppState::LuaCommand::WINDOW_MAXIMIZE) {
+               SDL_MaximizeWindow(window);
             } else if (cmd.type == AppState::LuaCommand::MOUSE_CAPTURE) {
 
                 SDL_SetWindowRelativeMouseMode(window, true);

@@ -14,7 +14,7 @@ LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBG
 #ifdef USE_USD
     SelectUSDFunc selectUSDFunc, SetUSDParamFunc setUSDParamFunc,
 #endif
-    SelectGodotFunc selectGodotFunc, GodotCmdFunc godotFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetResizeEnabledFunc setResizeEnabledFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc)
+    SelectGodotFunc selectGodotFunc, GodotCmdFunc godotFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetResizeEnabledFunc setResizeEnabledFunc, MaximizeWindowFunc maximizeWindowFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc)
     : addBouncerFunc(addFunc), delBouncerFunc(delFunc), setBGFunc(bgFunc), selectFunc(selectFunc), setParamFunc(setParamFunc), randomizeFunc(randomizeFunc), setAudioFunc(audioFunc), 
     playAudioFunc(playAudioFunc), stopAudioFunc(stopAudioFunc), rewindAudioFunc(rewindAudioFunc), skipAudioFunc(skipAudioFunc), setAudioVolumeFunc(setAudioVolumeFunc),
     recordFunc(recordFunc), isRecFunc(isRecFunc),
@@ -22,7 +22,7 @@ LuaScripting::LuaScripting(AddBouncerFunc addFunc, DelBouncerFunc delFunc, SetBG
 #ifdef USE_USD
     selectUSDFunc(selectUSDFunc), setUSDParamFunc(setUSDParamFunc), 
 #endif
-    selectGodotFunc(selectGodotFunc), godotCmdFunc(godotFunc), quitFunc(quitFunc), setImGuiVisibleFunc(setImGuiVisibleFunc), clearAndRunFunc(clearAndRunFunc), setMouseCaptureFunc(setMouseCaptureFunc), setResizeEnabledFunc(setResizeEnabledFunc), checkHighScoreFunc(checkHSFunc), addHighScoreFunc(addHSFunc), loadHighScoreFunc(loadHSFunc), saveHighScoreFunc(saveHSFunc) {
+    selectGodotFunc(selectGodotFunc), godotCmdFunc(godotFunc), quitFunc(quitFunc), setImGuiVisibleFunc(setImGuiVisibleFunc), clearAndRunFunc(clearAndRunFunc), setMouseCaptureFunc(setMouseCaptureFunc), setResizeEnabledFunc(setResizeEnabledFunc), maximizeWindowFunc(maximizeWindowFunc), checkHighScoreFunc(checkHSFunc), addHighScoreFunc(addHSFunc), loadHighScoreFunc(loadHSFunc), saveHighScoreFunc(saveHSFunc) {
     instance = this;
     systemRunning = true;
 }
@@ -175,6 +175,7 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("imGuiHide", lua_imGuiHide);
     reg("imGuiShow", lua_imGuiShow);
     reg("ioResizeEnabled", lua_ioResizeEnabled);
+    reg("ioMaximizeWindow", lua_ioMaximizeWindow);
     reg("ioMouseCapture", lua_ioMouseCapture);
     reg("ioMouseRelease", lua_ioMouseRelease);
 
@@ -779,6 +780,14 @@ int LuaScripting::lua_ioResizeEnabled(lua_State* L) {
         if (self && self->setResizeEnabledFunc) {
             self->setResizeEnabledFunc(enabled);
         }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioMaximizeWindow(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (self && self->maximizeWindowFunc) {
+        self->maximizeWindowFunc();
     }
     return 0;
 }

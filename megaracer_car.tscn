@@ -1,0 +1,73 @@
+[gd_scene load_steps=9 format=3 uid="uid://megaracertrack"]
+
+[ext_resource type="Script" path="res://megaracer_track.gd" id="1_track_script"]
+[ext_resource type="PackedScene" path="res://megaracer_car_model.tscn" id="2_supercar"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_Road"]
+albedo_color = Color(0.04, 0.04, 0.06, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_NeonCyan"]
+albedo_color = Color(0.0, 0.9, 0.9, 1)
+emission_enabled = true
+emission = Color(0.0, 0.9, 0.9, 1)
+emission_energy_multiplier = 2.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_GridLine"]
+albedo_color = Color(0.8, 0.1, 0.8, 1)
+emission_enabled = true
+emission = Color(0.8, 0.1, 0.8, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_cyber"]
+sky_top_color = Color(0.08, 0.02, 0.15, 1)
+sky_horizon_color = Color(0.85, 0.1, 0.6, 1)
+ground_bottom_color = Color(0.04, 0.01, 0.1, 1)
+ground_horizon_color = Color(0.85, 0.1, 0.6, 1)
+
+[sub_resource type="Sky" id="Sky_cyber"]
+sky_material = SubResource("ProceduralSkyMaterial_cyber")
+
+[sub_resource type="Environment" id="Environment_cyber"]
+background_mode = 2
+sky = SubResource("Sky_cyber")
+ambient_light_source = 2
+ambient_light_color = Color(0.2, 0.1, 0.3, 1)
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 1.2
+glow_strength = 1.0
+glow_bloom = 0.4
+
+[node name="MegaRacerScene" type="Node3D"]
+script = ExtResource("1_track_script")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_cyber")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.25, 0.433013, 0.25, 0.933013, 0.25, -0.433013, 0.108253, 0.894810, 0, 10, 0)
+light_color = Color(1.0, 0.6, 0.8, 1)
+light_energy = 2.0
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 28, 70)
+current = true
+fov = 60.0
+
+[node name="Path3D" type="Path3D" parent="."]
+
+[node name="RoadBed" type="CSGPolygon3D" parent="Path3D"]
+material = SubResource("StandardMaterial3D_Road")
+
+[node name="BorderL" type="CSGPolygon3D" parent="Path3D"]
+material = SubResource("StandardMaterial3D_NeonCyan")
+
+[node name="BorderR" type="CSGPolygon3D" parent="Path3D"]
+material = SubResource("StandardMaterial3D_NeonCyan")
+
+[node name="CenterLine" type="CSGPolygon3D" parent="Path3D"]
+material = SubResource("StandardMaterial3D_GridLine")
+
+[node name="SuperCar" parent="." instance=ExtResource("2_supercar")]

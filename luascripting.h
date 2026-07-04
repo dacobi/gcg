@@ -84,6 +84,7 @@ public:
     using ClearAndRunFunc = std::function<void(const std::string& filename, std::shared_ptr<LuaSyncData> sync_data)>;
     using SetMouseCaptureFunc = std::function<void(bool captured)>;
     using SetResizeEnabledFunc = std::function<void(bool enabled)>;
+    using MaximizeWindowFunc = std::function<void()>;
     using CheckHighScoreFunc = std::function<bool(int)>;
     using AddHighScoreFunc = std::function<void(const std::string&, int, int)>;
     using LoadHighScoreFunc = std::function<void()>;
@@ -96,7 +97,7 @@ public:
 #ifdef USE_USD
         SelectUSDFunc selectUSDFunc, SetUSDParamFunc setUSDParamFunc, 
 #endif
-        SelectGodotFunc selectGodotFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetResizeEnabledFunc setResizeEnabledFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc);
+        SelectGodotFunc selectGodotFunc, GodotCmdFunc godotCmdFunc, QuitFunc quitFunc, SetImGuiVisibleFunc setImGuiVisibleFunc, ClearAndRunFunc clearAndRunFunc, SetMouseCaptureFunc setMouseCaptureFunc, SetResizeEnabledFunc setResizeEnabledFunc, MaximizeWindowFunc maximizeWindowFunc, CheckHighScoreFunc checkHSFunc, AddHighScoreFunc addHSFunc, LoadHighScoreFunc loadHSFunc, SaveHighScoreFunc saveHSFunc);
     ~LuaScripting();
 
     bool runScript(const std::string& filename);
@@ -146,6 +147,7 @@ private:
     static int lua_imGuiHide(lua_State* L);
     static int lua_imGuiShow(lua_State* L);
     static int lua_ioResizeEnabled(lua_State* L);
+    static int lua_ioMaximizeWindow(lua_State* L);
     static int lua_ioMouseCapture(lua_State* L);
     static int lua_ioMouseRelease(lua_State* L);
     static int lua_luaCreateMutex(lua_State* L);
@@ -244,6 +246,7 @@ private:
     ClearAndRunFunc clearAndRunFunc;
     SetMouseCaptureFunc setMouseCaptureFunc;
     SetResizeEnabledFunc setResizeEnabledFunc;
+    MaximizeWindowFunc maximizeWindowFunc;
 
     CheckHighScoreFunc checkHighScoreFunc;
     AddHighScoreFunc addHighScoreFunc;

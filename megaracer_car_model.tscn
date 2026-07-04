@@ -1,0 +1,583 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://megaracer_car_physics.gd" id="1_car_physics_script"]
+
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_tire"]
+noise_type = 2
+frequency = 0.08
+fractal_type = 0
+
+[sub_resource type="Gradient" id="Gradient_tire"]
+offsets = PackedFloat32Array(0, 0.4, 0.6, 1)
+colors = PackedColorArray(0.06, 0.06, 0.08, 1, 0.1, 0.1, 0.12, 1, 0.35, 0.35, 0.4, 1, 0.06, 0.06, 0.08, 1)
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_tire"]
+width = 512
+height = 256
+seamless = true
+color_ramp = SubResource("Gradient_tire")
+noise = SubResource("FastNoiseLite_tire")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_TireRubber"]
+albedo_texture = SubResource("NoiseTexture2D_tire")
+metallic = 0.1
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_CyanGlass"]
+transparency = 1
+albedo_color = Color(0.0, 0.8, 0.8, 0.3)
+metallic = 0.8
+roughness = 0.05
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_Chrome"]
+albedo_color = Color(0.8, 0.8, 0.8, 1)
+metallic = 1.0
+roughness = 0.1
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_WhiteGlow"]
+albedo_color = Color(1.0, 1.0, 1.0, 1)
+emission_enabled = true
+emission = Color(1.0, 1.0, 1.0, 1)
+emission_energy_multiplier = 5.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_RedBody"]
+albedo_color = Color(0.85, 0.05, 0.1, 1)
+metallic = 0.9
+roughness = 0.15
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_CarbonBlack"]
+albedo_color = Color(0.12, 0.12, 0.15, 1)
+metallic = 0.2
+roughness = 0.6
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_NeonCyan"]
+albedo_color = Color(0.0, 0.9, 0.9, 1)
+emission_enabled = true
+emission = Color(0.0, 0.9, 0.9, 1)
+emission_energy_multiplier = 0.4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_NeonRed"]
+albedo_color = Color(0.9, 0.05, 0.05, 1)
+emission_enabled = true
+emission = Color(0.9, 0.05, 0.05, 1)
+emission_energy_multiplier = 5.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_YellowHeadlight"]
+albedo_color = Color(1.0, 1.0, 0.6, 1)
+emission_enabled = true
+emission = Color(1.0, 1.0, 0.6, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_car"]
+radius = 0.55
+
+
+[node name="SuperCar" type="CharacterBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+script = ExtResource("1_car_physics_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
+shape = SubResource("SphereShape3D_car")
+
+[node name="Body" type="CSGCombiner3D" parent="."]
+
+[node name="MainBody" type="CSGSphere3D" parent="Body"]
+transform = Transform3D(1.6, 0, 0, 0, 0.5, 0, 0, 0, 3.4, 0, 0.15, 0.1)
+radial_segments = 32
+rings = 16
+material = SubResource("StandardMaterial3D_RedBody")
+
+[node name="Nose" type="CSGSphere3D" parent="Body"]
+transform = Transform3D(1.5, 0, 0, 0, 0.4, 0, 0, 0, 1.8, 0, 0.08, -1.3)
+radial_segments = 32
+rings = 16
+material = SubResource("StandardMaterial3D_RedBody")
+
+[node name="SideCylinderL" type="CSGCylinder3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.7, 0.12, 0.1)
+radius = 0.22
+height = 2.8
+sides = 32
+material = SubResource("StandardMaterial3D_RedBody")
+
+[node name="SideCylinderR" type="CSGCylinder3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0.7, 0.12, 0.1)
+radius = 0.22
+height = 2.8
+sides = 32
+material = SubResource("StandardMaterial3D_RedBody")
+
+[node name="IntakeL" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 0.1, -0.2)
+size = Vector3(0.35, 0.4, 1.6)
+material = SubResource("StandardMaterial3D_CarbonBlack")
+
+[node name="IntakeLCrop" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 0.1, -1.0)
+operation = 2
+size = Vector3(0.28, 0.32, 0.5)
+
+[node name="IntakeR" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 0.1, -0.2)
+size = Vector3(0.35, 0.4, 1.6)
+material = SubResource("StandardMaterial3D_CarbonBlack")
+
+[node name="IntakeRCrop" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 0.1, -1.0)
+operation = 2
+size = Vector3(0.28, 0.32, 0.5)
+
+[node name="RearDeck" type="CSGSphere3D" parent="Body"]
+transform = Transform3D(2.0, 0, 0, 0, 0.45, 0, 0, 0, 1.4, 0, 0.18, 1.1)
+radial_segments = 32
+rings = 16
+material = SubResource("StandardMaterial3D_RedBody")
+
+[node name="SpoilerLSupport" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 0.5, 1.5)
+size = Vector3(0.08, 0.6, 0.3)
+material = SubResource("StandardMaterial3D_CarbonBlack")
+
+[node name="SpoilerRSupport" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 0.5, 1.5)
+size = Vector3(0.08, 0.6, 0.3)
+material = SubResource("StandardMaterial3D_CarbonBlack")
+
+[node name="SpoilerWing" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 1.5)
+size = Vector3(2.2, 0.08, 0.6)
+material = SubResource("StandardMaterial3D_RedBody")
+
+[node name="SpoilerCutL" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.07, 0.8, 1.5)
+size = Vector3(0.1, 0.064, 0.48)
+operation = 2
+material = SubResource("StandardMaterial3D_CarbonBlack")
+
+[node name="SpoilerCutR" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.07, 0.8, 1.5)
+size = Vector3(0.1, 0.064, 0.48)
+operation = 2
+material = SubResource("StandardMaterial3D_CarbonBlack")
+
+[node name="SpoilerLEnd" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.05, 0.8, 1.5)
+size = Vector3(0.06, 0.064, 0.48)
+material = SubResource("StandardMaterial3D_NeonCyan")
+
+[node name="SpoilerREnd" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.05, 0.8, 1.5)
+size = Vector3(0.06, 0.064, 0.48)
+material = SubResource("StandardMaterial3D_NeonCyan")
+
+[node name="RearCavityL" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.15, 1.6)
+size = Vector3(0.4, 0.25, 0.5)
+operation = 2
+material = SubResource("StandardMaterial3D_CarbonBlack")
+
+[node name="RearCavityR" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.15, 1.6)
+size = Vector3(0.4, 0.25, 0.5)
+operation = 2
+material = SubResource("StandardMaterial3D_CarbonBlack")
+
+[node name="ExhaustL1" type="CSGCylinder3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.6, 0.15, 1.75)
+radius = 0.06
+height = 0.3
+sides = 16
+material = SubResource("StandardMaterial3D_Chrome")
+
+[node name="ExhaustL1_Cut" type="CSGCylinder3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.6, 0.15, 1.76)
+radius = 0.048
+height = 0.32
+sides = 16
+operation = 2
+
+[node name="ExhaustL1_Glow" type="CSGSphere3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 0.15, 1.65)
+radius = 0.045
+radial_segments = 16
+rings = 8
+material = SubResource("StandardMaterial3D_WhiteGlow")
+
+[node name="ExhaustL2" type="CSGCylinder3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.4, 0.15, 1.75)
+radius = 0.06
+height = 0.3
+sides = 16
+material = SubResource("StandardMaterial3D_Chrome")
+
+[node name="ExhaustL2_Cut" type="CSGCylinder3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.4, 0.15, 1.76)
+radius = 0.048
+height = 0.32
+sides = 16
+operation = 2
+
+[node name="ExhaustL2_Glow" type="CSGSphere3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.4, 0.15, 1.65)
+radius = 0.045
+radial_segments = 16
+rings = 8
+material = SubResource("StandardMaterial3D_WhiteGlow")
+
+[node name="ExhaustR1" type="CSGCylinder3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0.4, 0.15, 1.75)
+radius = 0.06
+height = 0.3
+sides = 16
+material = SubResource("StandardMaterial3D_Chrome")
+
+[node name="ExhaustR1_Cut" type="CSGCylinder3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0.4, 0.15, 1.76)
+radius = 0.048
+height = 0.32
+sides = 16
+operation = 2
+
+[node name="ExhaustR1_Glow" type="CSGSphere3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0.15, 1.65)
+radius = 0.045
+radial_segments = 16
+rings = 8
+material = SubResource("StandardMaterial3D_WhiteGlow")
+
+[node name="ExhaustR2" type="CSGCylinder3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0.6, 0.15, 1.75)
+radius = 0.06
+height = 0.3
+sides = 16
+material = SubResource("StandardMaterial3D_Chrome")
+
+[node name="ExhaustR2_Cut" type="CSGCylinder3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0.6, 0.15, 1.76)
+radius = 0.048
+height = 0.32
+sides = 16
+operation = 2
+
+[node name="ExhaustR2_Glow" type="CSGSphere3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 0.15, 1.65)
+radius = 0.045
+radial_segments = 16
+rings = 8
+material = SubResource("StandardMaterial3D_WhiteGlow")
+
+[node name="HeadlightPodL" type="CSGCylinder3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.45, 0.15, -1.9)
+radius = 0.18
+height = 0.4
+sides = 32
+operation = 2
+material = SubResource("StandardMaterial3D_CarbonBlack")
+
+[node name="HeadlightPodR" type="CSGCylinder3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0.45, 0.15, -1.9)
+radius = 0.18
+height = 0.4
+sides = 32
+operation = 2
+material = SubResource("StandardMaterial3D_CarbonBlack")
+
+[node name="TaillightL" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7, 0.35, 1.76)
+size = Vector3(0.25, 0.06, 0.05)
+material = SubResource("StandardMaterial3D_NeonRed")
+
+[node name="TaillightR" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7, 0.35, 1.76)
+size = Vector3(0.25, 0.06, 0.05)
+material = SubResource("StandardMaterial3D_NeonRed")
+
+[node name="Canopy" type="CSGSphere3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.55, 0, 0, 0, 2.1, 0, 0.24, -0.2)
+radius = 0.55
+material = SubResource("StandardMaterial3D_CyanGlass")
+
+[node name="GlassCoverL" type="CSGCombiner3D" parent="."]
+material_override = SubResource("StandardMaterial3D_CyanGlass")
+
+[node name="NoseShape" type="CSGSphere3D" parent="GlassCoverL"]
+transform = Transform3D(1.505, 0, 0, 0, 0.402, 0, 0, 0, 1.805, 0, 0.08, -1.3)
+radial_segments = 32
+rings = 16
+
+[node name="CylinderCut" type="CSGCylinder3D" parent="GlassCoverL"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.45, 0.15, -1.9)
+radius = 0.18
+height = 0.5
+sides = 32
+operation = 1
+
+[node name="GlassCoverR" type="CSGCombiner3D" parent="."]
+material_override = SubResource("StandardMaterial3D_CyanGlass")
+
+[node name="NoseShape" type="CSGSphere3D" parent="GlassCoverR"]
+transform = Transform3D(1.505, 0, 0, 0, 0.402, 0, 0, 0, 1.805, 0, 0.08, -1.3)
+radial_segments = 32
+rings = 16
+
+[node name="CylinderCut" type="CSGCylinder3D" parent="GlassCoverR"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0.45, 0.15, -1.9)
+radius = 0.18
+height = 0.5
+sides = 32
+operation = 1
+
+[node name="HeadlightBulbL" type="CSGSphere3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.45, 0.15, -1.75)
+radius = 0.06
+radial_segments = 32
+rings = 16
+material = SubResource("StandardMaterial3D_YellowHeadlight")
+
+[node name="HeadlightBeamL" type="SpotLight3D" parent="HeadlightBulbL"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.15)
+light_color = Color(1.0, 1.0, 0.8, 1)
+light_energy = 6.0
+spot_range = 18.0
+spot_angle = 30.0
+shadow_enabled = true
+
+[node name="HeadlightBulbR" type="CSGSphere3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, 0.15, -1.75)
+radius = 0.06
+radial_segments = 32
+rings = 16
+material = SubResource("StandardMaterial3D_YellowHeadlight")
+
+[node name="HeadlightBeamR" type="SpotLight3D" parent="HeadlightBulbR"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.15)
+light_color = Color(1.0, 1.0, 0.8, 1)
+light_energy = 6.0
+spot_range = 18.0
+spot_angle = 30.0
+shadow_enabled = true
+
+[node name="FrontLeftSteerPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 0.1, -1.1)
+
+[node name="FrontLeftWheel" type="CSGCylinder3D" parent="FrontLeftSteerPivot"]
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0)
+radius = 0.4
+height = 0.3
+sides = 32
+material = SubResource("StandardMaterial3D_TireRubber")
+
+[node name="Rim" type="CSGCylinder3D" parent="FrontLeftSteerPivot/FrontLeftWheel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
+radius = 0.28
+height = 0.04
+sides = 32
+material = SubResource("StandardMaterial3D_NeonCyan")
+
+[node name="Tread1" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.4)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread2" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel"]
+transform = Transform3D(0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, 0.7071, 0.2828, 0, 0.2828)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread3" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.4, 0, 0)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread4" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel"]
+transform = Transform3D(-0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, -0.7071, 0.2828, 0, -0.2828)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread5" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -0.4)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread6" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel"]
+transform = Transform3D(-0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, -0.7071, -0.2828, 0, -0.2828)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread7" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -0.4, 0, 0)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread8" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel"]
+transform = Transform3D(0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, 0.7071, -0.2828, 0, 0.2828)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="FrontRightSteerPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 0.1, -1.1)
+
+[node name="FrontRightWheel" type="CSGCylinder3D" parent="FrontRightSteerPivot"]
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0)
+radius = 0.4
+height = 0.3
+sides = 32
+material = SubResource("StandardMaterial3D_TireRubber")
+
+[node name="Rim" type="CSGCylinder3D" parent="FrontRightSteerPivot/FrontRightWheel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.16, 0)
+radius = 0.28
+height = 0.04
+sides = 32
+material = SubResource("StandardMaterial3D_NeonCyan")
+
+[node name="Tread1" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.4)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread2" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel"]
+transform = Transform3D(0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, 0.7071, 0.2828, 0, 0.2828)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread3" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.4, 0, 0)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread4" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel"]
+transform = Transform3D(-0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, -0.7071, 0.2828, 0, -0.2828)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread5" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -0.4)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread6" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel"]
+transform = Transform3D(-0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, -0.7071, -0.2828, 0, -0.2828)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread7" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -0.4, 0, 0)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+[node name="Tread8" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel"]
+transform = Transform3D(0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, 0.7071, -0.2828, 0, 0.2828)
+operation = 2
+size = Vector3(0.08, 0.32, 0.12)
+
+
+[node name="RearLeftWheel" type="CSGCylinder3D" parent="."]
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, -0.95, 0.15, 0.9)
+radius = 0.5
+height = 0.4
+sides = 32
+material = SubResource("StandardMaterial3D_TireRubber")
+
+[node name="Rim" type="CSGCylinder3D" parent="RearLeftWheel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.21, 0)
+radius = 0.35
+height = 0.04
+sides = 32
+material = SubResource("StandardMaterial3D_NeonCyan")
+
+[node name="Tread1" type="CSGBox3D" parent="RearLeftWheel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.5)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread2" type="CSGBox3D" parent="RearLeftWheel"]
+transform = Transform3D(0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, 0.7071, 0.3536, 0, 0.3536)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread3" type="CSGBox3D" parent="RearLeftWheel"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.5, 0, 0)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread4" type="CSGBox3D" parent="RearLeftWheel"]
+transform = Transform3D(-0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, -0.7071, 0.3536, 0, -0.3536)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread5" type="CSGBox3D" parent="RearLeftWheel"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -0.5)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread6" type="CSGBox3D" parent="RearLeftWheel"]
+transform = Transform3D(-0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, -0.7071, -0.3536, 0, -0.3536)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread7" type="CSGBox3D" parent="RearLeftWheel"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -0.5, 0, 0)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread8" type="CSGBox3D" parent="RearLeftWheel"]
+transform = Transform3D(0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, 0.7071, -0.3536, 0, 0.3536)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="RearRightWheel" type="CSGCylinder3D" parent="."]
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 0.95, 0.15, 0.9)
+radius = 0.5
+height = 0.4
+sides = 32
+material = SubResource("StandardMaterial3D_TireRubber")
+
+[node name="Rim" type="CSGCylinder3D" parent="RearRightWheel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.21, 0)
+radius = 0.35
+height = 0.04
+sides = 32
+material = SubResource("StandardMaterial3D_NeonCyan")
+
+[node name="Tread1" type="CSGBox3D" parent="RearRightWheel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.5)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread2" type="CSGBox3D" parent="RearRightWheel"]
+transform = Transform3D(0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, 0.7071, 0.3536, 0, 0.3536)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread3" type="CSGBox3D" parent="RearRightWheel"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.5, 0, 0)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread4" type="CSGBox3D" parent="RearRightWheel"]
+transform = Transform3D(-0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, -0.7071, 0.3536, 0, -0.3536)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread5" type="CSGBox3D" parent="RearRightWheel"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -0.5)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread6" type="CSGBox3D" parent="RearRightWheel"]
+transform = Transform3D(-0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, -0.7071, -0.3536, 0, -0.3536)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread7" type="CSGBox3D" parent="RearRightWheel"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -0.5, 0, 0)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
+
+[node name="Tread8" type="CSGBox3D" parent="RearRightWheel"]
+transform = Transform3D(0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, 0.7071, -0.3536, 0, 0.3536)
+operation = 2
+size = Vector3(0.08, 0.42, 0.12)
