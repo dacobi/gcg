@@ -192,6 +192,7 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("ioMousePos", lua_ioMousePos);
     reg("ioMouseMoved", lua_ioMouseMoved);
     reg("ioMouseGetMotion", lua_ioMouseGetMotion);
+    reg("ioMouseWheelMotion", lua_ioMouseWheelMotion);
     reg("ioMouseBTNClicked", lua_ioMouseBTNClicked);
     reg("ioMouseBTNDown", lua_ioMouseBTNDown);
     reg("ioMouseBTNUp", lua_ioMouseBTNUp);
@@ -857,6 +858,12 @@ int LuaScripting::lua_ioMouseGetMotion(lua_State* L) {
     lua_pushinteger(L, rx);
     lua_pushinteger(L, ry);
     return 2;
+}
+
+int LuaScripting::lua_ioMouseWheelMotion(lua_State* L) {
+    int w = InputManager::getInstance().lua_getMouseWheelMotion();
+    lua_pushinteger(L, w);
+    return 1;
 }
 
 int LuaScripting::lua_ioMouseBTNClicked(lua_State* L) {

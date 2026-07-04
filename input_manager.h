@@ -25,6 +25,7 @@ public:
     void lua_getMousePos(int& x, int& y);
     bool lua_hasMouseMoved();
     void lua_getMouseMotion(int& rx, int& ry);
+    int lua_getMouseWheelMotion();
 
     bool lua_isMouseBtnHit(int button);
     bool lua_isMouseBtnDown(int button);
@@ -53,6 +54,7 @@ private:
     
     int mouseDeltaXAccum = 0;
     int mouseDeltaYAccum = 0;
+    int mouseWheelAccum = 0;
     bool mouseMovedAccum = false;
 
     std::unordered_set<int> mouseBtnsClickedAccum;

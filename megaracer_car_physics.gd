@@ -31,10 +31,10 @@ var body_nodes = []
 var body_base_y = {}
 
 # Suspension Mount offsets (relative to car origin)
-var mount_FL = Vector3(-0.9, 0.1, -1.1)
-var mount_FR = Vector3(0.9, 0.1, -1.1)
-var mount_RL = Vector3(-0.95, 0.15, 0.9)
-var mount_RR = Vector3(0.95, 0.15, 0.9)
+var mount_FL = Vector3(-1.15, -0.1, -1.1)
+var mount_FR = Vector3(1.15, -0.1, -1.1)
+var mount_RL = Vector3(-1.3, -0.1, 0.9)
+var mount_RR = Vector3(1.3, -0.1, 0.9)
 var rest_length = 0.5
 var max_travel = 0.25
 
@@ -234,6 +234,17 @@ func update_visuals(delta, d_FL, d_FR, d_RL, d_RR):
 		wheel_RL.position.y = mount_RL.y - td_RL + radius_rear
 	if wheel_RR:
 		wheel_RR.position.y = mount_RR.y - td_RR + radius_rear
+		
+	# Pivot Axles to follow wheels
+	var up = global_transform.basis.y
+	var anchor_FL = get_node_or_null("AxleAnchorFL")
+	if anchor_FL and pivot_FL: anchor_FL.look_at(pivot_FL.global_position, up)
+	var anchor_FR = get_node_or_null("AxleAnchorFR")
+	if anchor_FR and pivot_FR: anchor_FR.look_at(pivot_FR.global_position, up)
+	var anchor_RL = get_node_or_null("AxleAnchorRL")
+	if anchor_RL and wheel_RL: anchor_RL.look_at(wheel_RL.global_position, up)
+	var anchor_RR = get_node_or_null("AxleAnchorRR")
+	if anchor_RR and wheel_RR: anchor_RR.look_at(wheel_RR.global_position, up)
 		
 	# Spin wheels
 	var wheel_FL = get_node_or_null("FrontLeftSteerPivot/FrontLeftWheel")

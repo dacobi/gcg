@@ -11,35 +11,85 @@ print("Press ESC to exit.\n")
 godotSelectRoot()
 local supercar = godotGetNodePointer("SuperCar")
 
+local is_paused = false
+local orbit_yaw = 0.0
+local orbit_pitch = 0.5
+local orbit_dist = 12.0
+
 while true do
-	-- Allow exiting via ESC
-	if ioKBClicked("SDLK_ESCAPE") then
+	-- Handle Q to quit (moved from ESCAPE)
+	if ioKBClicked("SDLK_q") then
 		print("Exiting game logic...")
 		break
 	end
 
+	-- Allow entering Globe Camera via ESC
+	if ioKBClicked("SDLK_ESCAPE") then
+		is_paused = not is_paused
+		
+		-- track is the MegaRacerScene root
+		local track = godotGetNodePointer("MegaRacerScene")
+		godotSetProperty("is_paused", is_paused, track)
+		
+		if is_paused then
+			godotSetProperty("process_mode", 4, supercar) -- Disable car physics
+			ioMouseCapture() -- Hide and lock mouse for infinite panning
+		else
+			godotSetProperty("process_mode", 0, supercar) -- Re-enable physics
+			ioMouseRelease() -- Restore mouse
+		end
+	end
+
 	if supercar then
-		-- Read arrow keys
-		local accel = 0.0
-		local brake = 0.0
-		local steer = 0.0
+		if is_paused then
+			-- Globe camera controls
+			local dx, dy = ioMouseGetMotion()
+			orbit_yaw = orbit_yaw - dx * 0.005
+			orbit_pitch = orbit_pitch + dy * 0.005
+			
+			if orbit_pitch > 1.5 then orbit_pitch = 1.5 end
+			if orbit_pitch < -1.5 then orbit_pitch = -1.5 end
+			
+			-- Process new Mouse Wheel input for zooming
+			local wheel = ioMouseWheelMotion()
+			if wheel then
+				orbit_dist = orbit_dist - wheel * 2.0
+			end
+			
+			-- Keep keyboard W/S fallbacks
+			if ioKBDown("w") then orbit_dist = orbit_dist - 0.5 end
+			if ioKBDown("s") then orbit_dist = orbit_dist + 0.5 end
+			
+			if orbit_dist < 3.0 then orbit_dist = 3.0 end
+			if orbit_dist > 50.0 then orbit_dist = 50.0 end
+			
+			local track = godotGetNodePointer("MegaRacerScene")
+			godotSetProperty("orbit_yaw", orbit_yaw, track)
+			godotSetProperty("orbit_pitch", orbit_pitch, track)
+			godotSetProperty("orbit_dist", orbit_dist, track)
+		else
+			-- Read arrow keys for driving
+			local accel = 0.0
+			local brake = 0.0
+			local steer = 0.0
 
-		if ioKBDown("Up") then
-			accel = 1.0
-		end
-		if ioKBDown("Down") then
-			brake = 1.0
-		end
-		if ioKBDown("Left") then
-			steer = -1.0
-		elseif ioKBDown("Right") then
-			steer = 1.0
-		end
+			if ioKBDown("Up") then
+				accel = 1.0
+			end
+			if ioKBDown("Down") then
+				brake = 1.0
+			end
+			if ioKBDown("Left") then
+				steer = -1.0
+			elseif ioKBDown("Right") then
+				steer = 1.0
+			end
 
-		-- Pass controls to the Godot CharacterBody3D node properties
-		godotSetProperty("accel_input", accel, supercar)
-		godotSetProperty("brake_input", brake, supercar)
-		godotSetProperty("steer_input", steer, supercar)
+			-- Pass controls to the Godot CharacterBody3D node properties
+			godotSetProperty("accel_input", accel, supercar)
+			godotSetProperty("brake_input", brake, supercar)
+			godotSetProperty("steer_input", steer, supercar)
+		end
 	end
 
 	delay(10) -- 100 FPS input update loop

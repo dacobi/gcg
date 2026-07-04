@@ -21,6 +21,7 @@ void InputManager::clearAccumulatedState() {
     mouseBtnsReleasedAccum.clear();
     mouseDeltaXAccum = 0;
     mouseDeltaYAccum = 0;
+    mouseWheelAccum = 0;
     mouseMovedAccum = false;
 }
 
@@ -41,6 +42,8 @@ void InputManager::processEvent(const SDL_Event* event) {
         mouseDeltaXAccum += (int)event->motion.xrel;
         mouseDeltaYAccum += (int)event->motion.yrel;
         mouseMovedAccum = true;
+    } else if (event->type == SDL_EVENT_MOUSE_WHEEL) {
+        mouseWheelAccum += (int)event->wheel.y;
     } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
         mouseBtnsDown[event->button.button] = true;
         mouseBtnsClickedAccum.insert(event->button.button);
@@ -110,6 +113,13 @@ void InputManager::lua_getMouseMotion(int& rx, int& ry) {
     ry = mouseDeltaYAccum;
     mouseDeltaXAccum = 0;
     mouseDeltaYAccum = 0;
+}
+
+int InputManager::lua_getMouseWheelMotion() {
+    std::lock_guard<std::mutex> lock(inputMutex);
+    int w = mouseWheelAccum;
+    mouseWheelAccum = 0;
+    return w;
 }
 
 bool InputManager::lua_isMouseBtnHit(int button) {

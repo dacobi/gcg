@@ -167,6 +167,7 @@ private:
     static int lua_ioMousePos(lua_State* L);
     static int lua_ioMouseMoved(lua_State* L);
     static int lua_ioMouseGetMotion(lua_State* L);
+    static int lua_ioMouseWheelMotion(lua_State* L);
     static int lua_ioMouseBTNClicked(lua_State* L);
     static int lua_ioMouseBTNDown(lua_State* L);
     static int lua_ioMouseBTNUp(lua_State* L);

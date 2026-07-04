@@ -7,6 +7,11 @@ extends Node3D
 @onready var center_line = $Path3D/CenterLine
 @onready var supercar = $SuperCar
 
+var is_paused = false
+var orbit_yaw = 0.0
+var orbit_pitch = 0.5
+var orbit_dist = 12.0
+
 func _ready():
 	var curve = Curve3D.new()
 	
@@ -69,16 +74,27 @@ func _ready():
 func _physics_process(delta):
 	var camera_node = get_node_or_null("Camera3D")
 	if supercar and camera_node:
-		# Camera target: slightly behind and above the car relative to its basis
-		var offset = Vector3(0, 2.2, 6.0)
-		var target_pos = supercar.global_position + supercar.global_transform.basis * offset
-		
-		# Smoothly interpolate position
-		camera_node.global_position = camera_node.global_position.lerp(target_pos, 5.0 * delta)
-		
-		# Look at the car (using the car's local up vector to tilt/bank with it)
-		var target_look = supercar.global_position + supercar.global_transform.basis * Vector3(0, 0.4, -0.5)
-		camera_node.look_at(target_look, supercar.global_transform.basis.y)
+		if is_paused:
+			var target_pos = supercar.global_position
+			var cam_pos = target_pos + Vector3(
+				sin(orbit_yaw) * cos(orbit_pitch),
+				sin(orbit_pitch),
+				cos(orbit_yaw) * cos(orbit_pitch)
+			) * orbit_dist
+			
+			camera_node.global_position = camera_node.global_position.lerp(cam_pos, 15.0 * delta)
+			camera_node.look_at(target_pos, Vector3.UP)
+		else:
+			# Normal chase camera
+			var offset = Vector3(0, 2.2, 6.0)
+			var target_pos = supercar.global_position + supercar.global_transform.basis * offset
+			
+			# Smoothly interpolate position
+			camera_node.global_position = camera_node.global_position.lerp(target_pos, 5.0 * delta)
+			
+			# Look at the car (using the car's local up vector to tilt/bank with it)
+			var target_look = supercar.global_position + supercar.global_transform.basis * Vector3(0, 0.4, -0.5)
+			camera_node.look_at(target_look, supercar.global_transform.basis.y)
 
 func setup_polygons():
 	# Configure the road bed (dark grey surface with collision enabled)
