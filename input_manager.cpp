@@ -214,7 +214,17 @@ int InputManager::lua_ioJoystickOpen(int index) {
     SDL_JoystickID id = SDL_GetJoystickID(joy);
     handleToJoystick[handle] = joy;
     idToHandle[id] = handle;
-    joyStates[handle] = JoystickState();
+    
+    JoystickState state;
+    int num_axes = SDL_GetNumJoystickAxes(joy);
+    for (int i = 0; i < num_axes; ++i) {
+        Sint16 initial_state = 0;
+        if (SDL_GetJoystickAxisInitialState(joy, i, &initial_state)) {
+            state.axes[i] = initial_state / 32767.0f;
+        }
+    }
+    joyStates[handle] = state;
+    
     return handle;
 }
 

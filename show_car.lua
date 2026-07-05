@@ -11,6 +11,11 @@ print("Press ESC to exit.\n")
 godotSelectRoot()
 local supercar = godotGetNodePointer("SuperCar")
 
+local joy_handle = ioJoystickOpen(0)
+if joy_handle >= 0 then
+	print("Joystick 0 connected for driving!")
+end
+
 local is_paused = false
 local orbit_yaw = 0.0
 local orbit_pitch = 0.5
@@ -68,21 +73,35 @@ while true do
 			godotSetProperty("orbit_pitch", orbit_pitch, track)
 			godotSetProperty("orbit_dist", orbit_dist, track)
 		else
-			-- Read arrow keys for driving
 			local accel = 0.0
 			local brake = 0.0
 			local steer = 0.0
 
-			if ioKBDown("Up") then
-				accel = 1.0
-			end
-			if ioKBDown("Down") then
-				brake = 1.0
-			end
-			if ioKBDown("Left") then
-				steer = -1.0
-			elseif ioKBDown("Right") then
-				steer = 1.0
+			if joy_handle >= 0 then
+				-- Read analog values (Triggers: -1.0 to 1.0 -> 0.0 to 1.0)
+				local r2 = ioJoystickGetAxis(joy_handle, 5)
+				local l2 = ioJoystickGetAxis(joy_handle, 4)
+				accel = (r2 + 1.0) * 0.5
+				brake = (l2 + 1.0) * 0.5
+				steer = ioJoystickGetAxis(joy_handle, 0)
+				
+				-- Tiny deadzones
+				if accel < 0.05 then accel = 0.0 end
+				if brake < 0.05 then brake = 0.0 end
+				if steer > -0.1 and steer < 0.1 then steer = 0.0 end
+			else
+				-- Read arrow keys for driving fallback
+				if ioKBDown("Up") then
+					accel = 1.0
+				end
+				if ioKBDown("Down") then
+					brake = 1.0
+				end
+				if ioKBDown("Left") then
+					steer = -1.0
+				elseif ioKBDown("Right") then
+					steer = 1.0
+				end
 			end
 
 			-- Pass controls to the Godot CharacterBody3D node properties
