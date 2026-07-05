@@ -31,6 +31,17 @@ public:
     bool lua_isMouseBtnDown(int button);
     bool lua_isMouseBtnUp(int button);
 
+    int lua_ioJoystickOpen(int index);
+    void lua_ioJoystickClose(int handle);
+    float lua_ioJoystickGetAxis(int handle, int axis_index);
+    bool lua_ioJoystickGetButtonDown(int handle, int button_index);
+    bool lua_ioJoystickGetButtonHit(int handle, int button_index);
+    bool lua_ioJoystickGetButtonUp(int handle, int button_index);
+    int lua_ioJoystickGetHat(int handle, int hat_index);
+    int lua_ioJoystickGetNumAxes(int handle);
+    int lua_ioJoystickGetNumButtons(int handle);
+    int lua_ioJoystickGetNumHats(int handle);
+
     static SDL_Keycode stringToKeycode(const std::string& keyName);
 
 private:
@@ -59,6 +70,18 @@ private:
 
     std::unordered_set<int> mouseBtnsClickedAccum;
     std::unordered_set<int> mouseBtnsReleasedAccum;
+
+    struct JoystickState {
+        std::unordered_map<int, bool> btnsDown;
+        std::unordered_set<int> btnsHit;
+        std::unordered_set<int> btnsReleased;
+        std::unordered_map<int, float> axes;
+        std::unordered_map<int, int> hats;
+    };
+    int nextJoystickHandle = 0;
+    std::unordered_map<int, SDL_Joystick*> handleToJoystick;
+    std::unordered_map<SDL_JoystickID, int> idToHandle;
+    std::unordered_map<int, JoystickState> joyStates;
 };
 
 #endif

@@ -172,6 +172,18 @@ private:
     static int lua_ioMouseBTNDown(lua_State* L);
     static int lua_ioMouseBTNUp(lua_State* L);
 
+    // Joystick API
+    static int lua_ioJoystickOpen(lua_State* L);
+    static int lua_ioJoystickClose(lua_State* L);
+    static int lua_ioJoystickGetAxis(lua_State* L);
+    static int lua_ioJoystickGetButtonDown(lua_State* L);
+    static int lua_ioJoystickGetButtonHit(lua_State* L);
+    static int lua_ioJoystickGetButtonUp(lua_State* L);
+    static int lua_ioJoystickGetHat(lua_State* L);
+    static int lua_ioJoystickGetNumAxes(lua_State* L);
+    static int lua_ioJoystickGetNumButtons(lua_State* L);
+    static int lua_ioJoystickGetNumHats(lua_State* L);
+
     // Godot Manipulation
     static int lua_godotGetNodePointer(lua_State* L);
     static int lua_godotSelectRoot(lua_State* L);

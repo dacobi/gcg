@@ -1723,6 +1723,8 @@ struct AppState {
     bool cli_plasma_tile = false;
     int cli_win_w = 0;
     int cli_win_h = 0;
+    int cli_jd_index = -1;
+    int diag_joystick_handle = -1;
 
     PlasmaShader* selected_plasma = nullptr;
     MandelbrotOpenCL* selected_mandel = nullptr;
@@ -2364,6 +2366,7 @@ static void print_help() {
     std::printf("  --w N                 set window width (forces non-maximized)\n");
     std::printf("  --h N                 set window height (forces non-maximized)\n");
     std::printf("  --plasma-tiles        render plasma in a tiled grid (for stress testing)\n");
+    std::printf("  --jd NUM              open diagnostic panel for joystick NUM\n");
     std::printf("  --help                show this help message\n\n");
     
     std::printf("Lua Scripting Functions:\n");
@@ -2424,7 +2427,18 @@ static void print_help() {
     std::printf("  ioMouseBTNDown(btn)        Returns true if mouse button is down\n");
     std::printf("  ioMouseBTNUp(btn)          Returns true if mouse button was released\n");
     std::printf("  ioMouseCapture()           Captures mouse (relative mode)\n");
-    std::printf("  ioMouseRelease()           Releases mouse\n\n");
+    std::printf("  ioMouseRelease()           Releases mouse\n");
+    std::printf("  ioMouseWheelMotion()       Returns mouse wheel movement (-1, 0, 1)\n");
+    std::printf("  ioJoystickOpen(id)         Opens joystick and returns handle (-1 on failure)\n");
+    std::printf("  ioJoystickClose(handle)    Closes joystick by handle\n");
+    std::printf("  ioJoystickGetAxis(h, a)    Returns axis value (-1.0 to 1.0)\n");
+    std::printf("  ioJoystickGetButtonDown(h,b) Returns true if button is held\n");
+    std::printf("  ioJoystickGetButtonUp(h,b) Returns true if button was released\n");
+    std::printf("  ioJoystickGetButtonHit(h,b) Returns true if button was just pressed\n");
+    std::printf("  ioJoystickGetHat(h, hat)   Returns hat bitmask (1=Up, 2=Right, 4=Down, 8=Left)\n");
+    std::printf("  ioJoystickGetNumAxes(h)    Returns number of axes\n");
+    std::printf("  ioJoystickGetNumButtons(h) Returns number of buttons\n");
+    std::printf("  ioJoystickGetNumHats(h)    Returns number of hats\n\n");
 
     std::printf("Godot Manipulation Functions:\n");
     std::printf("  godotSelectRoot()          Selects scene root\n");
@@ -2700,6 +2714,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             state->record_gui = true;
         } else if (std::strcmp(argv[i], "--plasma-tiles") == 0) {
             state->cli_plasma_tile = true;       
+        } else if (std::strcmp(argv[i], "--jd") == 0 && i + 1 < argc) {
+            state->cli_jd_index = std::atoi(argv[++i]);
         } else {
             state->cli_texts.push_back(argv[i]);
         }
@@ -2721,9 +2737,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "1");
 
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK)) {
         std::printf("SDL_Init error: %s\n", SDL_GetError());
         return SDL_APP_FAILURE;
+    }
+
+    if (state->cli_jd_index >= 0) {
+        state->diag_joystick_handle = InputManager::getInstance().lua_ioJoystickOpen(state->cli_jd_index);
     }
 
     float scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
@@ -3182,6 +3202,100 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
     }
 
     return SDL_APP_CONTINUE;
+}
+
+static void RenderJoystickDiagnostic(int handle) {
+    if (handle < 0) return;
+    
+    ImGui::Begin("PS5 Diagnostic Panel");
+    
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    ImVec2 center = ImVec2(p.x + 200, p.y + 120);
+    
+    draw_list->AddRectFilled(ImVec2(center.x - 150, center.y - 80), ImVec2(center.x + 150, center.y + 80), IM_COL32(50, 50, 50, 255), 40.0f);
+    
+    float lx = InputManager::getInstance().lua_ioJoystickGetAxis(handle, 0);
+    float ly = InputManager::getInstance().lua_ioJoystickGetAxis(handle, 1);
+    bool l3 = InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, 7);
+    ImVec2 lstick(center.x - 60, center.y + 40);
+    draw_list->AddCircleFilled(lstick, 30.0f, IM_COL32(30, 30, 30, 255));
+    draw_list->AddCircleFilled(ImVec2(lstick.x + lx * 20, lstick.y + ly * 20), 15.0f, l3 ? IM_COL32(255, 100, 100, 255) : IM_COL32(100, 100, 255, 255));
+
+    float rx = InputManager::getInstance().lua_ioJoystickGetAxis(handle, 2);
+    float ry = InputManager::getInstance().lua_ioJoystickGetAxis(handle, 3);
+    bool r3 = InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, 8);
+    ImVec2 rstick(center.x + 60, center.y + 40);
+    draw_list->AddCircleFilled(rstick, 30.0f, IM_COL32(30, 30, 30, 255));
+    draw_list->AddCircleFilled(ImVec2(rstick.x + rx * 20, rstick.y + ry * 20), 15.0f, r3 ? IM_COL32(255, 100, 100, 255) : IM_COL32(100, 100, 255, 255));
+
+    int hat = InputManager::getInstance().lua_ioJoystickGetHat(handle, 0);
+    ImVec2 dpad(center.x - 100, center.y - 30);
+    draw_list->AddRectFilled(ImVec2(dpad.x - 10, dpad.y - 30), ImVec2(dpad.x + 10, dpad.y + 30), IM_COL32(70, 70, 70, 255), 5.0f);
+    draw_list->AddRectFilled(ImVec2(dpad.x - 30, dpad.y - 10), ImVec2(dpad.x + 30, dpad.y + 10), IM_COL32(70, 70, 70, 255), 5.0f);
+    if (hat & 1) draw_list->AddRectFilled(ImVec2(dpad.x - 10, dpad.y - 30), ImVec2(dpad.x + 10, dpad.y), IM_COL32(100, 255, 100, 255), 5.0f);
+    if (hat & 2) draw_list->AddRectFilled(ImVec2(dpad.x, dpad.y - 10), ImVec2(dpad.x + 30, dpad.y + 10), IM_COL32(100, 255, 100, 255), 5.0f);
+    if (hat & 4) draw_list->AddRectFilled(ImVec2(dpad.x - 10, dpad.y), ImVec2(dpad.x + 10, dpad.y + 30), IM_COL32(100, 255, 100, 255), 5.0f);
+    if (hat & 8) draw_list->AddRectFilled(ImVec2(dpad.x - 30, dpad.y - 10), ImVec2(dpad.x, dpad.y + 10), IM_COL32(100, 255, 100, 255), 5.0f);
+
+    ImVec2 face(center.x + 100, center.y - 30);
+    bool bCross = InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, 0);
+    bool bCircle = InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, 1);
+    bool bSquare = InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, 2);
+    bool bTri = InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, 3);
+    
+    draw_list->AddCircleFilled(ImVec2(face.x, face.y + 20), 10.0f, bCross ? IM_COL32(100, 100, 255, 255) : IM_COL32(70, 70, 70, 255));
+    draw_list->AddCircleFilled(ImVec2(face.x + 20, face.y), 10.0f, bCircle ? IM_COL32(255, 100, 100, 255) : IM_COL32(70, 70, 70, 255));
+    draw_list->AddCircleFilled(ImVec2(face.x - 20, face.y), 10.0f, bSquare ? IM_COL32(255, 100, 255, 255) : IM_COL32(70, 70, 70, 255));
+    draw_list->AddCircleFilled(ImVec2(face.x, face.y - 20), 10.0f, bTri ? IM_COL32(100, 255, 100, 255) : IM_COL32(70, 70, 70, 255));
+
+    bool l1 = InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, 9);
+    bool r1 = InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, 10);
+    float l2 = InputManager::getInstance().lua_ioJoystickGetAxis(handle, 4);
+    float r2 = InputManager::getInstance().lua_ioJoystickGetAxis(handle, 5);
+    
+    draw_list->AddRectFilled(ImVec2(center.x - 120, center.y - 95), ImVec2(center.x - 80, center.y - 80), l1 ? IM_COL32(255,255,255,255) : IM_COL32(70,70,70,255), 5.0f);
+    draw_list->AddRectFilled(ImVec2(center.x + 80, center.y - 95), ImVec2(center.x + 120, center.y - 80), r1 ? IM_COL32(255,255,255,255) : IM_COL32(70,70,70,255), 5.0f);
+    
+    float l2_val = (l2 + 1.0f) * 0.5f;
+    float r2_val = (r2 + 1.0f) * 0.5f;
+    draw_list->AddRectFilled(ImVec2(center.x - 120, center.y - 120), ImVec2(center.x - 80, center.y - 100), IM_COL32(50,50,50,255), 2.0f);
+    draw_list->AddRectFilled(ImVec2(center.x - 120, center.y - 120 + 20 * (1 - l2_val)), ImVec2(center.x - 80, center.y - 100), IM_COL32(255,200,100,255), 2.0f);
+    
+    draw_list->AddRectFilled(ImVec2(center.x + 80, center.y - 120), ImVec2(center.x + 120, center.y - 100), IM_COL32(50,50,50,255), 2.0f);
+    draw_list->AddRectFilled(ImVec2(center.x + 80, center.y - 120 + 20 * (1 - r2_val)), ImVec2(center.x + 120, center.y - 100), IM_COL32(255,200,100,255), 2.0f);
+
+    bool touch = InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, 11);
+    draw_list->AddRectFilled(ImVec2(center.x - 40, center.y - 60), ImVec2(center.x + 40, center.y), touch ? IM_COL32(150,150,150,255) : IM_COL32(30,30,30,255), 10.0f);
+
+    bool share = InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, 4);
+    bool ps = InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, 5);
+    bool options = InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, 6);
+    
+    draw_list->AddRectFilled(ImVec2(center.x - 60, center.y - 45), ImVec2(center.x - 45, center.y - 25), share ? IM_COL32(200,200,255,255) : IM_COL32(40,40,40,255), 2.0f);
+    draw_list->AddCircleFilled(ImVec2(center.x, center.y + 25), 8.0f, ps ? IM_COL32(255,255,255,255) : IM_COL32(20,20,20,255));
+    draw_list->AddRectFilled(ImVec2(center.x + 45, center.y - 45), ImVec2(center.x + 60, center.y - 25), options ? IM_COL32(200,200,255,255) : IM_COL32(40,40,40,255), 2.0f);
+
+    ImGui::Dummy(ImVec2(400, 250));
+    
+    int numAxes = InputManager::getInstance().lua_ioJoystickGetNumAxes(handle);
+    int numBtns = InputManager::getInstance().lua_ioJoystickGetNumButtons(handle);
+    int numHats = InputManager::getInstance().lua_ioJoystickGetNumHats(handle);
+    
+    ImGui::Separator();
+    ImGui::Text("Diagnostic Handle: %d", handle);
+    ImGui::Text("Axes: %d | Buttons: %d | Hats: %d", numAxes, numBtns, numHats);
+    
+    ImGui::Separator();
+    ImGui::Columns(3, "joysticks_cols");
+    for (int i=0; i<numAxes; ++i) ImGui::Text("Axis %d: %.2f", i, InputManager::getInstance().lua_ioJoystickGetAxis(handle, i));
+    ImGui::NextColumn();
+    for (int i=0; i<numBtns; ++i) ImGui::Text("Btn %d: %s", i, InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, i) ? "DOWN" : "UP");
+    ImGui::NextColumn();
+    for (int i=0; i<numHats; ++i) ImGui::Text("Hat %d: %d", i, InputManager::getInstance().lua_ioJoystickGetHat(handle, i));
+    ImGui::Columns(1);
+    
+    ImGui::End();
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate)
@@ -3733,6 +3847,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         ImGui_ImplSDLGPU3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
+
+        if (state->diag_joystick_handle >= 0) {
+            RenderJoystickDiagnostic(state->diag_joystick_handle);
+        }
 
         if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Bouncers")) {

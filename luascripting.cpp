@@ -197,6 +197,17 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("ioMouseBTNDown", lua_ioMouseBTNDown);
     reg("ioMouseBTNUp", lua_ioMouseBTNUp);
 
+    reg("ioJoystickOpen", lua_ioJoystickOpen);
+    reg("ioJoystickClose", lua_ioJoystickClose);
+    reg("ioJoystickGetAxis", lua_ioJoystickGetAxis);
+    reg("ioJoystickGetButtonDown", lua_ioJoystickGetButtonDown);
+    reg("ioJoystickGetButtonHit", lua_ioJoystickGetButtonHit);
+    reg("ioJoystickGetButtonUp", lua_ioJoystickGetButtonUp);
+    reg("ioJoystickGetHat", lua_ioJoystickGetHat);
+    reg("ioJoystickGetNumAxes", lua_ioJoystickGetNumAxes);
+    reg("ioJoystickGetNumButtons", lua_ioJoystickGetNumButtons);
+    reg("ioJoystickGetNumHats", lua_ioJoystickGetNumHats);
+
     // Godot Manipulation
     reg("godotGetNodePointer", lua_godotGetNodePointer);
     reg("godotSelectRoot", lua_godotSelectRoot);
@@ -888,6 +899,109 @@ int LuaScripting::lua_ioMouseBTNUp(lua_State* L) {
     if (lua_isinteger(L, 1)) {
         int btn = (int)lua_tointeger(L, 1);
         lua_pushboolean(L, InputManager::getInstance().lua_isMouseBtnUp(btn));
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioJoystickOpen(lua_State* L) {
+    if (lua_isinteger(L, 1)) {
+        int index = (int)lua_tointeger(L, 1);
+        int handle = InputManager::getInstance().lua_ioJoystickOpen(index);
+        lua_pushinteger(L, handle);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioJoystickClose(lua_State* L) {
+    if (lua_isinteger(L, 1)) {
+        int handle = (int)lua_tointeger(L, 1);
+        InputManager::getInstance().lua_ioJoystickClose(handle);
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioJoystickGetAxis(lua_State* L) {
+    if (lua_isinteger(L, 1) && lua_isinteger(L, 2)) {
+        int handle = (int)lua_tointeger(L, 1);
+        int axis = (int)lua_tointeger(L, 2);
+        float val = InputManager::getInstance().lua_ioJoystickGetAxis(handle, axis);
+        lua_pushnumber(L, val);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioJoystickGetButtonDown(lua_State* L) {
+    if (lua_isinteger(L, 1) && lua_isinteger(L, 2)) {
+        int handle = (int)lua_tointeger(L, 1);
+        int button = (int)lua_tointeger(L, 2);
+        bool val = InputManager::getInstance().lua_ioJoystickGetButtonDown(handle, button);
+        lua_pushboolean(L, val);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioJoystickGetButtonHit(lua_State* L) {
+    if (lua_isinteger(L, 1) && lua_isinteger(L, 2)) {
+        int handle = (int)lua_tointeger(L, 1);
+        int button = (int)lua_tointeger(L, 2);
+        bool val = InputManager::getInstance().lua_ioJoystickGetButtonHit(handle, button);
+        lua_pushboolean(L, val);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioJoystickGetButtonUp(lua_State* L) {
+    if (lua_isinteger(L, 1) && lua_isinteger(L, 2)) {
+        int handle = (int)lua_tointeger(L, 1);
+        int button = (int)lua_tointeger(L, 2);
+        bool val = InputManager::getInstance().lua_ioJoystickGetButtonUp(handle, button);
+        lua_pushboolean(L, val);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioJoystickGetHat(lua_State* L) {
+    if (lua_isinteger(L, 1) && lua_isinteger(L, 2)) {
+        int handle = (int)lua_tointeger(L, 1);
+        int hat = (int)lua_tointeger(L, 2);
+        int val = InputManager::getInstance().lua_ioJoystickGetHat(handle, hat);
+        lua_pushinteger(L, val);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioJoystickGetNumAxes(lua_State* L) {
+    if (lua_isinteger(L, 1)) {
+        int handle = (int)lua_tointeger(L, 1);
+        int val = InputManager::getInstance().lua_ioJoystickGetNumAxes(handle);
+        lua_pushinteger(L, val);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioJoystickGetNumButtons(lua_State* L) {
+    if (lua_isinteger(L, 1)) {
+        int handle = (int)lua_tointeger(L, 1);
+        int val = InputManager::getInstance().lua_ioJoystickGetNumButtons(handle);
+        lua_pushinteger(L, val);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_ioJoystickGetNumHats(lua_State* L) {
+    if (lua_isinteger(L, 1)) {
+        int handle = (int)lua_tointeger(L, 1);
+        int val = InputManager::getInstance().lua_ioJoystickGetNumHats(handle);
+        lua_pushinteger(L, val);
         return 1;
     }
     return 0;

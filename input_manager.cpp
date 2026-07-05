@@ -23,6 +23,10 @@ void InputManager::clearAccumulatedState() {
     mouseDeltaYAccum = 0;
     mouseWheelAccum = 0;
     mouseMovedAccum = false;
+    for (auto& pair : joyStates) {
+        pair.second.btnsHit.clear();
+        pair.second.btnsReleased.clear();
+    }
 }
 
 void InputManager::processEvent(const SDL_Event* event) {
@@ -50,6 +54,31 @@ void InputManager::processEvent(const SDL_Event* event) {
     } else if (event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
         mouseBtnsDown[event->button.button] = false;
         mouseBtnsReleasedAccum.insert(event->button.button);
+    } else if (event->type == SDL_EVENT_JOYSTICK_AXIS_MOTION) {
+        auto it = idToHandle.find(event->jaxis.which);
+        if (it != idToHandle.end()) {
+            float val = event->jaxis.value / 32767.0f;
+            if (val < -1.0f) val = -1.0f;
+            else if (val > 1.0f) val = 1.0f;
+            joyStates[it->second].axes[event->jaxis.axis] = val;
+        }
+    } else if (event->type == SDL_EVENT_JOYSTICK_BUTTON_DOWN) {
+        auto it = idToHandle.find(event->jbutton.which);
+        if (it != idToHandle.end()) {
+            joyStates[it->second].btnsDown[event->jbutton.button] = true;
+            joyStates[it->second].btnsHit.insert(event->jbutton.button);
+        }
+    } else if (event->type == SDL_EVENT_JOYSTICK_BUTTON_UP) {
+        auto it = idToHandle.find(event->jbutton.which);
+        if (it != idToHandle.end()) {
+            joyStates[it->second].btnsDown[event->jbutton.button] = false;
+            joyStates[it->second].btnsReleased.insert(event->jbutton.button);
+        }
+    } else if (event->type == SDL_EVENT_JOYSTICK_HAT_MOTION) {
+        auto it = idToHandle.find(event->jhat.which);
+        if (it != idToHandle.end()) {
+            joyStates[it->second].hats[event->jhat.hat] = event->jhat.value;
+        }
     }
 }
 
@@ -167,4 +196,125 @@ SDL_Keycode InputManager::stringToKeycode(const std::string& keyName) {
     kc = SDL_GetKeyFromName(lower.c_str());
     
     return kc;
+}
+
+int InputManager::lua_ioJoystickOpen(int index) {
+    std::lock_guard<std::mutex> lock(inputMutex);
+    int count = 0;
+    SDL_JoystickID* joysticks = SDL_GetJoysticks(&count);
+    if (!joysticks || index < 0 || index >= count) {
+        if (joysticks) SDL_free(joysticks);
+        return -1;
+    }
+    SDL_Joystick* joy = SDL_OpenJoystick(joysticks[index]);
+    SDL_free(joysticks);
+    if (!joy) return -1;
+    
+    int handle = nextJoystickHandle++;
+    SDL_JoystickID id = SDL_GetJoystickID(joy);
+    handleToJoystick[handle] = joy;
+    idToHandle[id] = handle;
+    joyStates[handle] = JoystickState();
+    return handle;
+}
+
+void InputManager::lua_ioJoystickClose(int handle) {
+    std::lock_guard<std::mutex> lock(inputMutex);
+    auto it = handleToJoystick.find(handle);
+    if (it != handleToJoystick.end()) {
+        SDL_JoystickID id = SDL_GetJoystickID(it->second);
+        SDL_CloseJoystick(it->second);
+        handleToJoystick.erase(it);
+        idToHandle.erase(id);
+        joyStates.erase(handle);
+    }
+}
+
+float InputManager::lua_ioJoystickGetAxis(int handle, int axis_index) {
+    std::lock_guard<std::mutex> lock(inputMutex);
+    auto it = joyStates.find(handle);
+    if (it != joyStates.end()) {
+        auto ait = it->second.axes.find(axis_index);
+        if (ait != it->second.axes.end()) {
+            return ait->second;
+        }
+    }
+    return 0.0f;
+}
+
+bool InputManager::lua_ioJoystickGetButtonDown(int handle, int button_index) {
+    std::lock_guard<std::mutex> lock(inputMutex);
+    auto it = joyStates.find(handle);
+    if (it != joyStates.end()) {
+        auto bit = it->second.btnsDown.find(button_index);
+        if (bit != it->second.btnsDown.end()) {
+            return bit->second;
+        }
+    }
+    return false;
+}
+
+bool InputManager::lua_ioJoystickGetButtonHit(int handle, int button_index) {
+    std::lock_guard<std::mutex> lock(inputMutex);
+    auto it = joyStates.find(handle);
+    if (it != joyStates.end()) {
+        auto bit = it->second.btnsHit.find(button_index);
+        if (bit != it->second.btnsHit.end()) {
+            it->second.btnsHit.erase(bit);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool InputManager::lua_ioJoystickGetButtonUp(int handle, int button_index) {
+    std::lock_guard<std::mutex> lock(inputMutex);
+    auto it = joyStates.find(handle);
+    if (it != joyStates.end()) {
+        auto bit = it->second.btnsReleased.find(button_index);
+        if (bit != it->second.btnsReleased.end()) {
+            it->second.btnsReleased.erase(bit);
+            return true;
+        }
+    }
+    return false;
+}
+
+int InputManager::lua_ioJoystickGetHat(int handle, int hat_index) {
+    std::lock_guard<std::mutex> lock(inputMutex);
+    auto it = joyStates.find(handle);
+    if (it != joyStates.end()) {
+        auto hit = it->second.hats.find(hat_index);
+        if (hit != it->second.hats.end()) {
+            return hit->second;
+        }
+    }
+    return 0;
+}
+
+int InputManager::lua_ioJoystickGetNumAxes(int handle) {
+    std::lock_guard<std::mutex> lock(inputMutex);
+    auto it = handleToJoystick.find(handle);
+    if (it != handleToJoystick.end()) {
+        return SDL_GetNumJoystickAxes(it->second);
+    }
+    return 0;
+}
+
+int InputManager::lua_ioJoystickGetNumButtons(int handle) {
+    std::lock_guard<std::mutex> lock(inputMutex);
+    auto it = handleToJoystick.find(handle);
+    if (it != handleToJoystick.end()) {
+        return SDL_GetNumJoystickButtons(it->second);
+    }
+    return 0;
+}
+
+int InputManager::lua_ioJoystickGetNumHats(int handle) {
+    std::lock_guard<std::mutex> lock(inputMutex);
+    auto it = handleToJoystick.find(handle);
+    if (it != handleToJoystick.end()) {
+        return SDL_GetNumJoystickHats(it->second);
+    }
+    return 0;
 }
