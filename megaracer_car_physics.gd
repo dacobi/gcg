@@ -12,10 +12,10 @@ var braking = 105.0
 var friction = 1.5
 var drag = 0.03
 var gravity = 25.0
-var steer_speed = 2.4
+var steer_speed = 1.8
 
 # Reset parameters
-var fall_reset_delay = 3.0
+var fall_reset_delay = 2.0
 
 # Current state
 var speed = 0.0
@@ -59,7 +59,7 @@ var body_pitch_damping = 14.0
 var body_roll_steer_multiplier = 0.2
 var body_pitch_accel_multiplier = 0.08
 var body_pitch_brake_multiplier = 0.12
-var max_steer_visual_angle = 0.52 # ~30 degrees
+var max_steer_visual_angle = 0.39 # ~22.5 degrees
 
 func _physics_process(delta):
 	# Save starting position on the first physics frame

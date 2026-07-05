@@ -76,6 +76,8 @@ while true do
 			local accel = 0.0
 			local brake = 0.0
 			local steer = 0.0
+			local rx = 0.0
+			local ry = 0.0
 
 			if joy_handle >= 0 then
 				-- Read analog values (Triggers: -1.0 to 1.0 -> 0.0 to 1.0)
@@ -84,11 +86,15 @@ while true do
 				accel = (r2 + 1.0) * 0.5
 				brake = (l2 + 1.0) * 0.5
 				steer = ioJoystickGetAxis(joy_handle, 0)
+				rx = ioJoystickGetAxis(joy_handle, 2)
+				ry = ioJoystickGetAxis(joy_handle, 3)
 				
 				-- Tiny deadzones
 				if accel < 0.05 then accel = 0.0 end
 				if brake < 0.05 then brake = 0.0 end
 				if steer > -0.1 and steer < 0.1 then steer = 0.0 end
+				if rx > -0.1 and rx < 0.1 then rx = 0.0 end
+				if ry > -0.1 and ry < 0.1 then ry = 0.0 end
 			else
 				-- Read arrow keys for driving fallback
 				if ioKBDown("Up") then
@@ -108,6 +114,12 @@ while true do
 			godotSetProperty("accel_input", accel, supercar)
 			godotSetProperty("brake_input", brake, supercar)
 			godotSetProperty("steer_input", steer, supercar)
+			
+			local track = godotGetNodePointer("MegaRacerScene")
+			if track then
+				godotSetProperty("cam_rx", rx, track)
+				godotSetProperty("cam_ry", ry, track)
+			end
 		end
 	end
 

@@ -12,6 +12,11 @@ var orbit_yaw = 0.0
 var orbit_pitch = 0.5
 var orbit_dist = 12.0
 
+var cam_rx = 0.0
+var cam_ry = 0.0
+var current_cam_yaw = 0.0
+var current_cam_pitch = 0.0
+
 func _ready():
 	var curve = Curve3D.new()
 	
@@ -67,7 +72,7 @@ func _ready():
 	# Initialize camera position behind the car
 	var camera_node = get_node_or_null("Camera3D")
 	if camera_node and supercar:
-		var offset = Vector3(0, 2.2, 6.0)
+		var offset = Vector3(0, 11.01, 15.69)
 		camera_node.global_position = supercar.global_position + supercar.global_transform.basis * offset
 		camera_node.look_at(supercar.global_position + supercar.global_transform.basis * Vector3(0, 0.4, -0.5), supercar.global_transform.basis.y)
 
@@ -86,8 +91,13 @@ func _physics_process(delta):
 			camera_node.look_at(target_pos, Vector3.UP)
 		else:
 			# Normal chase camera
-			var offset = Vector3(0, 2.2, 6.0)
-			var target_pos = supercar.global_position + supercar.global_transform.basis * offset
+			current_cam_yaw = lerp(current_cam_yaw, -cam_rx * PI/2.0, 10.0 * delta)
+			current_cam_pitch = lerp(current_cam_pitch, -cam_ry * PI/2.0, 10.0 * delta)
+			
+			var base_offset = Vector3(0, 11.01, 15.69)
+			var rotated_offset = base_offset.rotated(Vector3.RIGHT, current_cam_pitch).rotated(Vector3.UP, current_cam_yaw)
+			
+			var target_pos = supercar.global_position + supercar.global_transform.basis * rotated_offset
 			
 			# Smoothly interpolate position
 			camera_node.global_position = camera_node.global_position.lerp(target_pos, 5.0 * delta)
