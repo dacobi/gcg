@@ -127,6 +127,7 @@ func spawn_barriers():
 	var is_building = false
 	var current_left_turn = false
 	var st = SurfaceTool.new()
+	var st_col = SurfaceTool.new()
 	var wall_distance = 0.0
 	var prev_v = []
 	
@@ -157,7 +158,8 @@ func spawn_barriers():
 					mi.mesh = mesh
 					mi.set_surface_override_material(0, mat)
 					
-					var shape = mesh.create_trimesh_shape()
+					var col_mesh = st_col.commit()
+					var shape = col_mesh.create_trimesh_shape()
 					if shape:
 						var col = CollisionShape3D.new()
 						col.shape = shape
@@ -167,42 +169,40 @@ func spawn_barriers():
 						
 					add_child(mi)
 					st.clear()
+					st_col.clear()
 				
 				is_building = true
 				current_left_turn = is_left_turn
 				st.begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+				st_col.begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
 				wall_distance = 0.0
 				prev_v.clear()
 			
 			var track_width = 12.3 # Border center is at 12.3
 			var outer_offset = track_width if is_left_turn else -track_width
-			var guess_surface_pos = t1.origin + t1.basis.x * outer_offset + t1.basis.y * 0.4
 			
-			var ray_start = guess_surface_pos + t1.basis.y * 10.0
-			var ray_end = guess_surface_pos - t1.basis.y * 10.0
-			
-			var query = PhysicsRayQueryParameters3D.create(ray_start, ray_end)
-			var result = space_state.intersect_ray(query)
-			
-			var hit_pos = guess_surface_pos - t1.basis.y * 0.4
+			var hit_pos = t1.origin + t1.basis.x * outer_offset + t1.basis.y * 0.2
 			var hit_normal = t1.basis.y
 			
-			if result:
-				hit_pos = result.position
-				hit_normal = result.normal
-				
 			var top_pos = hit_pos + hit_normal * 3.5
+			var bot_pos_col = hit_pos - hit_normal * 1.0
 			
 			if is_left_turn:
 				st.set_uv(Vector2(wall_distance, 3.5))
 				st.add_vertex(top_pos)
 				st.set_uv(Vector2(wall_distance, 0.0))
 				st.add_vertex(hit_pos)
+				if offset % 4 == 0 or offset == int(length):
+					st_col.add_vertex(top_pos)
+					st_col.add_vertex(bot_pos_col)
 			else:
 				st.set_uv(Vector2(wall_distance, 0.0))
 				st.add_vertex(hit_pos)
 				st.set_uv(Vector2(wall_distance, 3.5))
 				st.add_vertex(top_pos)
+				if offset % 4 == 0 or offset == int(length):
+					st_col.add_vertex(bot_pos_col)
+					st_col.add_vertex(top_pos)
 			
 			wall_distance += step
 		else:
@@ -212,7 +212,8 @@ func spawn_barriers():
 				mi.mesh = mesh
 				mi.set_surface_override_material(0, mat)
 				
-				var shape = mesh.create_trimesh_shape()
+				var col_mesh = st_col.commit()
+				var shape = col_mesh.create_trimesh_shape()
 				if shape:
 					var col = CollisionShape3D.new()
 					col.shape = shape
@@ -222,6 +223,7 @@ func spawn_barriers():
 					
 				add_child(mi)
 				st.clear()
+				st_col.clear()
 				is_building = false
 
 	if is_building:
@@ -230,7 +232,8 @@ func spawn_barriers():
 		mi.mesh = mesh
 		mi.set_surface_override_material(0, mat)
 		
-		var shape = mesh.create_trimesh_shape()
+		var col_mesh = st_col.commit()
+		var shape = col_mesh.create_trimesh_shape()
 		if shape:
 			var col = CollisionShape3D.new()
 			col.shape = shape
@@ -298,7 +301,7 @@ func setup_polygons():
 	border_l.path_local = true
 	border_l.path_continuous_u = true
 	border_l.path_u_distance = 16.0
-	border_l.use_collision = true
+	border_l.use_collision = false
 	border_l.polygon = PackedVector2Array([
 		Vector2(-12.6, 0.2),
 		Vector2(-12.0, 0.2),
@@ -314,7 +317,7 @@ func setup_polygons():
 	border_r.path_local = true
 	border_r.path_continuous_u = true
 	border_r.path_u_distance = 16.0
-	border_r.use_collision = true
+	border_r.use_collision = false
 	border_r.polygon = PackedVector2Array([
 		Vector2(12.0, 0.2),
 		Vector2(12.6, 0.2),
