@@ -25,7 +25,6 @@ var last_grounded_pos: Vector3
 var start_saved = false
 var wheels_grounded = true
 var path_follow: PathFollow3D
-var gravity_arrow: Node3D
 
 # Grouped body nodes list and base heights
 var body_nodes = []
@@ -83,36 +82,6 @@ func _physics_process(delta):
 			if node:
 				body_nodes.append(node)
 				body_base_y[node] = node.position.y
-				
-		# Create gravity debug arrow
-		gravity_arrow = Node3D.new()
-		
-		var mat = StandardMaterial3D.new()
-		mat.albedo_color = Color.BLUE
-		mat.emission_enabled = false
-		
-		var shaft = MeshInstance3D.new()
-		var shaft_mesh = CylinderMesh.new()
-		shaft_mesh.top_radius = 0.1
-		shaft_mesh.bottom_radius = 0.1
-		shaft_mesh.height = 3.0
-		shaft.mesh = shaft_mesh
-		shaft.set_surface_override_material(0, mat)
-		shaft.position = Vector3(0, 1.7, 0)
-		gravity_arrow.add_child(shaft)
-		
-		var head = MeshInstance3D.new()
-		var head_mesh = CylinderMesh.new()
-		head_mesh.top_radius = 0.4
-		head_mesh.bottom_radius = 0.0
-		head_mesh.height = 0.4
-		head.mesh = head_mesh
-		head.set_surface_override_material(0, mat)
-		head.position = Vector3(0, 0, 0)
-		gravity_arrow.add_child(head)
-		
-		gravity_arrow.top_level = true
-		add_child(gravity_arrow)
 				
 		start_saved = true
 		
@@ -216,10 +185,6 @@ func _physics_process(delta):
 	
 	# Use move_and_slide with central SphereShape3D as safety net against tunneling
 	move_and_slide()
-	
-	if gravity_arrow and is_instance_valid(gravity_arrow):
-		gravity_arrow.global_position = global_position + Vector3(0, 6.0, 0)
-		gravity_arrow.global_rotation = Vector3.ZERO # Always points straight down
 	
 	# Align the car's up vector with the exact track normal from PathFollow3D
 	if path_follow:

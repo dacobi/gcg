@@ -75,6 +75,168 @@ func _ready():
 		var offset = Vector3(0, 11.01, 15.69)
 		camera_node.global_position = supercar.global_position + supercar.global_transform.basis * offset
 		camera_node.look_at(supercar.global_position + supercar.global_transform.basis * Vector3(0, 0.4, -0.5), supercar.global_transform.basis.y)
+		
+	spawn_barriers()
+
+func spawn_barriers():
+	# Wait for the physical collision meshes of the CSG track to generate and sync
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	
+	var shader = Shader.new()
+	shader.code = """
+	shader_type spatial;
+	render_mode cull_disabled, unshaded;
+
+	uniform vec4 neon_color : source_color = vec4(1.0, 0.0, 1.0, 1.0);
+	uniform float plank_width = 0.5;
+	uniform float gap_width = 0.5;
+
+	void fragment() {
+		float local_pos = mod(UV.x, plank_width + gap_width);
+		
+		bool is_plank = local_pos <= plank_width;
+		bool is_rail = (UV.y > 0.2 && UV.y < 0.3) || (UV.y > 3.2 && UV.y < 3.3);
+		
+		if (is_plank || is_rail) {
+			ALBEDO = neon_color.rgb;
+			EMISSION = neon_color.rgb * 2.0;
+		} else {
+			ALBEDO = vec3(0.05, 0.05, 0.05);
+			ROUGHNESS = 0.9;
+		}
+	}
+	"""
+	var mat = ShaderMaterial.new()
+	mat.shader = shader
+	
+	var curve = path_node.curve
+	var length = curve.get_baked_length()
+	var step = 1.0
+	
+	var dummy = PathFollow3D.new()
+	dummy.rotation_mode = PathFollow3D.ROTATION_ORIENTED
+	path_node.add_child(dummy)
+	
+	var space_state = get_world_3d().direct_space_state
+	
+	var is_building = false
+	var current_left_turn = false
+	var st = SurfaceTool.new()
+	var wall_distance = 0.0
+	var prev_v = []
+	
+	for offset in range(0, int(length) + 1, int(step)):
+		dummy.progress = float(offset)
+		var t1 = dummy.global_transform
+		
+		dummy.progress = float(offset - 6.5)
+		var t_prev = dummy.global_transform
+		
+		dummy.progress = float(offset + 6.5)
+		var t_next = dummy.global_transform
+		
+		var fwd_prev = -t_prev.basis.z.normalized()
+		var fwd_next = -t_next.basis.z.normalized()
+		
+		var turn_rate = fwd_prev.angle_to(fwd_next)
+		var is_hard_turn = turn_rate > 0.05
+		
+		var cross_up = fwd_prev.cross(fwd_next).dot(t1.basis.y)
+		var is_left_turn = cross_up > 0
+		
+		if is_hard_turn:
+			if not is_building or is_left_turn != current_left_turn:
+				if is_building:
+					var mesh = st.commit()
+					var mi = MeshInstance3D.new()
+					mi.mesh = mesh
+					mi.set_surface_override_material(0, mat)
+					
+					var shape = mesh.create_trimesh_shape()
+					if shape:
+						var col = CollisionShape3D.new()
+						col.shape = shape
+						var static_body = StaticBody3D.new()
+						static_body.add_child(col)
+						mi.add_child(static_body)
+						
+					add_child(mi)
+					st.clear()
+				
+				is_building = true
+				current_left_turn = is_left_turn
+				st.begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+				wall_distance = 0.0
+				prev_v.clear()
+			
+			var track_width = 12.3 # Border center is at 12.3
+			var outer_offset = track_width if is_left_turn else -track_width
+			var guess_surface_pos = t1.origin + t1.basis.x * outer_offset + t1.basis.y * 0.4
+			
+			var ray_start = guess_surface_pos + t1.basis.y * 10.0
+			var ray_end = guess_surface_pos - t1.basis.y * 10.0
+			
+			var query = PhysicsRayQueryParameters3D.create(ray_start, ray_end)
+			var result = space_state.intersect_ray(query)
+			
+			var hit_pos = guess_surface_pos - t1.basis.y * 0.4
+			var hit_normal = t1.basis.y
+			
+			if result:
+				hit_pos = result.position
+				hit_normal = result.normal
+				
+			var top_pos = hit_pos + hit_normal * 3.5
+			
+			if is_left_turn:
+				st.set_uv(Vector2(wall_distance, 3.5))
+				st.add_vertex(top_pos)
+				st.set_uv(Vector2(wall_distance, 0.0))
+				st.add_vertex(hit_pos)
+			else:
+				st.set_uv(Vector2(wall_distance, 0.0))
+				st.add_vertex(hit_pos)
+				st.set_uv(Vector2(wall_distance, 3.5))
+				st.add_vertex(top_pos)
+			
+			wall_distance += step
+		else:
+			if is_building:
+				var mesh = st.commit()
+				var mi = MeshInstance3D.new()
+				mi.mesh = mesh
+				mi.set_surface_override_material(0, mat)
+				
+				var shape = mesh.create_trimesh_shape()
+				if shape:
+					var col = CollisionShape3D.new()
+					col.shape = shape
+					var static_body = StaticBody3D.new()
+					static_body.add_child(col)
+					mi.add_child(static_body)
+					
+				add_child(mi)
+				st.clear()
+				is_building = false
+
+	if is_building:
+		var mesh = st.commit()
+		var mi = MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.set_surface_override_material(0, mat)
+		
+		var shape = mesh.create_trimesh_shape()
+		if shape:
+			var col = CollisionShape3D.new()
+			col.shape = shape
+			var static_body = StaticBody3D.new()
+			static_body.add_child(col)
+			mi.add_child(static_body)
+			
+		add_child(mi)
+		
+	dummy.queue_free()
 
 func _physics_process(delta):
 	var camera_node = get_node_or_null("Camera3D")
