@@ -97,9 +97,10 @@ func _physics_process(delta):
 	var max_d = rest_length + max_travel
 	wheels_grounded = (d_FL < max_d) or (d_FR < max_d) or (d_RL < max_d) or (d_RR < max_d)
 	
-	# Apply magnetic track gravity if grounded, or world gravity if falling
+	# Always apply world gravity, whether grounded or falling
+	velocity += Vector3.DOWN * gravity * delta
+	
 	if wheels_grounded:
-		velocity -= global_transform.basis.y * gravity * delta
 		fall_time = 0.0
 		last_grounded_pos = global_position
 		
@@ -118,7 +119,6 @@ func _physics_process(delta):
 			
 		velocity = global_transform.basis * local_vel
 	else:
-		velocity += Vector3.DOWN * gravity * delta
 		fall_time += delta
 		if fall_time >= fall_reset_delay:
 			reset_to_track()
@@ -157,12 +157,19 @@ func _physics_process(delta):
 	# Clamp speed
 	speed = clamp(speed, -max_speed * 0.4, max_speed)
 	
-	# Handle steering
-	if abs(speed) > 0.5 and wheels_grounded:
+	# Handle steering (with understeer at high speeds)
+	if abs(speed) > 0.1 and wheels_grounded:
 		var steer_direction = -steer_input
-		if speed < 0.0:
-			steer_direction = -steer_direction
-		rotate_object_local(Vector3.UP, steer_speed * steer_direction * delta)
+		var abs_speed = abs(speed)
+		
+		# Ramps up quickly from 0 to 20 speed
+		var speed_factor = clamp(abs_speed / 20.0, 0.0, 1.0)
+		
+		# Slowly drops off from 40 to max_speed (loses 60% of steering lock at top speed)
+		var understeer_factor = 1.0 - clamp((abs_speed - 40.0) / (max_speed - 40.0), 0.0, 0.6)
+		
+		var turn_rate = steer_speed * steer_direction * speed_factor * understeer_factor * sign(speed)
+		rotate_object_local(Vector3.UP, turn_rate * delta)
 		
 	# Apply forward speed to velocity while maintaining vertical physics
 	forward_dir = -global_transform.basis.z.normalized()
@@ -172,7 +179,8 @@ func _physics_process(delta):
 	# Apply lateral friction (grip) to stop sideways sliding
 	if wheels_grounded:
 		var local_vel = global_transform.basis.inverse() * velocity
-		local_vel.x = lerp(local_vel.x, 0.0, 15.0 * delta)
+		# Extremely high lateral grip (kills sideways velocity instantly)
+		local_vel.x = lerp(local_vel.x, 0.0, min(1.0, 60.0 * delta))
 		velocity = global_transform.basis * local_vel
 	
 	# Use move_and_slide with central SphereShape3D as safety net against tunneling
