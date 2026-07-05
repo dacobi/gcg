@@ -86,23 +86,27 @@ func spawn_barriers():
 	var shader = Shader.new()
 	shader.code = """
 	shader_type spatial;
-	render_mode cull_disabled, unshaded;
+	render_mode cull_disabled;
 
-	uniform vec4 neon_color : source_color = vec4(1.0, 0.0, 1.0, 1.0);
+	uniform vec3 plank_color : source_color = vec3(0.4, 0.35, 0.3);
+	uniform vec3 seam_color : source_color = vec3(0.15, 0.1, 0.08);
 	uniform float plank_width = 0.5;
-	uniform float gap_width = 0.5;
+	uniform float seam_width = 0.03;
 
 	void fragment() {
-		float local_pos = mod(UV.x, plank_width + gap_width);
+		float local_pos = mod(UV.x, plank_width);
 		
-		bool is_plank = local_pos <= plank_width;
-		bool is_rail = (UV.y > 0.2 && UV.y < 0.3) || (UV.y > 3.2 && UV.y < 3.3);
+		bool is_seam = local_pos < seam_width;
+		bool is_rail = (UV.y > 0.2 && UV.y < 0.4) || (UV.y > 2.8 && UV.y < 3.0);
 		
-		if (is_plank || is_rail) {
-			ALBEDO = neon_color.rgb;
-			EMISSION = neon_color.rgb * 2.0;
+		if (is_seam && !is_rail) {
+			ALBEDO = seam_color;
+			ROUGHNESS = 1.0;
 		} else {
-			ALBEDO = vec3(0.05, 0.05, 0.05);
+			float plank_index = floor(UV.x / plank_width);
+			float variation = fract(sin(plank_index * 12.9898) * 43758.5453) * 0.05;
+			
+			ALBEDO = plank_color + vec3(variation);
 			ROUGHNESS = 0.9;
 		}
 	}
