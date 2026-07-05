@@ -95,39 +95,71 @@ radial_segments = 32
 rings = 16
 material = SubResource("StandardMaterial3D_RedBody")
 
-[node name="SideCylinderL" type="CSGCylinder3D" parent="Body"]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.7, 0.12, 0.1)
+[node name="SideCylinderLGroup" type="CSGCombiner3D" parent="."]
+
+[node name="SideCylinderL" type="CSGCylinder3D" parent="SideCylinderLGroup"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.7, 0.12, 0.2)
 radius = 0.22
-height = 2.8
+height = 2.6
 sides = 32
 material = SubResource("StandardMaterial3D_RedBody")
 
-[node name="SideCylinderR" type="CSGCylinder3D" parent="Body"]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0.7, 0.12, 0.1)
+[node name="CylinderTipL" type="CSGSphere3D" parent="SideCylinderLGroup"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.0, -0.7, 0.12, -1.1)
 radius = 0.22
-height = 2.8
+radial_segments = 32
+rings = 16
+material = SubResource("StandardMaterial3D_RedBody")
+
+[node name="SideCylinderRGroup" type="CSGCombiner3D" parent="."]
+
+[node name="SideCylinderR" type="CSGCylinder3D" parent="SideCylinderRGroup"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0.7, 0.12, 0.2)
+radius = 0.22
+height = 2.6
 sides = 32
 material = SubResource("StandardMaterial3D_RedBody")
 
-[node name="IntakeL" type="CSGBox3D" parent="Body"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 0.1, -0.2)
-size = Vector3(0.35, 0.4, 1.6)
+[node name="CylinderTipR" type="CSGSphere3D" parent="SideCylinderRGroup"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 2.0, 0.7, 0.12, -1.1)
+radius = 0.22
+radial_segments = 32
+rings = 16
+material = SubResource("StandardMaterial3D_RedBody")
+
+[node name="IntakeLGroup" type="CSGCombiner3D" parent="."]
+
+[node name="IntakeL" type="CSGBox3D" parent="IntakeLGroup"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.81, 0.1, -0.2)
+size = Vector3(0.22, 0.4, 1.6)
 material = SubResource("StandardMaterial3D_CarbonBlack")
 
-[node name="IntakeLCrop" type="CSGBox3D" parent="Body"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 0.1, -1.0)
+[node name="IntakeLCrop" type="CSGBox3D" parent="IntakeLGroup"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.81, 0.1, -1.0)
 operation = 2
-size = Vector3(0.28, 0.32, 0.5)
+size = Vector3(0.16, 0.32, 0.5)
 
-[node name="IntakeR" type="CSGBox3D" parent="Body"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 0.1, -0.2)
-size = Vector3(0.35, 0.4, 1.6)
+[node name="IntakeLSlope" type="CSGBox3D" parent="IntakeLGroup"]
+transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, -0.81, 0.35, -0.5)
+operation = 2
+size = Vector3(0.5, 0.4, 2.0)
+
+[node name="IntakeRGroup" type="CSGCombiner3D" parent="."]
+
+[node name="IntakeR" type="CSGBox3D" parent="IntakeRGroup"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.81, 0.1, -0.2)
+size = Vector3(0.22, 0.4, 1.6)
 material = SubResource("StandardMaterial3D_CarbonBlack")
 
-[node name="IntakeRCrop" type="CSGBox3D" parent="Body"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 0.1, -1.0)
+[node name="IntakeRCrop" type="CSGBox3D" parent="IntakeRGroup"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.81, 0.1, -1.0)
 operation = 2
-size = Vector3(0.28, 0.32, 0.5)
+size = Vector3(0.16, 0.32, 0.5)
+
+[node name="IntakeRSlope" type="CSGBox3D" parent="IntakeRGroup"]
+transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0.81, 0.35, -0.5)
+operation = 2
+size = Vector3(0.5, 0.4, 2.0)
 
 [node name="RearDeck" type="CSGSphere3D" parent="Body"]
 transform = Transform3D(2.0, 0, 0, 0, 0.45, 0, 0, 0, 1.4, 0, 0.18, 1.1)
@@ -269,7 +301,7 @@ rings = 8
 material = SubResource("StandardMaterial3D_WhiteGlow")
 
 [node name="HeadlightPodL" type="CSGCylinder3D" parent="Body"]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.45, 0.15, -1.9)
+transform = Transform3D(1.333, 0, 0, 0, 0, -1, 0, 1, 0, -0.51, 0.15, -1.9)
 radius = 0.18
 height = 0.4
 sides = 32
@@ -277,11 +309,21 @@ operation = 2
 material = SubResource("StandardMaterial3D_CarbonBlack")
 
 [node name="HeadlightPodR" type="CSGCylinder3D" parent="Body"]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0.45, 0.15, -1.9)
+transform = Transform3D(1.333, 0, 0, 0, 0, -1, 0, 1, 0, 0.51, 0.15, -1.9)
 radius = 0.18
 height = 0.4
 sides = 32
 operation = 2
+material = SubResource("StandardMaterial3D_CarbonBlack")
+
+[node name="TaillightStrutL" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 0.35, 1.69)
+size = Vector3(0.08, 0.06, 0.15)
+material = SubResource("StandardMaterial3D_CarbonBlack")
+
+[node name="TaillightStrutR" type="CSGBox3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 0.35, 1.69)
+size = Vector3(0.08, 0.06, 0.15)
 material = SubResource("StandardMaterial3D_CarbonBlack")
 
 [node name="TaillightL" type="CSGBox3D" parent="Body"]
@@ -308,7 +350,7 @@ radial_segments = 32
 rings = 16
 
 [node name="CylinderCut" type="CSGCylinder3D" parent="GlassCoverL"]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, -0.45, 0.15, -1.9)
+transform = Transform3D(1.333, 0, 0, 0, 0, -1, 0, 1, 0, -0.51, 0.15, -1.9)
 radius = 0.18
 height = 0.5
 sides = 32
@@ -323,14 +365,14 @@ radial_segments = 32
 rings = 16
 
 [node name="CylinderCut" type="CSGCylinder3D" parent="GlassCoverR"]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0.45, 0.15, -1.9)
+transform = Transform3D(1.333, 0, 0, 0, 0, -1, 0, 1, 0, 0.51, 0.15, -1.9)
 radius = 0.18
 height = 0.5
 sides = 32
 operation = 1
 
 [node name="HeadlightBulbL" type="CSGSphere3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.45, 0.15, -1.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.51, 0.08, -1.75)
 radius = 0.06
 radial_segments = 32
 rings = 16
@@ -345,7 +387,7 @@ spot_angle = 30.0
 shadow_enabled = true
 
 [node name="HeadlightBulbR" type="CSGSphere3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, 0.15, -1.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.51, 0.08, -1.75)
 radius = 0.06
 radial_segments = 32
 rings = 16
