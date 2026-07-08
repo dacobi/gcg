@@ -54,6 +54,28 @@ void LuaScripting::unregGlobalInt(const std::string& name) {
     global_ints.erase(name);
 }
 
+void LuaScripting::setGlobalFloat(const std::string& name, float val) {
+    std::lock_guard<std::mutex> lock(globals_mutex);
+    global_floats[name] = val;
+}
+
+float LuaScripting::getGlobalFloat(const std::string& name) {
+    std::lock_guard<std::mutex> lock(globals_mutex);
+    auto it = global_floats.find(name);
+    if (it != global_floats.end()) return it->second;
+    return 0.0f;
+}
+
+void LuaScripting::regGlobalFloat(const std::string& name, float val) {
+    std::lock_guard<std::mutex> lock(globals_mutex);
+    global_floats.insert({name, val});
+}
+
+void LuaScripting::unregGlobalFloat(const std::string& name) {
+    std::lock_guard<std::mutex> lock(globals_mutex);
+    global_floats.erase(name);
+}
+
 bool LuaScripting::runScript(const std::string& filename) {
     if (primaryRunning) {
         std::cerr << "Script already running" << std::endl;
@@ -246,6 +268,10 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("unregGlobalVar", lua_unregGlobalVar);
     reg("setGlobalVar", lua_setGlobalVar);
     reg("getGlobalVar", lua_getGlobalVar);
+    reg("regGlobalFloat", lua_regGlobalFloat);
+    reg("unregGlobalFloat", lua_unregGlobalFloat);
+    reg("setGlobalFloat", lua_setGlobalFloat);
+    reg("getGlobalFloat", lua_getGlobalFloat);
 }
 
 void LuaScripting::lua_hook(lua_State* L, lua_Debug* ar) {
@@ -368,6 +394,40 @@ int LuaScripting::lua_getGlobalVar(lua_State* L) {
     if (lua_isstring(L, 1) && self) {
         int val = self->getGlobalInt(lua_tostring(L, 1));
         lua_pushinteger(L, val);
+        return 1;
+    }
+    return 0;
+}
+
+int LuaScripting::lua_regGlobalFloat(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isstring(L, 1) && lua_isnumber(L, 2) && self) {
+        self->regGlobalFloat(lua_tostring(L, 1), (float)lua_tonumber(L, 2));
+    }
+    return 0;
+}
+
+int LuaScripting::lua_unregGlobalFloat(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isstring(L, 1) && self) {
+        self->unregGlobalFloat(lua_tostring(L, 1));
+    }
+    return 0;
+}
+
+int LuaScripting::lua_setGlobalFloat(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isstring(L, 1) && lua_isnumber(L, 2) && self) {
+        self->setGlobalFloat(lua_tostring(L, 1), (float)lua_tonumber(L, 2));
+    }
+    return 0;
+}
+
+int LuaScripting::lua_getGlobalFloat(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isstring(L, 1) && self) {
+        float val = self->getGlobalFloat(lua_tostring(L, 1));
+        lua_pushnumber(L, val);
         return 1;
     }
     return 0;

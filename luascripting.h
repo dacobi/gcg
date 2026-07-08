@@ -113,6 +113,11 @@ public:
     void regGlobalInt(const std::string& name, int val);
     void unregGlobalInt(const std::string& name);
 
+    void setGlobalFloat(const std::string& name, float val);
+    float getGlobalFloat(const std::string& name);
+    void regGlobalFloat(const std::string& name, float val);
+    void unregGlobalFloat(const std::string& name);
+
 private:
     static int lua_addBouncer(lua_State* L);
     static int lua_delBouncer(lua_State* L);
@@ -159,6 +164,11 @@ private:
     static int lua_getGlobalVar(lua_State* L);
     static int lua_regGlobalVar(lua_State* L);
     static int lua_unregGlobalVar(lua_State* L);
+
+    static int lua_setGlobalFloat(lua_State* L);
+    static int lua_getGlobalFloat(lua_State* L);
+    static int lua_regGlobalFloat(lua_State* L);
+    static int lua_unregGlobalFloat(lua_State* L);
     
     // Input Framework
     static int lua_ioKBClicked(lua_State* L);
@@ -267,6 +277,7 @@ private:
     SaveHighScoreFunc saveHighScoreFunc;
 
     std::unordered_map<std::string, int> global_ints;
+    std::unordered_map<std::string, float> global_floats;
     std::mutex globals_mutex;
 
     std::unordered_map<int, std::unique_ptr<std::recursive_mutex>> dynamic_mutexes;

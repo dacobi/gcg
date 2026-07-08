@@ -3852,6 +3852,46 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             RenderJoystickDiagnostic(state->diag_joystick_handle);
         }
 
+        if (state->scriptSystem) {
+            ImGui::Begin("Car Physics Settings");
+            float engine_f = state->scriptSystem->getGlobalFloat("engine_force_value");
+            if (ImGui::SliderFloat("Engine Force", &engine_f, 1000.0f, 20000.0f)) state->scriptSystem->setGlobalFloat("engine_force_value", engine_f);
+
+            float brake_f = state->scriptSystem->getGlobalFloat("brake_force_value");
+            if (ImGui::SliderFloat("Brake Force", &brake_f, 50.0f, 1000.0f)) state->scriptSystem->setGlobalFloat("brake_force_value", brake_f);
+
+            float steer = state->scriptSystem->getGlobalFloat("max_steer");
+            if (ImGui::SliderFloat("Max Steer", &steer, 0.1f, 1.0f)) state->scriptSystem->setGlobalFloat("max_steer", steer);
+
+            float f_slip = state->scriptSystem->getGlobalFloat("wheel_friction_slip");
+            if (ImGui::SliderFloat("Wheel Friction", &f_slip, 1.0f, 20.0f)) state->scriptSystem->setGlobalFloat("wheel_friction_slip", f_slip);
+
+            float s_trav = state->scriptSystem->getGlobalFloat("suspension_travel");
+            if (ImGui::SliderFloat("Susp. Travel", &s_trav, 0.1f, 1.0f)) state->scriptSystem->setGlobalFloat("suspension_travel", s_trav);
+
+            float s_stiff = state->scriptSystem->getGlobalFloat("suspension_stiffness");
+            if (ImGui::SliderFloat("Susp. Stiffness", &s_stiff, 10.0f, 300.0f)) state->scriptSystem->setGlobalFloat("suspension_stiffness", s_stiff);
+
+            float s_max = state->scriptSystem->getGlobalFloat("suspension_max_force");
+            if (ImGui::SliderFloat("Susp. Max Force", &s_max, 1000.0f, 30000.0f)) state->scriptSystem->setGlobalFloat("suspension_max_force", s_max);
+
+            float d_comp = state->scriptSystem->getGlobalFloat("damping_compression");
+            if (ImGui::SliderFloat("Damp Compress", &d_comp, 1.0f, 20.0f)) state->scriptSystem->setGlobalFloat("damping_compression", d_comp);
+
+            float d_rel = state->scriptSystem->getGlobalFloat("damping_relaxation");
+            if (ImGui::SliderFloat("Damp Relax", &d_rel, 1.0f, 20.0f)) state->scriptSystem->setGlobalFloat("damping_relaxation", d_rel);
+
+            float df_mult = state->scriptSystem->getGlobalFloat("downforce_multiplier");
+            if (ImGui::SliderFloat("Downforce Mult", &df_mult, 0.0f, 500.0f)) state->scriptSystem->setGlobalFloat("downforce_multiplier", df_mult);
+
+            float c_mass = state->scriptSystem->getGlobalFloat("car_mass");
+            if (ImGui::SliderFloat("Car Mass", &c_mass, 500.0f, 3000.0f)) state->scriptSystem->setGlobalFloat("car_mass", c_mass);
+
+            float com_y = state->scriptSystem->getGlobalFloat("center_of_mass_y");
+            if (ImGui::SliderFloat("Center of Mass Y", &com_y, -1.0f, 1.0f)) state->scriptSystem->setGlobalFloat("center_of_mass_y", com_y);
+            ImGui::End();
+        }
+
         if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Bouncers")) {
             ImGui::Text("Bouncer Texts (%d):", static_cast<int>(state->mBdisplay.size()));

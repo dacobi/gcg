@@ -1,4 +1,4 @@
-setBG("[tscn:megaracer_car.tscn]")
+setBG("[tscn:lemans_scene.tscn]")
 selectGodot(-1)
 delay(200) -- give it a moment to load
 
@@ -10,6 +10,20 @@ print("Press ESC to exit.\n")
 -- Get the supercar node pointer
 godotSelectRoot()
 local supercar = godotGetNodePointer("SuperCar")
+
+-- Initialize physics global properties for ImGui to read/write
+setGlobalFloat("engine_force_value", 8000.0)
+setGlobalFloat("brake_force_value", 200.0)
+setGlobalFloat("max_steer", 0.4)
+setGlobalFloat("wheel_friction_slip", 10.5)
+setGlobalFloat("suspension_travel", 0.25)
+setGlobalFloat("suspension_stiffness", 120.0)
+setGlobalFloat("suspension_max_force", 12000.0)
+setGlobalFloat("damping_compression", 6.0)
+setGlobalFloat("damping_relaxation", 8.0)
+setGlobalFloat("downforce_multiplier", 120.0)
+setGlobalFloat("car_mass", 1200.0)
+setGlobalFloat("center_of_mass_y", -0.2)
 
 local joy_handle = ioJoystickOpen(0)
 if joy_handle >= 0 then
@@ -95,6 +109,14 @@ while true do
 				if steer > -0.1 and steer < 0.1 then steer = 0.0 end
 				if rx > -0.1 and rx < 0.1 then rx = 0.0 end
 				if ry > -0.1 and ry < 0.1 then ry = 0.0 end
+				
+				-- Check for right face button (PS5 'O' button is index 1 in SDL) to reset car
+				if ioJoystickGetButtonHit(joy_handle, 1) then
+					local track = godotGetNodePointer("MegaRacerScene")
+					if track then
+						godotSetProperty("reset_car", true, track)
+					end
+				end
 			else
 				-- Read arrow keys for driving fallback
 				if ioKBDown("Up") then
@@ -114,6 +136,27 @@ while true do
 			godotSetProperty("accel_input", accel, supercar)
 			godotSetProperty("brake_input", brake, supercar)
 			godotSetProperty("steer_input", steer, supercar)
+			
+			local handbrake = 0.0
+			if joy_handle >= 0 and ioJoystickGetButtonDown(joy_handle, 0) then
+				handbrake = 1.0
+			elseif ioKBDown("Space") then
+				handbrake = 1.0
+			end
+			godotSetProperty("handbrake_input", handbrake, supercar)
+			
+			godotSetProperty("engine_force_value", getGlobalFloat("engine_force_value"), supercar)
+			godotSetProperty("brake_force_value", getGlobalFloat("brake_force_value"), supercar)
+			godotSetProperty("max_steer", getGlobalFloat("max_steer"), supercar)
+			godotSetProperty("wheel_friction_slip", getGlobalFloat("wheel_friction_slip"), supercar)
+			godotSetProperty("suspension_travel", getGlobalFloat("suspension_travel"), supercar)
+			godotSetProperty("suspension_stiffness", getGlobalFloat("suspension_stiffness"), supercar)
+			godotSetProperty("suspension_max_force", getGlobalFloat("suspension_max_force"), supercar)
+			godotSetProperty("damping_compression", getGlobalFloat("damping_compression"), supercar)
+			godotSetProperty("damping_relaxation", getGlobalFloat("damping_relaxation"), supercar)
+			godotSetProperty("downforce_multiplier", getGlobalFloat("downforce_multiplier"), supercar)
+			godotSetProperty("car_mass", getGlobalFloat("car_mass"), supercar)
+			godotSetProperty("center_of_mass_y", getGlobalFloat("center_of_mass_y"), supercar)
 			
 			local track = godotGetNodePointer("MegaRacerScene")
 			if track then

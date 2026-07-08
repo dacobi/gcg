@@ -1,7 +1,7 @@
 [gd_scene load_steps=9 format=3 uid="uid://megaracertrack"]
 
 [ext_resource type="Script" path="res://megaracer_track.gd" id="1_track_script"]
-[ext_resource type="PackedScene" path="res://megaracer_car_rigid.tscn" id="2_supercar"]
+[ext_resource type="PackedScene" path="res://lemans_car.tscn" id="2_supercar"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_Road"]
 albedo_color = Color(0.04, 0.04, 0.06, 1)

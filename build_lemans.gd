@@ -1,0 +1,225 @@
+extends Node
+
+func _ready():
+	var scene = load("res://megaracer_car_rigid.tscn").instantiate()
+	scene.name = "SuperCar"
+	scene.set_script(load("res://lemans_car.gd"))
+	
+	# Delete all visual CSG children
+	var nodes_to_delete = []
+	for child in scene.get_children():
+		if child is CSGShape3D or child is CSGCombiner3D:
+			nodes_to_delete.append(child)
+	for child in nodes_to_delete:
+		child.queue_free()
+		scene.remove_child(child)
+		
+	# Create materials
+	var mat_body = StandardMaterial3D.new()
+	mat_body.albedo_color = Color(0.1, 0.1, 0.8) # Le Mans Blue
+	mat_body.metallic = 0.8
+	mat_body.roughness = 0.2
+	
+	# Create a CSGCombiner3D to hold the sweep and the subtraction boxes
+	var combiner = CSGCombiner3D.new()
+	combiner.name = "LeMansCombiner"
+	scene.add_child(combiner)
+	combiner.owner = scene
+	
+	# --- MAIN SWEEP ---
+	var path = Path3D.new()
+	path.name = "MainSpine"
+	var curve = Curve3D.new()
+	
+	# Sweeping from Back to Front
+	# The nose and tail dive deep underground (Y=-1.0) so the subtraction box slices them perfectly into an aerodynamic wedge!
+	curve.add_point(Vector3(0, -1.0, 3.3) * 1.25, Vector3(0, 0, 0.5) * 1.25, Vector3(0, 0, -1.0) * 1.25)  # Deep Tail (Shrunk by 0.5m, Scaled 25%)
+	curve.add_point(Vector3(0, 0.1, 2.0) * 1.25, Vector3(0, 0, 0.5) * 1.25, Vector3(0, 0, -1.0) * 1.25)   # Rear deck (Shrunk by 0.5m, Scaled 25%)
+	curve.add_point(Vector3(0, 0.6, 0.2) * 1.25, Vector3(0, 0, 1.0) * 1.25, Vector3(0, 0, -1.0) * 1.25)   # Canopy (Scaled 25%)
+	curve.add_point(Vector3(0, 0.1, -1.5) * 1.25, Vector3(0, 0, 1.0) * 1.25, Vector3(0, 0, -1.0) * 1.25)  # Hood slope (Scaled 25%)
+	curve.add_point(Vector3(0, -1.0, -3.5) * 1.25, Vector3(0, 0, 1.0) * 1.25, Vector3(0, 0, -0.5) * 1.25) # Deep Nose (Scaled 25%)
+	
+	path.curve = curve
+	combiner.add_child(path)
+	path.owner = scene
+	
+	var body = CSGPolygon3D.new()
+	body.name = "MainBody"
+	combiner.add_child(body)
+	body.owner = scene
+	
+	body.mode = CSGPolygon3D.MODE_PATH
+	body.path_node = body.get_path_to(path)
+	body.path_rotation = CSGPolygon3D.PATH_ROTATION_PATH_FOLLOW
+	body.path_interval = 0.05
+	body.smooth_faces = true
+	body.path_local = true
+	body.material_override = mat_body
+	
+	# Full-width cross section with EXTREMELY deep side walls going underground
+	var scaled_poly = PackedVector2Array()
+	var original_poly = [
+		Vector2(-1.1, -2.0),   # Deep left bottom
+		Vector2(1.1, -2.0)     # Deep right bottom
+	]
+	
+	# Generate 32 perfectly smooth points for the elliptical roof canopy!
+	for i in range(33):
+		var t = float(i) / 32.0
+		var angle = t * PI # Sweeps from 0 (Right) to PI (Left)
+		var px = 1.1 * cos(angle)
+		var py = 0.3 * sin(angle)
+		original_poly.append(Vector2(px, py))
+		
+	for p in original_poly:
+		scaled_poly.append(p * 1.25)
+	body.polygon = scaled_poly
+	
+	# --- FENDER FLARES (SOLID) ---
+	var fender_fl = CSGCylinder3D.new()
+	fender_fl.name = "FenderFL"
+	fender_fl.operation = CSGShape3D.OPERATION_UNION
+	fender_fl.radius = 0.65 # Slightly larger than the cutout to create a shell
+	fender_fl.height = 0.75 # Extended deeper into the narrow hood
+	fender_fl.sides = 64
+	fender_fl.rotation_degrees = Vector3(0, 0, 90)
+	fender_fl.position = Vector3(-0.925, -0.125, -1.7) # Shifted inward to maintain outer edge
+	fender_fl.material_override = mat_body
+	combiner.add_child(fender_fl)
+	fender_fl.owner = scene
+	
+	var fender_fr = fender_fl.duplicate()
+	fender_fr.name = "FenderFR"
+	fender_fr.position = Vector3(0.925, -0.125, -1.7)
+	combiner.add_child(fender_fr)
+	fender_fr.owner = scene
+	
+	var fender_rl = fender_fl.duplicate()
+	fender_rl.name = "FenderRL"
+	fender_rl.height = 0.5 # Revert to normal width for rear
+	fender_rl.position = Vector3(-1.05, -0.125, 1.75)
+	combiner.add_child(fender_rl)
+	fender_rl.owner = scene
+	
+	var fender_rr = fender_fl.duplicate()
+	fender_rr.name = "FenderRR"
+	fender_rr.height = 0.5 # Revert to normal width for rear
+	fender_rr.position = Vector3(1.05, -0.125, 1.75)
+	combiner.add_child(fender_rr)
+	fender_rr.owner = scene
+	
+	# --- SUBTRACTION BOX (SLICES BOTTOM) ---
+	var cutter = CSGBox3D.new()
+	cutter.name = "BottomCutter"
+	cutter.operation = CSGShape3D.OPERATION_SUBTRACTION
+	cutter.size = Vector3(4.0, 10.0, 12.0) # Much deeper and longer
+	# Top edge of cutter is at Y = -0.4 (lowered floor of the chassis)
+	# Center is at -5.4, height is 10.0, so top edge is -0.4
+	cutter.position = Vector3(0, -5.4, 0)
+	combiner.add_child(cutter)
+	cutter.owner = scene
+	
+	# --- WHEEL WELL CUTTERS (ROUNDED ARCHES) ---
+	var wheel_cut_fl = CSGCylinder3D.new()
+	wheel_cut_fl.name = "WheelCutFL"
+	wheel_cut_fl.operation = CSGShape3D.OPERATION_SUBTRACTION
+	wheel_cut_fl.radius = 0.605 # Even larger radius to match the massive car body
+	wheel_cut_fl.height = 1.0
+	wheel_cut_fl.sides = 64 # High-poly for perfectly smooth arches!
+	wheel_cut_fl.rotation_degrees = Vector3(0, 0, 90)
+	wheel_cut_fl.position = Vector3(-1.3, -0.125, -1.7)
+	combiner.add_child(wheel_cut_fl)
+	wheel_cut_fl.owner = scene
+	
+	var wheel_cut_fr = wheel_cut_fl.duplicate()
+	wheel_cut_fr.name = "WheelCutFR"
+	wheel_cut_fr.position = Vector3(1.3, -0.125, -1.7)
+	combiner.add_child(wheel_cut_fr)
+	wheel_cut_fr.owner = scene
+	
+	var wheel_cut_rl = wheel_cut_fl.duplicate()
+	wheel_cut_rl.name = "WheelCutRL"
+	wheel_cut_rl.position = Vector3(-1.3, -0.125, 1.75)
+	combiner.add_child(wheel_cut_rl)
+	wheel_cut_rl.owner = scene
+	
+	var wheel_cut_rr = wheel_cut_fl.duplicate()
+	wheel_cut_rr.name = "WheelCutRR"
+	wheel_cut_rr.position = Vector3(1.3, -0.125, 1.75)
+	combiner.add_child(wheel_cut_rr)
+	wheel_cut_rr.owner = scene
+	
+	# --- WINDOW CUTOUTS (RECESSED GLASS) ---
+	var mat_glass = StandardMaterial3D.new()
+	mat_glass.albedo_color = Color(0.05, 0.05, 0.05) # Pitch black tint
+	mat_glass.roughness = 0.05 # Extremely glossy
+	mat_glass.metallic = 0.9 # Highly reflective
+	
+	# Front Windshield
+	var wind_front = CSGBox3D.new()
+	wind_front.name = "WindowFront"
+	wind_front.operation = CSGShape3D.OPERATION_SUBTRACTION
+	wind_front.material_override = mat_glass
+	wind_front.size = Vector3(1.4, 0.2, 1.2) # 1.4 wide, 0.2 thick (cuts shallow recess), 1.2 long
+	wind_front.rotation_degrees = Vector3(18, 0, 0) # Angled to match the hood sweep
+	wind_front.position = Vector3(0, 0.55, -0.7) # Positioned right on the front canopy slope
+	combiner.add_child(wind_front)
+	wind_front.owner = scene
+	
+	# Side Window Right
+	var wind_right = CSGBox3D.new()
+	wind_right.name = "WindowRight"
+	wind_right.operation = CSGShape3D.OPERATION_SUBTRACTION
+	wind_right.material_override = mat_glass
+	wind_right.size = Vector3(0.2, 0.4, 1.2) # 0.2 thick, 0.4 high, 1.2 long
+	wind_right.rotation_degrees = Vector3(0, 0, 20) # Angled to match the shoulder curve
+	wind_right.position = Vector3(0.9, 0.5, 0.1) # Positioned on the right side of canopy
+	combiner.add_child(wind_right)
+	wind_right.owner = scene
+	
+	# Side Window Left
+	var wind_left = wind_right.duplicate()
+	wind_left.name = "WindowLeft"
+	wind_left.rotation_degrees = Vector3(0, 0, -20)
+	wind_left.position = Vector3(-0.9, 0.5, 0.1)
+	combiner.add_child(wind_left)
+	wind_left.owner = scene
+	
+	# Find front wheel pivots and replace wheels with rear wheels
+	var fr = scene.get_node_or_null("FrontRightSteerPivot")
+	var fl = scene.get_node_or_null("FrontLeftSteerPivot")
+	var rr = scene.get_node_or_null("RearRightSteerPivot")
+	var rl = scene.get_node_or_null("RearLeftSteerPivot")
+	
+	if fr and fl and rr and rl:
+		var old_fr_wheel = fr.get_node_or_null("FrontRightWheel")
+		var old_fl_wheel = fl.get_node_or_null("FrontLeftWheel")
+		if old_fr_wheel:
+			fr.remove_child(old_fr_wheel)
+			old_fr_wheel.queue_free()
+		if old_fl_wheel:
+			fl.remove_child(old_fl_wheel)
+			old_fl_wheel.queue_free()
+			
+		var new_fr = rr.get_node("RearRightWheel").duplicate()
+		new_fr.name = "FrontRightWheel"
+		fr.add_child(new_fr)
+		
+		var new_fl = rl.get_node("RearLeftWheel").duplicate()
+		new_fl.name = "FrontLeftWheel"
+		fl.add_child(new_fl)
+		
+		# Recursively set owner
+		_set_owner(new_fr, scene)
+		_set_owner(new_fl, scene)
+		
+	var err = PackedScene.new()
+	err.pack(scene)
+	ResourceSaver.save(err, "res://lemans_car.tscn")
+	print("Saved subtracted lemans_car.tscn permanently to disk!")
+	get_tree().quit()
+
+func _set_owner(node, root):
+	node.owner = root
+	for child in node.get_children():
+		_set_owner(child, root)
