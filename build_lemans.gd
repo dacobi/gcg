@@ -277,8 +277,8 @@ func _ready():
 		Vector2(-0.28, -0.08)
 	])
 
-	# Left Headlight Assembly Transforms (shifted 10cm down to Y=0.05 and 7cm forward to Z=-2.72)
-	var trans_l = Transform3D(Basis(), Vector3(-0.8, 0.05, -2.72))
+	# Left Headlight Assembly Transforms (shifted 10cm down to Y=0.05 and 2cm forward to Z=-2.74)
+	var trans_l = Transform3D(Basis(), Vector3(-0.8, 0.05, -2.74))
 
 	var light_l_housing = CSGPolygon3D.new()
 	light_l_housing.name = "HeadlightL_Housing"
@@ -342,8 +342,8 @@ func _ready():
 	scene.add_child(spotlight_l)
 	spotlight_l.owner = scene
 
-	# Right Headlight Assembly Transforms (shifted 10cm down to Y=0.05 and 7cm forward to Z=-2.72)
-	var trans_r = Transform3D(Basis(), Vector3(0.8, 0.05, -2.72))
+	# Right Headlight Assembly Transforms (shifted 10cm down to Y=0.05 and 2cm forward to Z=-2.74)
+	var trans_r = Transform3D(Basis(), Vector3(0.8, 0.05, -2.74))
 
 	var light_r_housing = CSGPolygon3D.new()
 	light_r_housing.name = "HeadlightR_Housing"
