@@ -277,8 +277,8 @@ func _ready():
 		Vector2(-0.28, -0.08)
 	])
 
-	# Left Headlight Assembly Transforms (shifted Z to -2.85 to keep front face at same position, aligned parallel)
-	var trans_l = Transform3D(Basis(), Vector3(-0.8, 0.15, -2.85))
+	# Left Headlight Assembly Transforms (shifted 10cm down to Y=0.05 and 7cm forward to Z=-2.72)
+	var trans_l = Transform3D(Basis(), Vector3(-0.8, 0.05, -2.72))
 
 	var light_l_housing = CSGPolygon3D.new()
 	light_l_housing.name = "HeadlightL_Housing"
@@ -316,7 +316,7 @@ func _ready():
 	glass_mesh_l.size = Vector3(0.24, 0.18, 0.015)
 	light_l_glass.mesh = glass_mesh_l
 	light_l_glass.material_override = mat_headlight_glass
-	light_l_glass.transform = trans_l * Transform3D(Basis(), Vector3(0.0, 0.04, -0.30))
+	light_l_glass.transform = trans_l * Transform3D(Basis(), Vector3(0.0, 0.04, -0.29))
 	scene.add_child(light_l_glass)
 	light_l_glass.owner = scene
 
@@ -342,8 +342,8 @@ func _ready():
 	scene.add_child(spotlight_l)
 	spotlight_l.owner = scene
 
-	# Right Headlight Assembly Transforms (shifted Z to -2.85 to keep front face at same position, aligned parallel)
-	var trans_r = Transform3D(Basis(), Vector3(0.8, 0.15, -2.85))
+	# Right Headlight Assembly Transforms (shifted 10cm down to Y=0.05 and 7cm forward to Z=-2.72)
+	var trans_r = Transform3D(Basis(), Vector3(0.8, 0.05, -2.72))
 
 	var light_r_housing = CSGPolygon3D.new()
 	light_r_housing.name = "HeadlightR_Housing"
@@ -381,7 +381,7 @@ func _ready():
 	glass_mesh_r.size = Vector3(0.24, 0.18, 0.015)
 	light_r_glass.mesh = glass_mesh_r
 	light_r_glass.material_override = mat_headlight_glass
-	light_r_glass.transform = trans_r * Transform3D(Basis(), Vector3(0.0, 0.04, -0.30))
+	light_r_glass.transform = trans_r * Transform3D(Basis(), Vector3(0.0, 0.04, -0.29))
 	scene.add_child(light_r_glass)
 	light_r_glass.owner = scene
 
