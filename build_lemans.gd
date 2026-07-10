@@ -305,18 +305,18 @@ func _ready():
 	light_l_cutter.name = "HeadlightL_Cutter"
 	light_l_cutter.operation = CSGShape3D.OPERATION_SUBTRACTION
 	light_l_cutter.material = mat_chrome
-	light_l_cutter.size = Vector3(0.24, 0.22, 0.10)
-	light_l_cutter.transform = trans_l * Transform3D(Basis(), Vector3(0.0, 0.025, -0.30))
+	light_l_cutter.size = Vector3(0.24, 0.18, 0.10)
+	light_l_cutter.transform = trans_l * Transform3D(Basis(), Vector3(0.0, 0.04, -0.30))
 	combiner.add_child(light_l_cutter)
 	light_l_cutter.owner = scene
 
 	var light_l_glass = MeshInstance3D.new()
 	light_l_glass.name = "HeadlightL_Glass"
 	var glass_mesh_l = BoxMesh.new()
-	glass_mesh_l.size = Vector3(0.24, 0.22, 0.015)
+	glass_mesh_l.size = Vector3(0.24, 0.18, 0.015)
 	light_l_glass.mesh = glass_mesh_l
 	light_l_glass.material_override = mat_headlight_glass
-	light_l_glass.transform = trans_l * Transform3D(Basis(), Vector3(0.0, 0.025, -0.30))
+	light_l_glass.transform = trans_l * Transform3D(Basis(), Vector3(0.0, 0.04, -0.30))
 	scene.add_child(light_l_glass)
 	light_l_glass.owner = scene
 
@@ -370,18 +370,18 @@ func _ready():
 	light_r_cutter.name = "HeadlightR_Cutter"
 	light_r_cutter.operation = CSGShape3D.OPERATION_SUBTRACTION
 	light_r_cutter.material = mat_chrome
-	light_r_cutter.size = Vector3(0.24, 0.22, 0.10)
-	light_r_cutter.transform = trans_r * Transform3D(Basis(), Vector3(0.0, 0.025, -0.30))
+	light_r_cutter.size = Vector3(0.24, 0.18, 0.10)
+	light_r_cutter.transform = trans_r * Transform3D(Basis(), Vector3(0.0, 0.04, -0.30))
 	combiner.add_child(light_r_cutter)
 	light_r_cutter.owner = scene
 
 	var light_r_glass = MeshInstance3D.new()
 	light_r_glass.name = "HeadlightR_Glass"
 	var glass_mesh_r = BoxMesh.new()
-	glass_mesh_r.size = Vector3(0.24, 0.22, 0.015)
+	glass_mesh_r.size = Vector3(0.24, 0.18, 0.015)
 	light_r_glass.mesh = glass_mesh_r
 	light_r_glass.material_override = mat_headlight_glass
-	light_r_glass.transform = trans_r * Transform3D(Basis(), Vector3(0.0, 0.025, -0.30))
+	light_r_glass.transform = trans_r * Transform3D(Basis(), Vector3(0.0, 0.04, -0.30))
 	scene.add_child(light_r_glass)
 	light_r_glass.owner = scene
 
