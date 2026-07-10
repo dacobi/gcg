@@ -99,6 +99,7 @@ func _ready():
 		camera_node.look_at(supercar.global_position + supercar.global_transform.basis * Vector3(0, 0.4, -0.5), supercar.global_transform.basis.y)
 
 	spawn_barriers()
+	spawn_ramps()
 
 func spawn_barriers():
 	# Wait for the physical collision meshes of the CSG track to generate and sync
@@ -392,3 +393,45 @@ func setup_polygons():
 		Vector2(0.24, -0.02),
 		Vector2(-0.24, -0.02)
 	])
+
+func spawn_ramps():
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.4, 0.35, 0.3)
+	
+	var curve = path_node.curve
+	var length = curve.get_baked_length()
+	
+	var dummy = PathFollow3D.new()
+	dummy.rotation_mode = PathFollow3D.ROTATION_ORIENTED
+	path_node.add_child(dummy)
+	
+	var fractions = [0.125, 0.375, 0.625, 0.875]
+	for i in range(fractions.size()):
+		var frac = fractions[i]
+		dummy.progress = frac * length
+		var t1 = dummy.global_transform
+		
+		# Create Ramp
+		var ramp = CSGPolygon3D.new()
+		ramp.polygon = PackedVector2Array([Vector2(0, 0), Vector2(6, 0), Vector2(6, 2.5)])
+		ramp.depth = 6.0
+		ramp.use_collision = true
+		ramp.material_override = mat
+		
+		# 1st and 3rd on Left side shifted towards center (-6.0m), 2nd and 4th on Right side (12.0m)
+		var side_offset = -6.0 if (i % 2 == 0) else 12.0
+		
+		# Add to scene tree so global_transform assignment works
+		add_child(ramp)
+		
+		# Position offset in global space (lowered by 1m)
+		var spawn_pos = t1.origin + t1.basis.x * side_offset - t1.basis.y * 1.0
+		
+		# Rotate the basis around t1.basis.y (unify to 90 degrees)
+		var angle = deg_to_rad(90.0)
+		var rotated_basis = t1.basis.rotated(t1.basis.y.normalized(), angle)
+		
+		# Apply transform
+		ramp.global_transform = Transform3D(rotated_basis, spawn_pos)
+		
+	dummy.queue_free()
