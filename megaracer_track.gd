@@ -19,6 +19,28 @@ var current_cam_pitch = 0.0
 
 var reset_car = false
 
+var in_edit_mode = false
+var edit_progress = 0.0
+var edit_yaw = 0.0
+var edit_pitch = 0.0
+var edit_offset = 0.0
+
+var active_ramp = null
+var active_ramp_progress = 0.0
+var active_ramp_offset = 0.0
+
+var completed_ramps = []
+
+# Properties driven by Lua input
+var key_e_pressed = false
+var key_d_pressed = false
+var key_n_pressed = false
+var key_c_pressed = false
+var arrow_up_down = 0.0
+var arrow_left_right = 0.0
+var mouse_dx = 0.0
+var mouse_dy = 0.0
+
 # Scenic straightaway/bridge start position parameters
 var scale_x = 120.0
 var scale_z = 240.0
@@ -99,7 +121,14 @@ func _ready():
 		camera_node.look_at(supercar.global_position + supercar.global_transform.basis * Vector3(0, 0.4, -0.5), supercar.global_transform.basis.y)
 
 	spawn_barriers()
-	spawn_ramps()
+	print("\n=== EDIT MODE CONTROLS ===")
+	print("Press E to enter Edit Mode.")
+	print("Press N to spawn a new ramp at the edit camera location.")
+	print("Use Arrow Keys to move the edit camera (when no ramp is active) or the active ramp.")
+	print("  - UP/DOWN: Move camera/ramp forward/backward along the track.")
+	print("  - LEFT/RIGHT: Move ramp left/right relative to the track center.")
+	print("Press C to complete/save the active ramp.")
+	print("Press D to exit Edit Mode and return to driving.\n")
 
 func spawn_barriers():
 	# Wait for the physical collision meshes of the CSG track to generate and sync
@@ -295,6 +324,129 @@ func spawn_barriers():
 	dummy.queue_free()
 
 func _process(delta):
+	# Handle Edit Mode trigger state changes from Lua properties
+	# Read and clear trigger states from Lua immediately every frame to prevent stuck triggers
+	var trigger_e = key_e_pressed
+	var trigger_d = key_d_pressed
+	var trigger_n = key_n_pressed
+	var trigger_c = key_c_pressed
+	
+	key_e_pressed = false
+	key_d_pressed = false
+	key_n_pressed = false
+	key_c_pressed = false
+
+	if trigger_e and not in_edit_mode:
+		in_edit_mode = true
+		if supercar:
+			supercar.process_mode = PROCESS_MODE_DISABLED
+			edit_progress = path_node.curve.get_closest_offset(supercar.global_position)
+		edit_yaw = 0.0
+		edit_pitch = 0.0
+		edit_offset = 0.0
+		print("Entered Edit Mode via Lua.")
+	
+	if trigger_d and in_edit_mode:
+		if active_ramp:
+			active_ramp.queue_free()
+			active_ramp = null
+		in_edit_mode = false
+		if supercar:
+			supercar.process_mode = PROCESS_MODE_INHERIT
+		print("Exited Edit Mode via Lua.")
+		
+	if trigger_n and in_edit_mode and not active_ramp:
+		active_ramp_progress = edit_progress
+		active_ramp_offset = edit_offset
+		
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(0.4, 0.35, 0.3)
+		
+		active_ramp = CSGPolygon3D.new()
+		active_ramp.polygon = PackedVector2Array([Vector2(-3.0, 0.0), Vector2(3.0, 0.0), Vector2(3.0, 2.5)])
+		active_ramp.depth = 6.0
+		active_ramp.use_collision = false
+		active_ramp.material_override = mat
+		
+		add_child(active_ramp)
+		update_active_ramp()
+		print("Spawned new active ramp via Lua.")
+		
+	if trigger_c and in_edit_mode and active_ramp:
+		var static_body = StaticBody3D.new()
+		static_body.collision_layer = 1
+		static_body.collision_mask = 1
+		
+		var col_shape = CollisionShape3D.new()
+		var shape_created = false
+		
+		var meshes = active_ramp.get_meshes()
+		if meshes.size() >= 2:
+			var mesh = meshes[1]
+			if mesh:
+				var convex_shape = mesh.create_convex_shape()
+				if convex_shape:
+					col_shape.shape = convex_shape
+					shape_created = true
+					print("Created collision shape from visual mesh successfully.")
+					
+		if not shape_created:
+			var convex_shape = ConvexPolygonShape3D.new()
+			convex_shape.points = PackedVector3Array([
+				Vector3(-3.0, 0.0, 0.0),
+				Vector3(3.0, 0.0, 0.0),
+				Vector3(3.0, 2.5, 0.0),
+				Vector3(-3.0, 0.0, -6.0),
+				Vector3(3.0, 0.0, -6.0),
+				Vector3(3.0, 2.5, -6.0)
+			])
+			col_shape.shape = convex_shape
+			print("Created collision shape from fallback manual points.")
+			
+		static_body.add_child(col_shape)
+		add_child(static_body)
+		static_body.global_transform = active_ramp.global_transform
+		
+		completed_ramps.append(active_ramp)
+		active_ramp = null
+		print("Completed active ramp via Lua (created dedicated physics body).")
+
+	if in_edit_mode:
+		# Process free look camera rotation from Lua mouse deltas
+		edit_yaw -= mouse_dx
+		edit_pitch -= mouse_dy
+		edit_pitch = clamp(edit_pitch, -1.4, 1.4)
+		mouse_dx = 0.0
+		mouse_dy = 0.0
+
+		var length = path_node.curve.get_baked_length()
+		# Process movements from Lua arrow keys properties
+		if arrow_up_down != 0.0:
+			if active_ramp:
+				active_ramp_progress = fmod(active_ramp_progress + 30.0 * arrow_up_down * delta + length, length)
+				update_active_ramp()
+			else:
+				edit_progress = fmod(edit_progress + 50.0 * arrow_up_down * delta + length, length)
+		if arrow_left_right != 0.0:
+			if active_ramp:
+				active_ramp_offset += 10.0 * arrow_left_right * delta
+				update_active_ramp()
+			else:
+				edit_offset += 10.0 * arrow_left_right * delta
+
+		# Update camera position and free view rotation
+		var dummy = PathFollow3D.new()
+		dummy.rotation_mode = PathFollow3D.ROTATION_ORIENTED
+		path_node.add_child(dummy)
+		dummy.progress = edit_progress
+		
+		var camera_node = get_node_or_null("Camera3D")
+		if camera_node:
+			camera_node.global_position = dummy.global_position + dummy.global_transform.basis.y * 2.5 + dummy.global_transform.basis.x * edit_offset
+			camera_node.rotation = Vector3(edit_pitch, edit_yaw, 0.0)
+		dummy.queue_free()
+		return
+
 	if reset_car or (supercar and supercar.global_position.y < -30.0):
 		reset_car = false
 		if supercar:
@@ -394,9 +546,8 @@ func setup_polygons():
 		Vector2(-0.24, -0.02)
 	])
 
-func spawn_ramps():
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.4, 0.35, 0.3)
+func update_active_ramp():
+	if not active_ramp: return
 	
 	var curve = path_node.curve
 	var length = curve.get_baked_length()
@@ -405,33 +556,46 @@ func spawn_ramps():
 	dummy.rotation_mode = PathFollow3D.ROTATION_ORIENTED
 	path_node.add_child(dummy)
 	
-	var fractions = [0.125, 0.375, 0.625, 0.875]
-	for i in range(fractions.size()):
-		var frac = fractions[i]
-		dummy.progress = frac * length
-		var t1 = dummy.global_transform
+	dummy.progress = active_ramp_progress
+	var t1 = dummy.global_transform
+	
+	var center_pos = t1.origin + t1.basis.x * active_ramp_offset
+	
+	var corners = [
+		Vector3(-3.0, 0.0, -3.0),
+		Vector3(3.0, 0.0, -3.0),
+		Vector3(-3.0, 0.0, 3.0),
+		Vector3(3.0, 0.0, 3.0)
+	]
+	
+	var p = []
+	var space_state = get_world_3d().direct_space_state
+	
+	for i in range(corners.size()):
+		var corner_global = center_pos + t1.basis.x * corners[i].x + t1.basis.z * corners[i].z
+		var ray_start = corner_global + t1.basis.y * 5.0
+		var ray_end = corner_global - t1.basis.y * 5.0
 		
-		# Create Ramp
-		var ramp = CSGPolygon3D.new()
-		ramp.polygon = PackedVector2Array([Vector2(0, 0), Vector2(6, 0), Vector2(6, 2.5)])
-		ramp.depth = 6.0
-		ramp.use_collision = true
-		ramp.material_override = mat
+		var query = PhysicsRayQueryParameters3D.create(ray_start, ray_end)
+		query.collision_mask = 1
+		var result = space_state.intersect_ray(query)
 		
-		# 1st and 3rd on Left side shifted towards center (-6.0m), 2nd and 4th on Right side (12.0m)
-		var side_offset = -6.0 if (i % 2 == 0) else 12.0
-		
-		# Add to scene tree so global_transform assignment works
-		add_child(ramp)
-		
-		# Position offset in global space (lowered by 1m)
-		var spawn_pos = t1.origin + t1.basis.x * side_offset - t1.basis.y * 1.0
-		
-		# Rotate the basis around t1.basis.y (unify to 90 degrees)
-		var angle = deg_to_rad(90.0)
-		var rotated_basis = t1.basis.rotated(t1.basis.y.normalized(), angle)
-		
-		# Apply transform
-		ramp.global_transform = Transform3D(rotated_basis, spawn_pos)
-		
+		if result:
+			p.append(result.position)
+		else:
+			p.append(corner_global)
+			
+	var dir_z = ((p[2] - p[0]) + (p[3] - p[1])).normalized()
+	var dir_x = ((p[1] - p[0]) + (p[3] - p[2])).normalized()
+	var dir_y = dir_z.cross(dir_x).normalized()
+	dir_z = dir_y.cross(dir_x).normalized()
+	
+	var avg_pos = (p[0] + p[1] + p[2] + p[3]) / 4.0
+	var final_pos = avg_pos - dir_y * 0.5
+	
+	var angle = deg_to_rad(90.0)
+	var rotated_basis = Basis(dir_x, dir_y, dir_z).rotated(dir_y, angle)
+	var origin_pos = final_pos - rotated_basis.z * 3.0
+	
+	active_ramp.global_transform = Transform3D(rotated_basis, origin_pos)
 	dummy.queue_free()
