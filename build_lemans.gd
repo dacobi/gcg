@@ -16,9 +16,12 @@ func _ready():
 		
 	# Create materials
 	var mat_body = StandardMaterial3D.new()
-	mat_body.albedo_color = Color(0.1, 0.1, 0.8) # Le Mans Blue
-	mat_body.metallic = 0.8
-	mat_body.roughness = 0.2
+	mat_body.albedo_color = Color(0.02, 0.08, 0.45) # Dark Cobalt Blue
+	mat_body.metallic = 1.0
+	mat_body.roughness = 0.05
+	mat_body.clearcoat_enabled = true
+	mat_body.clearcoat = 1.0
+	mat_body.clearcoat_roughness = 0.05
 	
 	# Create a CSGCombiner3D to hold the sweep and the subtraction boxes
 	var combiner = CSGCombiner3D.new()
@@ -54,7 +57,7 @@ func _ready():
 	body.path_interval = 0.05
 	body.smooth_faces = true
 	body.path_local = true
-	body.material_override = mat_body
+	body.material = mat_body
 	
 	# Full-width cross section with EXTREMELY deep side walls going underground
 	var scaled_poly = PackedVector2Array()
@@ -84,7 +87,7 @@ func _ready():
 	fender_fl.sides = 64
 	fender_fl.rotation_degrees = Vector3(0, 0, 90)
 	fender_fl.position = Vector3(-0.925, -0.125, -1.7) # Shifted inward to maintain outer edge
-	fender_fl.material_override = mat_body
+	fender_fl.material = mat_body
 	combiner.add_child(fender_fl)
 	fender_fl.owner = scene
 	
@@ -159,7 +162,7 @@ func _ready():
 	var wind_front = CSGBox3D.new()
 	wind_front.name = "WindowFront"
 	wind_front.operation = CSGShape3D.OPERATION_SUBTRACTION
-	wind_front.material_override = mat_glass
+	wind_front.material = mat_glass
 	wind_front.size = Vector3(1.4, 0.2, 1.2) # 1.4 wide, 0.2 thick (cuts shallow recess), 1.2 long
 	wind_front.rotation_degrees = Vector3(18, 0, 0) # Angled to match the hood sweep
 	wind_front.position = Vector3(0, 0.55, -0.7) # Positioned right on the front canopy slope
@@ -170,7 +173,7 @@ func _ready():
 	var wind_right = CSGBox3D.new()
 	wind_right.name = "WindowRight"
 	wind_right.operation = CSGShape3D.OPERATION_SUBTRACTION
-	wind_right.material_override = mat_glass
+	wind_right.material = mat_glass
 	wind_right.size = Vector3(0.2, 0.4, 1.2) # 0.2 thick, 0.4 high, 1.2 long
 	wind_right.rotation_degrees = Vector3(0, 0, 20) # Angled to match the shoulder curve
 	wind_right.position = Vector3(0.9, 0.5, 0.1) # Positioned on the right side of canopy
