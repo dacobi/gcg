@@ -3855,7 +3855,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         if (state->scriptSystem) {
             ImGui::Begin("Car Physics Settings");
             float engine_f = state->scriptSystem->getGlobalFloat("engine_force_value");
-            if (ImGui::SliderFloat("Engine Force", &engine_f, 1000.0f, 20000.0f)) state->scriptSystem->setGlobalFloat("engine_force_value", engine_f);
+            if (ImGui::SliderFloat("Engine Force", &engine_f, 1000.0f, 100000.0f)) state->scriptSystem->setGlobalFloat("engine_force_value", engine_f);
 
             float brake_f = state->scriptSystem->getGlobalFloat("brake_force_value");
             if (ImGui::SliderFloat("Brake Force", &brake_f, 50.0f, 1000.0f)) state->scriptSystem->setGlobalFloat("brake_force_value", brake_f);
@@ -3891,7 +3891,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             if (ImGui::SliderFloat("Center of Mass Y", &com_y, -1.0f, 1.0f)) state->scriptSystem->setGlobalFloat("center_of_mass_y", com_y);
 
             float max_sp = state->scriptSystem->getGlobalFloat("max_speed");
-            if (ImGui::SliderFloat("Max Speed", &max_sp, 10.0f, 200.0f)) state->scriptSystem->setGlobalFloat("max_speed", max_sp);
+            if (ImGui::SliderFloat("Max Speed", &max_sp, 10.0f, 1000.0f)) state->scriptSystem->setGlobalFloat("max_speed", max_sp);
 
             float ov_ext = state->scriptSystem->getGlobalFloat("over_extend");
             if (ImGui::SliderFloat("Over Extend", &ov_ext, 0.0f, 1.0f)) state->scriptSystem->setGlobalFloat("over_extend", ov_ext);

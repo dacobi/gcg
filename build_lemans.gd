@@ -237,27 +237,175 @@ func _ready():
 	endplate_r.owner = scene
 
 	# --- HEADLIGHTS ---
-	var mat_headlight = StandardMaterial3D.new()
-	mat_headlight.albedo_color = Color(0.8, 1.0, 1.0)
-	mat_headlight.emission_enabled = true
-	mat_headlight.emission = Color(0.2, 0.9, 1.0) # Glowing Cyan
-	mat_headlight.emission_energy_multiplier = 4.0
+	# --- HEADLIGHTS ---
+	var mat_chrome = StandardMaterial3D.new()
+	mat_chrome.albedo_color = Color(0.9, 0.9, 0.9)
+	mat_chrome.metallic = 1.0
+	mat_chrome.roughness = 0.05
 
-	var light_l = CSGBox3D.new()
-	light_l.name = "HeadlightL"
-	light_l.material = mat_headlight
-	light_l.size = Vector3(0.3, 0.05, 0.1)
-	light_l.position = Vector3(-0.8, 0.1, -3.0)
-	light_l.rotation_degrees = Vector3(-15, -10, 5) # Angled to match nose surface
-	combiner.add_child(light_l)
-	light_l.owner = scene
+	var mat_headlight_glass = StandardMaterial3D.new()
+	mat_headlight_glass.albedo_color = Color(0.7, 0.85, 1.0, 0.55) # Clearer tinted blue
+	mat_headlight_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat_headlight_glass.roughness = 0.02 # High gloss
+	mat_headlight_glass.metallic = 0.9 # High reflection
 
-	var light_r = light_l.duplicate()
-	light_r.name = "HeadlightR"
-	light_r.position = Vector3(0.8, 0.1, -3.0)
-	light_r.rotation_degrees = Vector3(-15, 10, -5)
-	combiner.add_child(light_r)
-	light_r.owner = scene
+	var mat_bulb = StandardMaterial3D.new()
+	mat_bulb.albedo_color = Color(1.0, 1.0, 0.9)
+	mat_bulb.emission_enabled = true
+	mat_bulb.emission = Color(1.0, 1.0, 0.8) # Warm white glow
+	mat_bulb.emission_energy_multiplier = 5.0
+
+	# Wedge polygon pointing forward (tall flat front vertical face, extended 2x backwards to 0.60m)
+	var poly_pts = PackedVector2Array([
+		Vector2(0.30, -0.1),     # Front-Bottom
+		Vector2(0.30, 0.15),     # Front-Top (taller vertical face)
+		Vector2(0.15, 0.18),     # Convex curve sloping up
+		Vector2(0.0, 0.19),      # Convex curve sloping up
+		Vector2(-0.15, 0.20),    # Convex curve sloping up
+		Vector2(-0.30, 0.20),    # Back-Top (tall back face)
+		Vector2(-0.30, -0.1)     # Back-Bottom
+	])
+
+	# Scaled down polygon points for hollowing out the interior (leaving 0.02m walls)
+	var inner_pts = PackedVector2Array([
+		Vector2(0.28, -0.08),
+		Vector2(0.28, 0.13),
+		Vector2(0.14, 0.16),
+		Vector2(0.0, 0.17),
+		Vector2(-0.14, 0.18),
+		Vector2(-0.28, 0.18),
+		Vector2(-0.28, -0.08)
+	])
+
+	# Left Headlight Assembly Transforms (shifted Z to -2.85 to keep front face at same position, aligned parallel)
+	var trans_l = Transform3D(Basis(), Vector3(-0.8, 0.15, -2.85))
+
+	var light_l_housing = CSGPolygon3D.new()
+	light_l_housing.name = "HeadlightL_Housing"
+	light_l_housing.mode = CSGPolygon3D.MODE_DEPTH
+	light_l_housing.depth = 0.3
+	light_l_housing.polygon = poly_pts
+	light_l_housing.material = mat_body
+	light_l_housing.transform = trans_l * Transform3D(Basis.from_euler(Vector3(0, deg_to_rad(-90), 0)), Vector3(-0.15, 0, 0))
+	combiner.add_child(light_l_housing)
+	light_l_housing.owner = scene
+
+	var light_l_cavity = CSGPolygon3D.new()
+	light_l_cavity.name = "HeadlightL_Cavity"
+	light_l_cavity.operation = CSGShape3D.OPERATION_SUBTRACTION
+	light_l_cavity.mode = CSGPolygon3D.MODE_DEPTH
+	light_l_cavity.depth = 0.26
+	light_l_cavity.polygon = inner_pts
+	light_l_cavity.material = mat_chrome
+	light_l_cavity.transform = trans_l * Transform3D(Basis.from_euler(Vector3(0, deg_to_rad(-90), 0)), Vector3(-0.13, 0, 0))
+	combiner.add_child(light_l_cavity)
+	light_l_cavity.owner = scene
+
+	var light_l_cutter = CSGBox3D.new()
+	light_l_cutter.name = "HeadlightL_Cutter"
+	light_l_cutter.operation = CSGShape3D.OPERATION_SUBTRACTION
+	light_l_cutter.material = mat_chrome
+	light_l_cutter.size = Vector3(0.24, 0.22, 0.10)
+	light_l_cutter.transform = trans_l * Transform3D(Basis(), Vector3(0.0, 0.025, -0.30))
+	combiner.add_child(light_l_cutter)
+	light_l_cutter.owner = scene
+
+	var light_l_glass = MeshInstance3D.new()
+	light_l_glass.name = "HeadlightL_Glass"
+	var glass_mesh_l = BoxMesh.new()
+	glass_mesh_l.size = Vector3(0.24, 0.22, 0.015)
+	light_l_glass.mesh = glass_mesh_l
+	light_l_glass.material_override = mat_headlight_glass
+	light_l_glass.transform = trans_l * Transform3D(Basis(), Vector3(0.0, 0.025, -0.30))
+	scene.add_child(light_l_glass)
+	light_l_glass.owner = scene
+
+	# Glowing Bulb mesh Left
+	var bulb_l = MeshInstance3D.new()
+	bulb_l.name = "HeadlightL_Bulb"
+	var bulb_mesh_l = SphereMesh.new()
+	bulb_mesh_l.radius = 0.03
+	bulb_mesh_l.height = 0.06
+	bulb_l.mesh = bulb_mesh_l
+	bulb_l.material_override = mat_bulb
+	bulb_l.transform = trans_l * Transform3D(Basis(), Vector3(0.0, 0.05, -0.15))
+	scene.add_child(bulb_l)
+	bulb_l.owner = scene
+
+	var spotlight_l = SpotLight3D.new()
+	spotlight_l.name = "HeadlightL_SpotLight"
+	spotlight_l.light_color = Color(1.0, 0.95, 0.9)
+	spotlight_l.light_energy = 12.0
+	spotlight_l.spot_range = 60.0
+	spotlight_l.spot_angle = 35.0
+	spotlight_l.transform = trans_l * Transform3D(Basis.from_euler(Vector3(deg_to_rad(-5), 0, 0)), Vector3(0.0, 0.05, -0.15))
+	scene.add_child(spotlight_l)
+	spotlight_l.owner = scene
+
+	# Right Headlight Assembly Transforms (shifted Z to -2.85 to keep front face at same position, aligned parallel)
+	var trans_r = Transform3D(Basis(), Vector3(0.8, 0.15, -2.85))
+
+	var light_r_housing = CSGPolygon3D.new()
+	light_r_housing.name = "HeadlightR_Housing"
+	light_r_housing.mode = CSGPolygon3D.MODE_DEPTH
+	light_r_housing.depth = 0.3
+	light_r_housing.polygon = poly_pts
+	light_r_housing.material = mat_body
+	light_r_housing.transform = trans_r * Transform3D(Basis.from_euler(Vector3(0, deg_to_rad(-90), 0)), Vector3(-0.15, 0, 0))
+	combiner.add_child(light_r_housing)
+	light_r_housing.owner = scene
+
+	var light_r_cavity = CSGPolygon3D.new()
+	light_r_cavity.name = "HeadlightR_Cavity"
+	light_r_cavity.operation = CSGShape3D.OPERATION_SUBTRACTION
+	light_r_cavity.mode = CSGPolygon3D.MODE_DEPTH
+	light_r_cavity.depth = 0.26
+	light_r_cavity.polygon = inner_pts
+	light_r_cavity.material = mat_chrome
+	light_r_cavity.transform = trans_r * Transform3D(Basis.from_euler(Vector3(0, deg_to_rad(-90), 0)), Vector3(-0.13, 0, 0))
+	combiner.add_child(light_r_cavity)
+	light_r_cavity.owner = scene
+
+	var light_r_cutter = CSGBox3D.new()
+	light_r_cutter.name = "HeadlightR_Cutter"
+	light_r_cutter.operation = CSGShape3D.OPERATION_SUBTRACTION
+	light_r_cutter.material = mat_chrome
+	light_r_cutter.size = Vector3(0.24, 0.22, 0.10)
+	light_r_cutter.transform = trans_r * Transform3D(Basis(), Vector3(0.0, 0.025, -0.30))
+	combiner.add_child(light_r_cutter)
+	light_r_cutter.owner = scene
+
+	var light_r_glass = MeshInstance3D.new()
+	light_r_glass.name = "HeadlightR_Glass"
+	var glass_mesh_r = BoxMesh.new()
+	glass_mesh_r.size = Vector3(0.24, 0.22, 0.015)
+	light_r_glass.mesh = glass_mesh_r
+	light_r_glass.material_override = mat_headlight_glass
+	light_r_glass.transform = trans_r * Transform3D(Basis(), Vector3(0.0, 0.025, -0.30))
+	scene.add_child(light_r_glass)
+	light_r_glass.owner = scene
+
+	# Glowing Bulb mesh Right
+	var bulb_r = MeshInstance3D.new()
+	bulb_r.name = "HeadlightR_Bulb"
+	var bulb_mesh_r = SphereMesh.new()
+	bulb_mesh_r.radius = 0.03
+	bulb_mesh_r.height = 0.06
+	bulb_r.mesh = bulb_mesh_r
+	bulb_r.material_override = mat_bulb
+	bulb_r.transform = trans_r * Transform3D(Basis(), Vector3(0.0, 0.05, -0.15))
+	scene.add_child(bulb_r)
+	bulb_r.owner = scene
+
+	var spotlight_r = SpotLight3D.new()
+	spotlight_r.name = "HeadlightR_SpotLight"
+	spotlight_r.light_color = Color(1.0, 0.95, 0.9)
+	spotlight_r.light_energy = 12.0
+	spotlight_r.spot_range = 60.0
+	spotlight_r.spot_angle = 35.0
+	spotlight_r.transform = trans_r * Transform3D(Basis.from_euler(Vector3(deg_to_rad(-5), 0, 0)), Vector3(0.0, 0.05, -0.15))
+	scene.add_child(spotlight_r)
+	spotlight_r.owner = scene
 
 	# --- TAILLIGHTS ---
 	var mat_taillight = StandardMaterial3D.new()
@@ -266,13 +414,51 @@ func _ready():
 	mat_taillight.emission = Color(1.0, 0.1, 0.2) # Glowing Magenta/Red
 	mat_taillight.emission_energy_multiplier = 4.0
 
-	var taillight = CSGBox3D.new()
-	taillight.name = "TaillightBar"
-	taillight.material = mat_taillight
-	taillight.size = Vector3(2.0, 0.04, 0.05)
-	taillight.position = Vector3(0.0, -0.1, 3.3)
-	combiner.add_child(taillight)
-	taillight.owner = scene
+	var w_third = 2.0 / 3.0
+
+	# Left third (taillight)
+	var taillight_l = CSGBox3D.new()
+	taillight_l.name = "TaillightBarLeft"
+	taillight_l.material = mat_taillight
+	taillight_l.size = Vector3(w_third, 0.04, 0.05)
+	taillight_l.position = Vector3(-w_third, -0.1, 3.3)
+	combiner.add_child(taillight_l)
+	taillight_l.owner = scene
+
+	# Right third (taillight)
+	var taillight_r_bar = CSGBox3D.new()
+	taillight_r_bar.name = "TaillightBarRight"
+	taillight_r_bar.material = mat_taillight
+	taillight_r_bar.size = Vector3(w_third, 0.04, 0.05)
+	taillight_r_bar.position = Vector3(w_third, -0.1, 3.3)
+	combiner.add_child(taillight_r_bar)
+	taillight_r_bar.owner = scene
+
+	# Middle third (body color)
+	var taillight_m = CSGBox3D.new()
+	taillight_m.name = "TaillightBarMiddle"
+	taillight_m.material = mat_body
+	taillight_m.size = Vector3(w_third, 0.04, 0.05)
+	taillight_m.position = Vector3(0.0, -0.1, 3.3)
+	combiner.add_child(taillight_m)
+	taillight_m.owner = scene
+
+	# Two connector bars connecting the middle third to the body
+	var conn_l = CSGBox3D.new()
+	conn_l.name = "TaillightConnectorLeft"
+	conn_l.material = mat_body
+	conn_l.size = Vector3(0.05, 0.04, 0.3)
+	conn_l.position = Vector3(-0.16, -0.1, 3.15)
+	combiner.add_child(conn_l)
+	conn_l.owner = scene
+
+	var conn_r = CSGBox3D.new()
+	conn_r.name = "TaillightConnectorRight"
+	conn_r.material = mat_body
+	conn_r.size = Vector3(0.05, 0.04, 0.3)
+	conn_r.position = Vector3(0.16, -0.1, 3.15)
+	combiner.add_child(conn_r)
+	conn_r.owner = scene
 	
 	# Find front wheel pivots and replace wheels with rear wheels
 	var fr = scene.get_node_or_null("FrontRightSteerPivot")
