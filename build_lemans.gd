@@ -188,6 +188,92 @@ func _ready():
 	combiner.add_child(wind_left)
 	wind_left.owner = scene
 	
+	# --- BACK SPOILER ---
+	var mat_spoiler = StandardMaterial3D.new()
+	mat_spoiler.albedo_color = Color(0.08, 0.08, 0.08) # Carbon Black
+	mat_spoiler.metallic = 0.3
+	mat_spoiler.roughness = 0.7
+
+	# Left Support
+	var support_l = CSGBox3D.new()
+	support_l.name = "SpoilerSupportL"
+	support_l.material = mat_spoiler
+	support_l.size = Vector3(0.05, 0.6, 0.2)
+	support_l.position = Vector3(-0.7, 0.32, 2.7)
+	combiner.add_child(support_l)
+	support_l.owner = scene
+
+	# Right Support
+	var support_r = support_l.duplicate()
+	support_r.name = "SpoilerSupportR"
+	support_r.position = Vector3(0.7, 0.32, 2.7)
+	combiner.add_child(support_r)
+	support_r.owner = scene
+
+	# Main Wing Blade
+	var wing = CSGBox3D.new()
+	wing.name = "SpoilerWing"
+	wing.material = mat_spoiler
+	wing.size = Vector3(2.4, 0.05, 0.4)
+	wing.position = Vector3(0.0, 0.62, 2.7)
+	wing.rotation_degrees = Vector3(-5, 0, 0) # Small angle of attack
+	combiner.add_child(wing)
+	wing.owner = scene
+
+	# Left Endplate
+	var endplate_l = CSGBox3D.new()
+	endplate_l.name = "SpoilerEndplateL"
+	endplate_l.material = mat_spoiler
+	endplate_l.size = Vector3(0.05, 0.3, 0.5)
+	endplate_l.position = Vector3(-1.2, 0.62, 2.7)
+	combiner.add_child(endplate_l)
+	endplate_l.owner = scene
+
+	# Right Endplate
+	var endplate_r = endplate_l.duplicate()
+	endplate_r.name = "SpoilerEndplateR"
+	endplate_r.position = Vector3(1.2, 0.62, 2.7)
+	combiner.add_child(endplate_r)
+	endplate_r.owner = scene
+
+	# --- HEADLIGHTS ---
+	var mat_headlight = StandardMaterial3D.new()
+	mat_headlight.albedo_color = Color(0.8, 1.0, 1.0)
+	mat_headlight.emission_enabled = true
+	mat_headlight.emission = Color(0.2, 0.9, 1.0) # Glowing Cyan
+	mat_headlight.emission_energy_multiplier = 4.0
+
+	var light_l = CSGBox3D.new()
+	light_l.name = "HeadlightL"
+	light_l.material = mat_headlight
+	light_l.size = Vector3(0.3, 0.05, 0.1)
+	light_l.position = Vector3(-0.8, 0.1, -3.0)
+	light_l.rotation_degrees = Vector3(-15, -10, 5) # Angled to match nose surface
+	combiner.add_child(light_l)
+	light_l.owner = scene
+
+	var light_r = light_l.duplicate()
+	light_r.name = "HeadlightR"
+	light_r.position = Vector3(0.8, 0.1, -3.0)
+	light_r.rotation_degrees = Vector3(-15, 10, -5)
+	combiner.add_child(light_r)
+	light_r.owner = scene
+
+	# --- TAILLIGHTS ---
+	var mat_taillight = StandardMaterial3D.new()
+	mat_taillight.albedo_color = Color(1.0, 0.2, 0.4)
+	mat_taillight.emission_enabled = true
+	mat_taillight.emission = Color(1.0, 0.1, 0.2) # Glowing Magenta/Red
+	mat_taillight.emission_energy_multiplier = 4.0
+
+	var taillight = CSGBox3D.new()
+	taillight.name = "TaillightBar"
+	taillight.material = mat_taillight
+	taillight.size = Vector3(2.0, 0.04, 0.05)
+	taillight.position = Vector3(0.0, -0.1, 3.3)
+	combiner.add_child(taillight)
+	taillight.owner = scene
+	
 	# Find front wheel pivots and replace wheels with rear wheels
 	var fr = scene.get_node_or_null("FrontRightSteerPivot")
 	var fl = scene.get_node_or_null("FrontLeftSteerPivot")
