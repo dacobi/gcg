@@ -50,6 +50,8 @@ local orbit_yaw = 0.0
 local orbit_pitch = 0.5
 local orbit_dist = 12.0
 
+local frame_count = 0
+
 while true do
 	-- Handle Q to quit (moved from ESCAPE)
 	if ioKBClicked("SDLK_q") then
@@ -181,10 +183,14 @@ while true do
 			godotSetProperty("drivetrain_mode", getGlobalFloat("drivetrain_mode"), supercar)
 			godotSetProperty("tire_turn_speed", getGlobalFloat("tire_turn_speed"), supercar)
 			
-			setGlobalFloat("telemetry_slip_FL", godotGetProperty("slip_FL", supercar) or 0.0)
-			setGlobalFloat("telemetry_slip_FR", godotGetProperty("slip_FR", supercar) or 0.0)
-			setGlobalFloat("telemetry_slip_RL", godotGetProperty("slip_RL", supercar) or 0.0)
-			setGlobalFloat("telemetry_slip_RR", godotGetProperty("slip_RR", supercar) or 0.0)
+			-- Sub-sample telemetry queries to 50 FPS (every 2 frames) to save thread roundtrips
+			frame_count = frame_count + 1
+			if frame_count % 2 == 0 then
+				setGlobalFloat("telemetry_slip_FL", godotGetProperty("slip_FL", supercar) or 0.0)
+				setGlobalFloat("telemetry_slip_FR", godotGetProperty("slip_FR", supercar) or 0.0)
+				setGlobalFloat("telemetry_slip_RL", godotGetProperty("slip_RL", supercar) or 0.0)
+				setGlobalFloat("telemetry_slip_RR", godotGetProperty("slip_RR", supercar) or 0.0)
+			end
 			
 			local track = godotGetNodePointer("MegaRacerScene")
 			if track then

@@ -1568,31 +1568,68 @@ int LuaScripting::lua_godotSetProperty(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (lua_isstring(L, 1) && self && self->godotCmdFunc) {
         std::string name = lua_tostring(L, 1);
-        auto sd = std::make_shared<LuaSyncData>();
-        float fargs[3] = {0,0,0};
+        void* target = lua_islightuserdata(L, 3) ? lua_touserdata(L, 3) : nullptr;
         
-        if (lua_islightuserdata(L, 3)) {
-            sd->ptr_arg = lua_touserdata(L, 3);
-        }
-
+        bool is_impulse = (name == "reset_car");
+        
         if (lua_isnumber(L, 2)) {
-            fargs[0] = (float)lua_tonumber(L, 2);
-            fargs[1] = 0; // Number
+            float val = (float)lua_tonumber(L, 2);
+            if (!is_impulse) {
+                auto key = std::make_pair(target, name);
+                auto it = self->last_float_sets.find(key);
+                if (it != self->last_float_sets.end() && it->second == val) {
+                    return 0; // Skip redundant set
+                }
+                self->last_float_sets[key] = val;
+            }
+            
+            auto sd = std::make_shared<LuaSyncData>();
+            sd->ptr_arg = target;
+            float fargs[3] = {val, 0.0f, 0.0f}; // 0 = Number
             self->godotCmdFunc(GCMD_SET_PROPERTY, name, fargs, sd, L, self);
+            std::unique_lock<std::mutex> lock(sd->mtx);
+            while (!sd->done && self && self->systemRunning) {
+                sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+            }
         } else if (lua_isstring(L, 2)) {
-            fargs[1] = 1; // String
-            std::string combined = name + "|" + lua_tostring(L, 2);
+            std::string val = lua_tostring(L, 2);
+            if (!is_impulse) {
+                auto key = std::make_pair(target, name);
+                auto it = self->last_string_sets.find(key);
+                if (it != self->last_string_sets.end() && it->second == val) {
+                    return 0; // Skip redundant set
+                }
+                self->last_string_sets[key] = val;
+            }
+            
+            auto sd = std::make_shared<LuaSyncData>();
+            sd->ptr_arg = target;
+            float fargs[3] = {0.0f, 1.0f, 0.0f}; // 1 = String
+            std::string combined = name + "|" + val;
             self->godotCmdFunc(GCMD_SET_PROPERTY, combined, fargs, sd, L, self);
+            std::unique_lock<std::mutex> lock(sd->mtx);
+            while (!sd->done && self && self->systemRunning) {
+                sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+            }
         } else if (lua_isboolean(L, 2)) {
-            fargs[0] = lua_toboolean(L, 2) ? 1.0f : 0.0f;
-            fargs[1] = 2; // Bool
+            bool val = lua_toboolean(L, 2);
+            if (!is_impulse) {
+                auto key = std::make_pair(target, name);
+                auto it = self->last_bool_sets.find(key);
+                if (it != self->last_bool_sets.end() && it->second == val) {
+                    return 0; // Skip redundant set
+                }
+                self->last_bool_sets[key] = val;
+            }
+            
+            auto sd = std::make_shared<LuaSyncData>();
+            sd->ptr_arg = target;
+            float fargs[3] = {val ? 1.0f : 0.0f, 2.0f, 0.0f}; // 2 = Bool
             self->godotCmdFunc(GCMD_SET_PROPERTY, name, fargs, sd, L, self);
-        } else {
-            return 0;
-        }
-        std::unique_lock<std::mutex> lock(sd->mtx);
-        while (!sd->done && self && self->systemRunning) {
-            sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+            std::unique_lock<std::mutex> lock(sd->mtx);
+            while (!sd->done && self && self->systemRunning) {
+                sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+            }
         }
     }
     return 0;

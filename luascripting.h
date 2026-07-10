@@ -10,6 +10,8 @@
 #include <queue>
 #include <condition_variable>
 #include <memory>
+#include <map>
+#include <utility>
 
 struct LuaSyncData {
     std::mutex mtx;
@@ -244,6 +246,11 @@ private:
     std::thread scriptThread;
     std::vector<std::thread> detachedThreads;
     std::mutex threadsMutex;
+    
+    // C++ Property caching maps
+    std::map<std::pair<void*, std::string>, float> last_float_sets;
+    std::map<std::pair<void*, std::string>, std::string> last_string_sets;
+    std::map<std::pair<void*, std::string>, bool> last_bool_sets;
     std::atomic<bool> systemRunning{true};
     std::atomic<bool> primaryRunning{false};
 
