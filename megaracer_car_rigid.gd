@@ -1,4 +1,4 @@
-extends VehicleBody3D
+extends RigidBody3D
 
 # Control inputs (set by Lua script via godotSetProperty)
 var accel_input: float = 0.0
@@ -13,8 +13,7 @@ var mount_RR = Vector3(1.3, -0.1, 0.9)
 var radius_front = 0.4
 var radius_rear = 0.5
 
-var wheels = {}
-
+# Tuning coefficients set by Lua script
 var engine_force_value = 8000.0
 var brake_force_value = 200.0
 var max_steer = 0.4
@@ -28,12 +27,54 @@ var downforce_multiplier = 120.0
 var car_mass = 1200.0
 var center_of_mass_y = -0.2
 
+# Properties accessed by RaycastWheel
+var motor_input := 0.0
+var hand_break := false
+var is_slipping := false
+var total_wheels := 4
+var acceleration := 600.0
+var max_speed := 96.0
+var over_extend = 0.05
+var z_traction = 0.05
+var default_radius_front = 0.4
+var default_radius_rear = 0.5
+var use_shapecast = 1.0
+var drivetrain_mode = 0.0
+var tire_turn_speed = 10.0
+var slip_FL = 0.0
+var slip_FR = 0.0
+var slip_RL = 0.0
+var slip_RR = 0.0
+
+# Resources
+var accel_curve: Curve
+var grip_curve: Curve
+
+var wheels: Array = []
 var start_transform: Transform3D
 
 func _ready():
+	default_radius_front = radius_front
+	default_radius_rear = radius_rear
 	start_transform = global_transform
 	
-	# Create visual debug meshes for all CollisionShape3D children
+	# Programmatic construction of curves from the tutorial values
+	accel_curve = Curve.new()
+	accel_curve.add_point(Vector2(0, 0.3))
+	accel_curve.add_point(Vector2(0.3, 0.9))
+	accel_curve.add_point(Vector2(0.6, 0.8))
+	accel_curve.add_point(Vector2(1, 0.1))
+
+	grip_curve = Curve.new()
+	grip_curve.add_point(Vector2(0, 1.0))
+	grip_curve.add_point(Vector2(0.25, 0.8))
+	grip_curve.add_point(Vector2(0.9, 0.0))
+
+	# Enable contacts reporting
+	contact_monitor = true
+	max_contacts_reported = 4
+	
+	# Create visual debug meshes for CollisionShape3D children
 	for child in get_children():
 		if child is CollisionShape3D:
 			var mi = MeshInstance3D.new()
@@ -64,85 +105,153 @@ func _ready():
 			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			mi.material_override = mat
 			child.add_child(mi)
-	
-	create_wheel("FL", mount_FL, radius_front, true, false)
-	create_wheel("FR", mount_FR, radius_front, true, false)
-	create_wheel("RL", mount_RL, radius_rear, false, true)
-	create_wheel("RR", mount_RR, radius_rear, false, true)
+			
+	# Dynamically build wheels at startup
+	var use_shapecast = true
+	var w_fl = create_wheel("FL", mount_FL, radius_front, true, false, use_shapecast)
+	var w_fr = create_wheel("FR", mount_FR, radius_front, true, false, use_shapecast)
+	var w_rl = create_wheel("RL", mount_RL, radius_rear, false, true, use_shapecast)
+	var w_rr = create_wheel("RR", mount_RR, radius_rear, false, true, use_shapecast)
+	wheels = [w_fl, w_fr, w_rl, w_rr]
 
-func create_wheel(w_name, pos, radius, is_front, is_drive):
-	var w = VehicleWheel3D.new()
+func create_wheel(w_name: String, pos: Vector3, radius: float, is_front: bool, is_drive: bool, use_shapecast: bool) -> RayCast3D:
+	var w = RayCast3D.new()
 	w.name = "Wheel" + w_name
 	w.position = pos
+	w.set_script(load("res://raycast_wheel.gd"))
 	
 	w.wheel_radius = radius
-	w.wheel_rest_length = 0.15
+	w.rest_dist = suspension_travel
+	w.spring_strength = suspension_stiffness * 50.0
+	w.spring_damping = damping_compression * 15.0
+	w.max_spring_force = suspension_max_force
+	w.over_extend = 0.05
 	
-	w.use_as_steering = is_front
-	w.use_as_traction = is_drive
+	w.is_motor = is_drive
+	w.is_steer = is_front
+	w.grip_curve = grip_curve
+	w.z_brake_traction = 0.5
+	w.show_debug = false
 	
+	# Dynamically bind visual node references
+	var pivot_name := ""
+	var wheel_node_name := ""
+	if w_name == "FL":
+		pivot_name = "FrontLeftSteerPivot"
+		wheel_node_name = "FrontLeftWheel"
+	elif w_name == "FR":
+		pivot_name = "FrontRightSteerPivot"
+		wheel_node_name = "FrontRightWheel"
+	elif w_name == "RL":
+		pivot_name = "RearLeftSteerPivot"
+		wheel_node_name = "RearLeftWheel"
+	elif w_name == "RR":
+		pivot_name = "RearRightSteerPivot"
+		wheel_node_name = "RearRightWheel"
+		
+	w.visual_pivot = get_node_or_null(pivot_name)
+	if w.visual_pivot:
+		w.visual_wheel = w.visual_pivot.get_node_or_null(wheel_node_name)
+		
+	if use_shapecast:
+		var sc = ShapeCast3D.new()
+		sc.name = "ShapeCast3D"
+		sc.process_physics_priority = -1
+		
+		var shape = CylinderShape3D.new()
+		shape.radius = radius
+		shape.height = 0.3
+		sc.shape = shape
+		
+		# Rotate 90 degrees around Z axis so local X points down (casts downwards)
+		sc.transform = Transform3D(Basis(Vector3(0, 1, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1)), Vector3.ZERO)
+		sc.add_exception(self)
+		w.add_child(sc)
+		w.shapecast = sc
+		
 	add_child(w)
-	wheels[w_name] = w
-	
-func _physics_process(delta):
-	for w_name in wheels:
-		var w = wheels[w_name]
-		if handbrake_input > 0.5 and (w_name == "RL" or w_name == "RR"):
-			w.wheel_friction_slip = wheel_friction_slip * 0.2
-		else:
-			w.wheel_friction_slip = wheel_friction_slip
-			
-		w.suspension_travel = suspension_travel
-		w.suspension_stiffness = suspension_stiffness
-		w.suspension_max_force = suspension_max_force
-		w.damping_compression = damping_compression
-		w.damping_relaxation = damping_relaxation
-		
+	return w
+
+func _physics_process(delta: float) -> void:
+	# Update mass and COM from properties set by Lua script
 	mass = car_mass
+	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = Vector3(0, center_of_mass_y, 0)
-		
-	# Apply steering (speed-sensitive)
-	var steer_speed = linear_velocity.length()
-	var current_max_steer = max(0.08, max_steer - (steer_speed / 100.0) * 0.32)
-	steering = lerp(steering, -steer_input * current_max_steer, 10.0 * delta)
 	
-	# Apply engine and brakes
-	engine_force = 0.0
-	brake = 0.0
+	var forward_speed = -global_transform.basis.z.dot(linear_velocity)
 	
-	if accel_input > 0.0:
-		engine_force = -accel_input * engine_force_value
-	elif brake_input > 0.0:
-		# If moving forward, brake. If stopped/reverse, drive backwards
-		var forward_speed = -global_transform.basis.z.dot(linear_velocity)
-		if forward_speed > 2.0:
-			brake = brake_input * brake_force_value
+	# Scale engine acceleration force
+	acceleration = engine_force_value * 0.15
+	
+	# Set inputs
+	hand_break = handbrake_input > 0.5
+	
+	# Handle the SDL initial unpressed trigger quirk (both report 0.5)
+	var final_accel = accel_input
+	var final_brake = brake_input
+	if abs(accel_input - 0.5) < 0.02 and abs(brake_input - 0.5) < 0.02:
+		final_accel = 0.0
+		final_brake = 0.0
+
+	if final_accel > final_brake:
+		motor_input = final_accel
+		for w in wheels:
+			w.is_braking = false
+	elif final_brake > final_accel:
+		if forward_speed > 1.0:
+			motor_input = 0.0
+			for w in wheels:
+				w.is_braking = true
 		else:
-			engine_force = brake_input * (engine_force_value * 0.5)
+			motor_input = -final_brake
+			for w in wheels:
+				w.is_braking = false
 	else:
-		# Engine braking
-		brake = 5.0
+		motor_input = 0.0
+		for w in wheels:
+			w.is_braking = false
+			
+	if hand_break:
+		wheels[2].is_braking = true
+		wheels[3].is_braking = true
 		
-	if handbrake_input > 0.5:
-		brake = brake_force_value * 2.0
-		engine_force = 0.0
+	# Apply drivetrain mode (AWD, RWD, FWD)
+	for i in range(4):
+		if drivetrain_mode < 0.5:
+			wheels[i].is_motor = true
+		elif drivetrain_mode < 1.5:
+			wheels[i].is_motor = (i >= 2)
+		else:
+			wheels[i].is_motor = (i < 2)
+
+	# Apply steering angle
+	var target_angle = -steer_input * max_steer
+	wheels[0].rotation.y = lerp(wheels[0].rotation.y, target_angle, tire_turn_speed * delta)
+	wheels[1].rotation.y = lerp(wheels[1].rotation.y, target_angle, tire_turn_speed * delta)
 	
-	# Artificial downforce to keep the car glued to the track
+	# Run wheel physics
+	var grounded = false
+	for w in wheels:
+		w.rest_dist = suspension_travel
+		w.spring_strength = suspension_stiffness * 250.0
+		w.spring_damping = damping_compression * 200.0
+		w.max_spring_force = suspension_max_force
+		w.z_brake_traction = brake_force_value * 0.002
+		
+		w.apply_wheel_physics(self)
+		if w.is_colliding():
+			grounded = true
+			
+	# Update slip telemetry variables
+	slip_FL = wheels[0].grip_factor
+	slip_FR = wheels[1].grip_factor
+	slip_RL = wheels[2].grip_factor
+	slip_RR = wheels[3].grip_factor
+			
+	# Align center of mass when airborne for stability
+	if not grounded:
+		center_of_mass.y = center_of_mass_y - 0.5
+		
+	# Downforce
 	var current_speed = linear_velocity.length()
 	apply_central_force(-global_transform.basis.y * (current_speed * downforce_multiplier))
-	
-	# Update visual models to track the wheels
-	update_visuals()
-
-func update_visuals():
-	var pivot_FL = get_node_or_null("FrontLeftSteerPivot")
-	var pivot_FR = get_node_or_null("FrontRightSteerPivot")
-	var pivot_RL = get_node_or_null("RearLeftSteerPivot")
-	var pivot_RR = get_node_or_null("RearRightSteerPivot")
-	
-	# VehicleWheel3D automatically updates its local transform to simulate suspension and rotation!
-	# We just copy that transform to our visual meshes.
-	if pivot_FL and wheels.has("FL"): pivot_FL.transform = wheels["FL"].transform
-	if pivot_FR and wheels.has("FR"): pivot_FR.transform = wheels["FR"].transform
-	if pivot_RL and wheels.has("RL"): pivot_RL.transform = wheels["RL"].transform
-	if pivot_RR and wheels.has("RR"): pivot_RR.transform = wheels["RR"].transform

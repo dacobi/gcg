@@ -118,6 +118,9 @@ public:
     void regGlobalFloat(const std::string& name, float val);
     void unregGlobalFloat(const std::string& name);
 
+    void loadCarSettings();
+    void saveCarSettings();
+
 private:
     static int lua_addBouncer(lua_State* L);
     static int lua_delBouncer(lua_State* L);
@@ -217,6 +220,7 @@ private:
     static int lua_godotGetOverlappingAreas(lua_State* L);
     static int lua_godotCreateNode(lua_State* L);
     static int lua_godotLoadNode(lua_State* L);
+
     static int lua_godotDeleteNode(lua_State* L);
     static int lua_godotAttachScript(lua_State* L);
     static int lua_godotSetProperty(lua_State* L);
@@ -227,6 +231,8 @@ private:
     static int lua_godotAddHighScore(lua_State* L);
     static int lua_godotLoadHighScore(lua_State* L);
     static int lua_godotSaveHighScore(lua_State* L);
+    static int lua_godotLoadCarSettings(lua_State* L);
+    static int lua_godotSaveCarSettings(lua_State* L);
 
     static void lua_hook(lua_State* L, lua_Debug* ar);
 

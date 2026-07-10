@@ -3889,6 +3889,58 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
             float com_y = state->scriptSystem->getGlobalFloat("center_of_mass_y");
             if (ImGui::SliderFloat("Center of Mass Y", &com_y, -1.0f, 1.0f)) state->scriptSystem->setGlobalFloat("center_of_mass_y", com_y);
+
+            float max_sp = state->scriptSystem->getGlobalFloat("max_speed");
+            if (ImGui::SliderFloat("Max Speed", &max_sp, 10.0f, 200.0f)) state->scriptSystem->setGlobalFloat("max_speed", max_sp);
+
+            float ov_ext = state->scriptSystem->getGlobalFloat("over_extend");
+            if (ImGui::SliderFloat("Over Extend", &ov_ext, 0.0f, 1.0f)) state->scriptSystem->setGlobalFloat("over_extend", ov_ext);
+
+            float z_trac = state->scriptSystem->getGlobalFloat("z_traction");
+            if (ImGui::SliderFloat("Longitudinal Traction", &z_trac, 0.0f, 1.0f)) state->scriptSystem->setGlobalFloat("z_traction", z_trac);
+
+            float r_front = state->scriptSystem->getGlobalFloat("radius_front");
+            if (ImGui::SliderFloat("Radius Front", &r_front, 0.1f, 2.0f)) state->scriptSystem->setGlobalFloat("radius_front", r_front);
+
+            float r_rear = state->scriptSystem->getGlobalFloat("radius_rear");
+            if (ImGui::SliderFloat("Radius Rear", &r_rear, 0.1f, 2.0f)) state->scriptSystem->setGlobalFloat("radius_rear", r_rear);
+
+            bool use_sc = state->scriptSystem->getGlobalFloat("use_shapecast") > 0.5f;
+            if (ImGui::Checkbox("Use Shapecast", &use_sc)) state->scriptSystem->setGlobalFloat("use_shapecast", use_sc ? 1.0f : 0.0f);
+
+            int dt_mode = (int)state->scriptSystem->getGlobalFloat("drivetrain_mode");
+            const char* dt_names[] = { "AWD", "RWD", "FWD" };
+            if (ImGui::Combo("Drivetrain", &dt_mode, dt_names, IM_ARRAYSIZE(dt_names))) {
+                state->scriptSystem->setGlobalFloat("drivetrain_mode", (float)dt_mode);
+            }
+
+            float turn_spd = state->scriptSystem->getGlobalFloat("tire_turn_speed");
+            if (ImGui::SliderFloat("Steer Speed", &turn_spd, 1.0f, 30.0f)) state->scriptSystem->setGlobalFloat("tire_turn_speed", turn_spd);
+
+            ImGui::Separator();
+            ImGui::Text("Tire Slip Telemetry");
+            
+            float slip_fl = state->scriptSystem->getGlobalFloat("telemetry_slip_FL");
+            float slip_fr = state->scriptSystem->getGlobalFloat("telemetry_slip_FR");
+            float slip_rl = state->scriptSystem->getGlobalFloat("telemetry_slip_RL");
+            float slip_rr = state->scriptSystem->getGlobalFloat("telemetry_slip_RR");
+
+            ImGui::ProgressBar(slip_fl, ImVec2(0.0f, 0.0f), "FL");
+            ImGui::SameLine();
+            ImGui::ProgressBar(slip_fr, ImVec2(0.0f, 0.0f), "FR");
+            ImGui::ProgressBar(slip_rl, ImVec2(0.0f, 0.0f), "RL");
+            ImGui::SameLine();
+            ImGui::ProgressBar(slip_rr, ImVec2(0.0f, 0.0f), "RR");
+
+            ImGui::Separator();
+            if (ImGui::Button("Save Settings")) {
+                state->scriptSystem->saveCarSettings();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Load Settings")) {
+                state->scriptSystem->loadCarSettings();
+            }
+
             ImGui::End();
         }
 

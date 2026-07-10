@@ -24,6 +24,21 @@ setGlobalFloat("damping_relaxation", 8.0)
 setGlobalFloat("downforce_multiplier", 120.0)
 setGlobalFloat("car_mass", 1200.0)
 setGlobalFloat("center_of_mass_y", -0.2)
+setGlobalFloat("max_speed", 96.0)
+setGlobalFloat("over_extend", 0.05)
+setGlobalFloat("z_traction", 0.05)
+setGlobalFloat("radius_front", 0.5)
+setGlobalFloat("radius_rear", 0.5)
+setGlobalFloat("use_shapecast", 1.0)
+setGlobalFloat("drivetrain_mode", 0.0)
+setGlobalFloat("tire_turn_speed", 10.0)
+setGlobalFloat("telemetry_slip_FL", 0.0)
+setGlobalFloat("telemetry_slip_FR", 0.0)
+setGlobalFloat("telemetry_slip_RL", 0.0)
+setGlobalFloat("telemetry_slip_RR", 0.0)
+
+-- Load car settings on startup if present
+godotLoadCarSettings()
 
 local joy_handle = ioJoystickOpen(0)
 if joy_handle >= 0 then
@@ -157,6 +172,19 @@ while true do
 			godotSetProperty("downforce_multiplier", getGlobalFloat("downforce_multiplier"), supercar)
 			godotSetProperty("car_mass", getGlobalFloat("car_mass"), supercar)
 			godotSetProperty("center_of_mass_y", getGlobalFloat("center_of_mass_y"), supercar)
+			godotSetProperty("max_speed", getGlobalFloat("max_speed"), supercar)
+			godotSetProperty("over_extend", getGlobalFloat("over_extend"), supercar)
+			godotSetProperty("z_traction", getGlobalFloat("z_traction"), supercar)
+			godotSetProperty("radius_front", getGlobalFloat("radius_front"), supercar)
+			godotSetProperty("radius_rear", getGlobalFloat("radius_rear"), supercar)
+			godotSetProperty("use_shapecast", getGlobalFloat("use_shapecast"), supercar)
+			godotSetProperty("drivetrain_mode", getGlobalFloat("drivetrain_mode"), supercar)
+			godotSetProperty("tire_turn_speed", getGlobalFloat("tire_turn_speed"), supercar)
+			
+			setGlobalFloat("telemetry_slip_FL", godotGetProperty("slip_FL", supercar) or 0.0)
+			setGlobalFloat("telemetry_slip_FR", godotGetProperty("slip_FR", supercar) or 0.0)
+			setGlobalFloat("telemetry_slip_RL", godotGetProperty("slip_RL", supercar) or 0.0)
+			setGlobalFloat("telemetry_slip_RR", godotGetProperty("slip_RR", supercar) or 0.0)
 			
 			local track = godotGetNodePointer("MegaRacerScene")
 			if track then

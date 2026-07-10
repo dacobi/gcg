@@ -3,6 +3,8 @@
 #include <iostream>
 #include <chrono>
 #include <algorithm>
+#include <fstream>
+#include <filesystem>
 
 static std::mutex global_lua_mutex;
 
@@ -263,6 +265,8 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("godotAddHighScore", lua_godotAddHighScore);
     reg("godotLoadHighScore", lua_godotLoadHighScore);
     reg("godotSaveHighScore", lua_godotSaveHighScore);
+    reg("godotLoadCarSettings", lua_godotLoadCarSettings);
+    reg("godotSaveCarSettings", lua_godotSaveCarSettings);
 
     reg("regGlobalVar", lua_regGlobalVar);
     reg("unregGlobalVar", lua_unregGlobalVar);
@@ -361,6 +365,63 @@ int LuaScripting::lua_godotSaveHighScore(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (self && self->saveHighScoreFunc) {
         self->saveHighScoreFunc();
+    }
+    return 0;
+}
+
+void LuaScripting::loadCarSettings() {
+    const char* home = std::getenv("HOME");
+    std::string filename = home ? std::string(home) + "/.gcg/car.ini" : "car.ini";
+    std::ifstream f(filename);
+    if (f.is_open()) {
+        std::string line;
+        while (std::getline(f, line)) {
+            size_t sep = line.find('=');
+            if (sep != std::string::npos) {
+                std::string key = line.substr(0, sep);
+                std::string val_str = line.substr(sep + 1);
+                try {
+                    float val = std::stof(val_str);
+                    setGlobalFloat(key, val);
+                } catch (...) {}
+            }
+        }
+    }
+}
+
+void LuaScripting::saveCarSettings() {
+    const char* home = std::getenv("HOME");
+    std::string dir = home ? std::string(home) + "/.gcg" : ".gcg";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    std::string filename = dir + "/car.ini";
+    std::ofstream f(filename);
+    if (f.is_open()) {
+        std::vector<std::string> keys = {
+            "engine_force_value", "brake_force_value", "max_steer", "wheel_friction_slip",
+            "suspension_travel", "suspension_stiffness", "suspension_max_force",
+            "damping_compression", "damping_relaxation", "downforce_multiplier",
+            "car_mass", "center_of_mass_y", "max_speed", "over_extend", "z_traction",
+            "radius_front", "radius_rear", "use_shapecast", "drivetrain_mode", "tire_turn_speed"
+        };
+        for (const auto& key : keys) {
+            f << key << "=" << getGlobalFloat(key) << "\n";
+        }
+    }
+}
+
+int LuaScripting::lua_godotLoadCarSettings(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (self) {
+        self->loadCarSettings();
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotSaveCarSettings(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (self) {
+        self->saveCarSettings();
     }
     return 0;
 }

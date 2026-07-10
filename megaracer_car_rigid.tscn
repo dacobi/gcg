@@ -84,7 +84,7 @@ bounce = 0.0
 [sub_resource type="BoxShape3D" id="BoxShape3D_Body"]
 size = Vector3(1.6, 0.5, 3.4)
 
-[node name="SuperCar" type="VehicleBody3D"]
+[node name="SuperCar" type="RigidBody3D"]
 physics_material_override = SubResource("PhysicsMaterial_Car")
 mass = 1200.0
 center_of_mass_mode = 1
