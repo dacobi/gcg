@@ -1,5 +1,5 @@
 // SDL3 + Dear ImGui with animated plasma background and transparent text overlay
-// Usage: ./gcg [--record output.mp4] [--lua script.lua] [--audio music.mp3] [--bg FILE|"[plasma:#]"|"[fractal:#]"] [--record-max N] [--maximize] [text...]
+// Usage: ./gcg [--record output.mp4] [--lua script.lua] [--audio music.mp3] [--bg FILE|"[plasma:#]"|"[fractal:#]"] [--record-max N] [--maximize] [--car] [text...]
 //   --record FILE     start recording frames to FILE on launch
 //   --lua FILE        run Lua script on launch
 //   --audio FILE      play audio file on loop
@@ -9,6 +9,7 @@
 //   --record-max N    max recording length in seconds (default 59)
 //   --maximize        start the window maximized
 //   --geekd           show tech info / status line and record GUI
+//   --car             enable car physics settings window
 #define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -1725,6 +1726,7 @@ struct AppState {
     int cli_win_h = 0;
     int cli_jd_index = -1;
     int diag_joystick_handle = -1;
+    bool cli_show_car_physics = false;
 
     PlasmaShader* selected_plasma = nullptr;
     MandelbrotOpenCL* selected_mandel = nullptr;
@@ -2367,6 +2369,7 @@ static void print_help() {
     std::printf("  --h N                 set window height (forces non-maximized)\n");
     std::printf("  --plasma-tiles        render plasma in a tiled grid (for stress testing)\n");
     std::printf("  --jd NUM              open diagnostic panel for joystick NUM\n");
+    std::printf("  --car                 enable car physics settings window\n");
     std::printf("  --help                show this help message\n\n");
     
     std::printf("Lua Scripting Functions:\n");
@@ -2622,9 +2625,22 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
     myMix = new AudioMixer(MIXER_SAMPLE_RATE);
 
+    // Pre-parse --lua to forward to Godot command line arguments
+    std::string pre_lua_path = "";
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--lua") == 0 && i + 1 < argc) {
+            pre_lua_path = argv[i + 1];
+            break;
+        }
+    }
+
     state->godot_manager = new GodotManager();
-    const char* godot_args[] = { "gcg", "--display-driver", "offscreen", "--rendering-driver", "vulkan", "--audio/driver/mix_rate", "48000" };
-    state->godot_manager->init(7, (char**)godot_args);
+    std::vector<const char*> g_args = { "gcg", "--display-driver", "offscreen", "--rendering-driver", "vulkan", "--audio/driver/mix_rate", "48000" };
+    if (!pre_lua_path.empty()) {
+        g_args.push_back("--lua-script");
+        g_args.push_back(pre_lua_path.c_str());
+    }
+    state->godot_manager->init((int)g_args.size(), (char**)g_args.data());
 
     // --- Parse CLI arguments ---
     for (int i = 1; i < argc; ++i) {
@@ -2716,6 +2732,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             state->cli_plasma_tile = true;       
         } else if (std::strcmp(argv[i], "--jd") == 0 && i + 1 < argc) {
             state->cli_jd_index = std::atoi(argv[++i]);
+        } else if (std::strcmp(argv[i], "--car") == 0) {
+            state->cli_show_car_physics = true;
         } else {
             state->cli_texts.push_back(argv[i]);
         }
@@ -3086,6 +3104,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             }
         );
         state->scriptSystem->runScript(state->cli_lua_path);
+        state->scriptSystem->setGlobalFloat("show_car_physics_ui", state->cli_show_car_physics ? 1.0f : 0.0f);
         if (state->bg_godot) {
             state->selected_godots[state->scriptSystem->getL()] = state->bg_godot;
         }
@@ -3853,95 +3872,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
 
         if (state->scriptSystem) {
-            ImGui::Begin("Car Physics Settings");
-            float engine_f = state->scriptSystem->getGlobalFloat("engine_force_value");
-            if (ImGui::SliderFloat("Engine Force", &engine_f, 1000.0f, 100000.0f)) state->scriptSystem->setGlobalFloat("engine_force_value", engine_f);
-
-            float brake_f = state->scriptSystem->getGlobalFloat("brake_force_value");
-            if (ImGui::SliderFloat("Brake Force", &brake_f, 50.0f, 1000.0f)) state->scriptSystem->setGlobalFloat("brake_force_value", brake_f);
-
-            float steer = state->scriptSystem->getGlobalFloat("max_steer");
-            if (ImGui::SliderFloat("Max Steer", &steer, 0.1f, 1.0f)) state->scriptSystem->setGlobalFloat("max_steer", steer);
-
-            float f_slip = state->scriptSystem->getGlobalFloat("wheel_friction_slip");
-            if (ImGui::SliderFloat("Wheel Friction", &f_slip, 1.0f, 20.0f)) state->scriptSystem->setGlobalFloat("wheel_friction_slip", f_slip);
-
-            float s_trav = state->scriptSystem->getGlobalFloat("suspension_travel");
-            if (ImGui::SliderFloat("Susp. Travel", &s_trav, 0.1f, 1.0f)) state->scriptSystem->setGlobalFloat("suspension_travel", s_trav);
-
-            float s_stiff = state->scriptSystem->getGlobalFloat("suspension_stiffness");
-            if (ImGui::SliderFloat("Susp. Stiffness", &s_stiff, 10.0f, 300.0f)) state->scriptSystem->setGlobalFloat("suspension_stiffness", s_stiff);
-
-            float s_max = state->scriptSystem->getGlobalFloat("suspension_max_force");
-            if (ImGui::SliderFloat("Susp. Max Force", &s_max, 1000.0f, 30000.0f)) state->scriptSystem->setGlobalFloat("suspension_max_force", s_max);
-
-            float d_comp = state->scriptSystem->getGlobalFloat("damping_compression");
-            if (ImGui::SliderFloat("Damp Compress", &d_comp, 1.0f, 20.0f)) state->scriptSystem->setGlobalFloat("damping_compression", d_comp);
-
-            float d_rel = state->scriptSystem->getGlobalFloat("damping_relaxation");
-            if (ImGui::SliderFloat("Damp Relax", &d_rel, 1.0f, 20.0f)) state->scriptSystem->setGlobalFloat("damping_relaxation", d_rel);
-
-            float df_mult = state->scriptSystem->getGlobalFloat("downforce_multiplier");
-            if (ImGui::SliderFloat("Downforce Mult", &df_mult, 0.0f, 500.0f)) state->scriptSystem->setGlobalFloat("downforce_multiplier", df_mult);
-
-            float c_mass = state->scriptSystem->getGlobalFloat("car_mass");
-            if (ImGui::SliderFloat("Car Mass", &c_mass, 500.0f, 3000.0f)) state->scriptSystem->setGlobalFloat("car_mass", c_mass);
-
-            float com_y = state->scriptSystem->getGlobalFloat("center_of_mass_y");
-            if (ImGui::SliderFloat("Center of Mass Y", &com_y, -1.0f, 1.0f)) state->scriptSystem->setGlobalFloat("center_of_mass_y", com_y);
-
-            float max_sp = state->scriptSystem->getGlobalFloat("max_speed");
-            if (ImGui::SliderFloat("Max Speed", &max_sp, 10.0f, 1000.0f)) state->scriptSystem->setGlobalFloat("max_speed", max_sp);
-
-            float ov_ext = state->scriptSystem->getGlobalFloat("over_extend");
-            if (ImGui::SliderFloat("Over Extend", &ov_ext, 0.0f, 1.0f)) state->scriptSystem->setGlobalFloat("over_extend", ov_ext);
-
-            float z_trac = state->scriptSystem->getGlobalFloat("z_traction");
-            if (ImGui::SliderFloat("Longitudinal Traction", &z_trac, 0.0f, 1.0f)) state->scriptSystem->setGlobalFloat("z_traction", z_trac);
-
-            float r_front = state->scriptSystem->getGlobalFloat("radius_front");
-            if (ImGui::SliderFloat("Radius Front", &r_front, 0.1f, 2.0f)) state->scriptSystem->setGlobalFloat("radius_front", r_front);
-
-            float r_rear = state->scriptSystem->getGlobalFloat("radius_rear");
-            if (ImGui::SliderFloat("Radius Rear", &r_rear, 0.1f, 2.0f)) state->scriptSystem->setGlobalFloat("radius_rear", r_rear);
-
-            bool use_sc = state->scriptSystem->getGlobalFloat("use_shapecast") > 0.5f;
-            if (ImGui::Checkbox("Use Shapecast", &use_sc)) state->scriptSystem->setGlobalFloat("use_shapecast", use_sc ? 1.0f : 0.0f);
-
-            int dt_mode = (int)state->scriptSystem->getGlobalFloat("drivetrain_mode");
-            const char* dt_names[] = { "AWD", "RWD", "FWD" };
-            if (ImGui::Combo("Drivetrain", &dt_mode, dt_names, IM_ARRAYSIZE(dt_names))) {
-                state->scriptSystem->setGlobalFloat("drivetrain_mode", (float)dt_mode);
-            }
-
-            float turn_spd = state->scriptSystem->getGlobalFloat("tire_turn_speed");
-            if (ImGui::SliderFloat("Steer Speed", &turn_spd, 1.0f, 30.0f)) state->scriptSystem->setGlobalFloat("tire_turn_speed", turn_spd);
-
-            ImGui::Separator();
-            ImGui::Text("Tire Slip Telemetry");
-            
-            float slip_fl = state->scriptSystem->getGlobalFloat("telemetry_slip_FL");
-            float slip_fr = state->scriptSystem->getGlobalFloat("telemetry_slip_FR");
-            float slip_rl = state->scriptSystem->getGlobalFloat("telemetry_slip_RL");
-            float slip_rr = state->scriptSystem->getGlobalFloat("telemetry_slip_RR");
-
-            ImGui::ProgressBar(slip_fl, ImVec2(0.0f, 0.0f), "FL");
-            ImGui::SameLine();
-            ImGui::ProgressBar(slip_fr, ImVec2(0.0f, 0.0f), "FR");
-            ImGui::ProgressBar(slip_rl, ImVec2(0.0f, 0.0f), "RL");
-            ImGui::SameLine();
-            ImGui::ProgressBar(slip_rr, ImVec2(0.0f, 0.0f), "RR");
-
-            ImGui::Separator();
-            if (ImGui::Button("Save Settings")) {
-                state->scriptSystem->saveCarSettings();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Load Settings")) {
-                state->scriptSystem->loadCarSettings();
-            }
-
-            ImGui::End();
+            state->scriptSystem->renderLuaImGui();
         }
 
         if (ImGui::BeginMainMenuBar()) {

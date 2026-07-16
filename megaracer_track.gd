@@ -20,6 +20,7 @@ var current_cam_pitch = 0.0
 var reset_car = false
 
 var in_edit_mode = false
+var is_square = false
 var edit_progress = 0.0
 var edit_yaw = 0.0
 var edit_pitch = 0.0
@@ -48,65 +49,185 @@ var height_offset = 14.0
 var t_car = 0.15
 
 func _ready():
-	# Make sure the sweep-based track visuals and their collisions are active
-	if road_bed: 
-		road_bed.visible = true
-		road_bed.use_collision = true
-	if border_l: 
-		border_l.visible = true
-		border_l.use_collision = true
-	if border_r: 
-		border_r.visible = true
-		border_r.use_collision = true
-	if center_line: 
-		center_line.visible = true
-		center_line.use_collision = false
+	is_square = false
+	for arg in OS.get_cmdline_args():
+		if "show_car.lua" in arg:
+			is_square = true
+			break
 
-	var curve = Curve3D.new()
-	
-	# Generate points for a smooth figure 8 (Lemniscate of Gerono/Bernoulli style)
-	var num_points = 300
-	
-	# We also calculate the tilt angle at each point to bank the track on curves!
-	for i in range(num_points):
-		var t = (float(i) / num_points) * 2.0 * PI
+	if is_square:
+		# Hide default path-extruded track nodes
+		if road_bed:
+			road_bed.visible = false
+			road_bed.use_collision = false
+		if border_l:
+			border_l.visible = false
+			border_l.use_collision = false
+		if border_r:
+			border_r.visible = false
+			border_r.use_collision = false
+		if center_line:
+			center_line.visible = false
+			center_line.use_collision = false
+
+		# Create a large flat square floor box (300m x 300m) with no hole in the middle
+		var floor_box = CSGBox3D.new()
+		floor_box.name = "ArenaFloor"
+		floor_box.size = Vector3(300.0, 0.32, 300.0)
+		floor_box.position = Vector3(0.0, -0.16, 0.0)
+		floor_box.material = road_bed.material
+		floor_box.use_collision = true
+		add_child(floor_box)
+
+		# Generate a smooth rounded square path curve (for camera movement, edit mode, and fence)
+		var curve = Curve3D.new()
+		var size = 150.0
+		var r = 20.0
+		var num_points_side = 50
+		var num_points_corner = 25
 		
-		# Figure 8 parametric equations
-		var x = scale_x * sin(t)
-		var z = scale_z * sin(t) * cos(t)
-		var y = height_offset * cos(t)
+		# 1. North Side
+		for i in range(num_points_side):
+			var t = float(i) / num_points_side
+			var x = lerp(-size + r, size - r, t)
+			curve.add_point(Vector3(x, 0, -size))
+			
+		# 2. North-East Corner
+		for i in range(num_points_corner):
+			var t = float(i) / num_points_corner
+			var theta = -PI/2.0 + t * (PI/2.0)
+			var x = (size - r) + r * cos(theta)
+			var z = (-size + r) + r * sin(theta)
+			curve.add_point(Vector3(x, 0, z))
+			
+		# 3. East Side
+		for i in range(num_points_side):
+			var t = float(i) / num_points_side
+			var z = lerp(-size + r, size - r, t)
+			curve.add_point(Vector3(size, 0, z))
+			
+		# 4. South-East Corner
+		for i in range(num_points_corner):
+			var t = float(i) / num_points_corner
+			var theta = 0.0 + t * (PI/2.0)
+			var x = (size - r) + r * cos(theta)
+			var z = (size - r) + r * sin(theta)
+			curve.add_point(Vector3(x, 0, z))
+			
+		# 5. South Side
+		for i in range(num_points_side):
+			var t = float(i) / num_points_side
+			var x = lerp(size - r, -size + r, t)
+			curve.add_point(Vector3(x, 0, size))
+			
+		# 6. South-West Corner
+		for i in range(num_points_corner):
+			var t = float(i) / num_points_corner
+			var theta = PI/2.0 + t * (PI/2.0)
+			var x = (-size + r) + r * cos(theta)
+			var z = (size - r) + r * sin(theta)
+			curve.add_point(Vector3(x, 0, z))
+			
+		# 7. West Side
+		for i in range(num_points_side):
+			var t = float(i) / num_points_side
+			var z = lerp(size - r, -size + r, t)
+			curve.add_point(Vector3(-size, 0, z))
+			
+		# 8. North-West Corner
+		for i in range(num_points_corner):
+			var t = float(i) / num_points_corner
+			var theta = PI + t * (PI/2.0)
+			var x = (-size + r) + r * cos(theta)
+			var z = (-size + r) + r * sin(theta)
+			curve.add_point(Vector3(x, 0, z))
+			
+		# Close the loop
+		curve.add_point(Vector3(-size + r, 0, -size))
+		path_node.curve = curve
+
+		# Create a 4m tall neon cyan fence along the entire outer edge of the arena
+		var outer_fence = CSGPolygon3D.new()
+		outer_fence.name = "OuterFence"
+		outer_fence.mode = CSGPolygon3D.MODE_PATH
+		outer_fence.path_interval = 0.5
+		outer_fence.path_rotation = CSGPolygon3D.PATH_ROTATION_PATH_FOLLOW
+		outer_fence.path_local = true
+		outer_fence.use_collision = true
+		outer_fence.material = border_l.material # neon cyan material
+		outer_fence.polygon = PackedVector2Array([
+			Vector2(-0.25, 0.0),
+			Vector2(0.25, 0.0),
+			Vector2(0.25, 4.0),
+			Vector2(-0.25, 4.0)
+		])
+		add_child(outer_fence)
+		outer_fence.path_node = outer_fence.get_path_to(path_node)
+
+		# Position supercar at the center of the arena facing North
+		if supercar:
+			supercar.global_position = Vector3(0.0, 0.5, 0.0)
+			supercar.global_transform.basis = Basis.IDENTITY
+			if "start_transform" in supercar:
+				supercar.start_transform = supercar.global_transform
+
+	else:
+		# Make sure the sweep-based track visuals and their collisions are active
+		if road_bed: 
+			road_bed.visible = true
+			road_bed.use_collision = true
+		if border_l: 
+			border_l.visible = true
+			border_l.use_collision = true
+		if border_r: 
+			border_r.visible = true
+			border_r.use_collision = true
+		if center_line: 
+			center_line.visible = true
+			center_line.use_collision = false
+
+		var curve = Curve3D.new()
+		# Generate points for a smooth figure 8 (Lemniscate of Gerono/Bernoulli style)
+		var num_points = 300
 		
-		var pos = Vector3(x, y, z)
-		curve.add_point(pos)
+		# We also calculate the tilt angle at each point to bank the track on curves!
+		for i in range(num_points):
+			var t = (float(i) / num_points) * 2.0 * PI
+			
+			# Figure 8 parametric equations
+			var x = scale_x * sin(t)
+			var z = scale_z * sin(t) * cos(t)
+			var y = height_offset * cos(t)
+			
+			var pos = Vector3(x, y, z)
+			curve.add_point(pos)
+			
+			# Set tilt (banking) relative to the curvature
+			var bank = 0.5 * sin(t * 2.0)
+			curve.set_point_tilt(i, bank)
+			
+		# Close the loop by adding the first point again
+		var t_start = 0.0
+		var x_start = scale_x * sin(t_start)
+		var z_start = scale_z * sin(t_start) * cos(t_start)
+		var y_start = height_offset * cos(t_start)
+		curve.add_point(Vector3(x_start, y_start, z_start))
+		curve.set_point_tilt(num_points, 0.0)
 		
-		# Set tilt (banking) relative to the curvature
-		var bank = 0.5 * sin(t * 2.0)
-		curve.set_point_tilt(i, bank)
-		
-	# Close the loop by adding the first point again
-	var t_start = 0.0
-	var x_start = scale_x * sin(t_start)
-	var z_start = scale_z * sin(t_start) * cos(t_start)
-	var y_start = height_offset * cos(t_start)
-	curve.add_point(Vector3(x_start, y_start, z_start))
-	curve.set_point_tilt(num_points, 0.0)
-	
-	path_node.curve = curve
-	
-	# Set CSGPolygon3D properties to extrude along the Path3D
-	setup_polygons()
-	
-	# Position the supercar on a scenic straightaway/bridge (e.g. t = 0.15)
-	if supercar:
-		var car_pos = Vector3(scale_x * sin(t_car), height_offset * cos(t_car), scale_z * sin(t_car) * cos(t_car))
-		var delta_t = 0.01
-		var next_pos = Vector3(scale_x * sin(t_car + delta_t), height_offset * cos(t_car + delta_t), scale_z * sin(t_car + delta_t) * cos(t_car + delta_t))
-		var dir = (next_pos - car_pos).normalized()
-		
-		supercar.position = car_pos + Vector3(0, 0.5, 0)
-		supercar.look_at(car_pos + dir * 5.0, Vector3.UP)
-		if "start_transform" in supercar:
-			supercar.start_transform = supercar.global_transform
+		path_node.curve = curve
+		setup_polygons()
+
+		# Position the supercar on a scenic straightaway/bridge
+		if supercar:
+			var dummy = PathFollow3D.new()
+			dummy.rotation_mode = PathFollow3D.ROTATION_ORIENTED
+			path_node.add_child(dummy)
+			dummy.progress = 10.0
+			supercar.global_transform = dummy.global_transform
+			supercar.global_position += dummy.global_transform.basis.y * 0.5
+			if "start_transform" in supercar:
+				supercar.start_transform = supercar.global_transform
+			dummy.queue_free()
 			
 	# Raise the sun by 45 degrees
 	var sun = get_node_or_null("DirectionalLight3D")
@@ -120,7 +241,8 @@ func _ready():
 		camera_node.global_position = supercar.global_position + supercar.global_transform.basis * offset
 		camera_node.look_at(supercar.global_position + supercar.global_transform.basis * Vector3(0, 0.4, -0.5), supercar.global_transform.basis.y)
 
-	spawn_barriers()
+	if not is_square:
+		spawn_barriers()
 	print("\n=== EDIT MODE CONTROLS ===")
 	print("Press E to enter Edit Mode.")
 	print("Press N to spawn a new ramp at the edit camera location.")
@@ -450,15 +572,21 @@ func _process(delta):
 	if reset_car or (supercar and supercar.global_position.y < -30.0):
 		reset_car = false
 		if supercar:
-			var car_pos = Vector3(scale_x * sin(t_car), height_offset * cos(t_car), scale_z * sin(t_car) * cos(t_car))
-			var delta_t = 0.01
-			var next_pos = Vector3(scale_x * sin(t_car + delta_t), height_offset * cos(t_car + delta_t), scale_z * sin(t_car + delta_t) * cos(t_car + delta_t))
-			var dir = (next_pos - car_pos).normalized()
-			
-			supercar.global_position = car_pos + Vector3(0, 0.5, 0)
-			supercar.look_at(car_pos + dir * 5.0, Vector3.UP)
-			supercar.linear_velocity = Vector3.ZERO
-			supercar.angular_velocity = Vector3.ZERO
+			if is_square:
+				supercar.global_position = Vector3(0.0, 0.5, 0.0)
+				supercar.global_transform.basis = Basis.IDENTITY
+				supercar.linear_velocity = Vector3.ZERO
+				supercar.angular_velocity = Vector3.ZERO
+			else:
+				var dummy = PathFollow3D.new()
+				dummy.rotation_mode = PathFollow3D.ROTATION_ORIENTED
+				path_node.add_child(dummy)
+				dummy.progress = 10.0
+				supercar.global_transform = dummy.global_transform
+				supercar.global_position += dummy.global_transform.basis.y * 0.5
+				supercar.linear_velocity = Vector3.ZERO
+				supercar.angular_velocity = Vector3.ZERO
+				dummy.queue_free()
 
 	var camera_node = get_node_or_null("Camera3D")
 	if camera_node and supercar:

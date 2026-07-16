@@ -26,6 +26,7 @@ var damping_relaxation = 8.0
 var downforce_multiplier = 120.0
 var car_mass = 1200.0
 var center_of_mass_y = -0.2
+var center_of_mass_z = 0.0
 
 # Properties accessed by RaycastWheel
 var motor_input := 0.0
@@ -45,6 +46,7 @@ var slip_FL = 0.0
 var slip_FR = 0.0
 var slip_RL = 0.0
 var slip_RR = 0.0
+var show_collision_debug = 0.0
 
 # Resources
 var accel_curve: Curve
@@ -54,6 +56,12 @@ var wheels: Array = []
 var start_transform: Transform3D
 
 func _ready():
+	# Resize collision box to extend just beyond the wheels
+	var body_col = get_node_or_null("BodyCol")
+	if body_col and body_col.shape is BoxShape3D:
+		body_col.shape = body_col.shape.duplicate()
+		body_col.shape.size = Vector3(3.1, 0.5, 3.4)
+
 	default_radius_front = radius_front
 	default_radius_rear = radius_rear
 	start_transform = global_transform
@@ -78,6 +86,7 @@ func _ready():
 	for child in get_children():
 		if child is CollisionShape3D:
 			var mi = MeshInstance3D.new()
+			mi.name = "CollisionDebugVisual"
 			var shape = child.shape
 			if shape is BoxShape3D:
 				var box = BoxMesh.new()
@@ -104,6 +113,7 @@ func _ready():
 			mat.albedo_color = Color(1, 0, 0, 0.4)
 			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			mi.material_override = mat
+			mi.visible = false
 			child.add_child(mi)
 			
 	# Dynamically build wheels at startup
@@ -176,7 +186,7 @@ func _physics_process(delta: float) -> void:
 	# Update mass and COM from properties set by Lua script
 	mass = car_mass
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
-	center_of_mass = Vector3(0, center_of_mass_y, 0)
+	center_of_mass = Vector3(0, center_of_mass_y, center_of_mass_z)
 	
 	var forward_speed = -global_transform.basis.z.dot(linear_velocity)
 	
@@ -255,3 +265,11 @@ func _physics_process(delta: float) -> void:
 	# Downforce
 	var current_speed = linear_velocity.length()
 	apply_central_force(-global_transform.basis.y * (current_speed * downforce_multiplier))
+
+	# Update collision debug visual visibility
+	var show_debug = show_collision_debug > 0.5
+	for child in get_children():
+		if child is CollisionShape3D:
+			var mi = child.get_node_or_null("CollisionDebugVisual")
+			if mi:
+				mi.visible = show_debug

@@ -122,6 +122,7 @@ public:
 
     void loadCarSettings();
     void saveCarSettings();
+    void renderLuaImGui();
 
 private:
     static int lua_addBouncer(lua_State* L);
@@ -288,6 +289,34 @@ private:
     AddHighScoreFunc addHighScoreFunc;
     LoadHighScoreFunc loadHighScoreFunc;
     SaveHighScoreFunc saveHighScoreFunc;
+
+    struct ImGuiWidget {
+        enum Type { TEXT, SEPARATOR, CHECKBOX, SLIDER_FLOAT, BUTTON, PROGRESS_BAR, SAME_LINE };
+        Type type;
+        std::string label;
+        std::string var_name;
+        float min_val = 0.0f;
+        float max_val = 0.0f;
+    };
+
+    struct ImGuiWindowDef {
+        std::string title;
+        std::vector<ImGuiWidget> widgets;
+    };
+
+    std::vector<ImGuiWindowDef> lua_imgui_windows;
+    std::string active_window_title;
+    std::mutex imgui_mutex;
+
+    static int lua_imguiBegin(lua_State* L);
+    static int lua_imguiEnd(lua_State* L);
+    static int lua_imguiText(lua_State* L);
+    static int lua_imguiSeparator(lua_State* L);
+    static int lua_imguiCheckbox(lua_State* L);
+    static int lua_imguiSliderFloat(lua_State* L);
+    static int lua_imguiButton(lua_State* L);
+    static int lua_imguiProgressBar(lua_State* L);
+    static int lua_imguiSameLine(lua_State* L);
 
     std::unordered_map<std::string, int> global_ints;
     std::unordered_map<std::string, float> global_floats;

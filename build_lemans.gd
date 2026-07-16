@@ -194,45 +194,53 @@ func _ready():
 	mat_spoiler.metallic = 0.3
 	mat_spoiler.roughness = 0.7
 
-	# Left Support
+	# Left Support (tilted backwards 22.5 degrees, lengthened to connect trunk to raised wing)
 	var support_l = CSGBox3D.new()
 	support_l.name = "SpoilerSupportL"
 	support_l.material = mat_spoiler
-	support_l.size = Vector3(0.05, 0.6, 0.2)
-	support_l.position = Vector3(-0.7, 0.32, 2.7)
+	support_l.size = Vector3(0.05, 0.81, 0.2)
+	support_l.position = Vector3(-0.7, 0.395, 2.545)
+	support_l.rotation_degrees = Vector3(22.5, 0, 0)
 	combiner.add_child(support_l)
 	support_l.owner = scene
 
 	# Right Support
 	var support_r = support_l.duplicate()
 	support_r.name = "SpoilerSupportR"
-	support_r.position = Vector3(0.7, 0.32, 2.7)
+	support_r.position = Vector3(0.7, 0.395, 2.545)
 	combiner.add_child(support_r)
 	support_r.owner = scene
 
-	# Main Wing Blade
+	# Main Wing Blade (raised 15cm to Y=0.77)
 	var wing = CSGBox3D.new()
 	wing.name = "SpoilerWing"
 	wing.material = mat_spoiler
 	wing.size = Vector3(2.4, 0.05, 0.4)
-	wing.position = Vector3(0.0, 0.62, 2.7)
+	wing.position = Vector3(0.0, 0.77, 2.7)
 	wing.rotation_degrees = Vector3(-5, 0, 0) # Small angle of attack
 	combiner.add_child(wing)
 	wing.owner = scene
 
-	# Left Endplate
-	var endplate_l = CSGBox3D.new()
+	# Left Endplate (trapezoidal, small height 0.24m (80% of back height 0.30m) at front)
+	var endplate_l = CSGPolygon3D.new()
 	endplate_l.name = "SpoilerEndplateL"
 	endplate_l.material = mat_spoiler
-	endplate_l.size = Vector3(0.05, 0.3, 0.5)
-	endplate_l.position = Vector3(-1.2, 0.62, 2.7)
+	endplate_l.mode = CSGPolygon3D.MODE_DEPTH
+	endplate_l.depth = 0.05
+	endplate_l.polygon = PackedVector2Array([
+		Vector2(-0.25, -0.12),  # Front-Bottom (small vertical height: 0.24m)
+		Vector2(-0.25, 0.12),   # Front-Top
+		Vector2(0.25, 0.15),    # Back-Top (large vertical height: 0.30m)
+		Vector2(0.25, -0.15)    # Back-Bottom
+	])
+	endplate_l.transform = Transform3D(Basis.from_euler(Vector3(0, deg_to_rad(-90), 0)), Vector3(-1.2, 0.77, 2.7))
 	combiner.add_child(endplate_l)
 	endplate_l.owner = scene
 
 	# Right Endplate
 	var endplate_r = endplate_l.duplicate()
 	endplate_r.name = "SpoilerEndplateR"
-	endplate_r.position = Vector3(1.2, 0.62, 2.7)
+	endplate_r.transform = Transform3D(Basis.from_euler(Vector3(0, deg_to_rad(-90), 0)), Vector3(1.2, 0.77, 2.7))
 	combiner.add_child(endplate_r)
 	endplate_r.owner = scene
 
