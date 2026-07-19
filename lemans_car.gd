@@ -55,6 +55,9 @@ var fmod_banks = []
 var engine_audio: AudioStreamPlayer = null
 var show_collision_debug = 0.0
 
+var shift_timer: float = 0.0
+var current_gear_sim: int = 0
+
 # Resources
 var accel_curve: Curve
 var grip_curve: Curve
@@ -75,7 +78,7 @@ func _ready():
 	
 	# Programmatic construction of curves from the tutorial values
 	accel_curve = Curve.new()
-	accel_curve.add_point(Vector2(0, 0.3))
+	accel_curve.add_point(Vector2(0, 1.0)) # Massive torque off the line!
 	accel_curve.add_point(Vector2(0.3, 0.9))
 	accel_curve.add_point(Vector2(0.6, 0.8))
 	accel_curve.add_point(Vector2(1, 0.1))
@@ -289,22 +292,49 @@ func _physics_process(delta: float) -> void:
 				mi.visible = show_debug
 				
 	# --- FAKE GEAR RPM LOGIC FOR FMOD ---
-	# --- FAKE 6-GEAR RPM MATH ---
+	# We use a fixed speed boundary to ensure the car shifts reliably without requiring insane terminal velocity
 	var speed = linear_velocity.length()
-	var max_speed_mps = 80.0
 	var gears = 6
-	var speed_per_gear = max_speed_mps / float(gears)
-	var current_gear = clamp(int(speed / speed_per_gear), 0, gears - 1)
-	var gear_speed = fmod(speed, speed_per_gear) / speed_per_gear
+	var speed_per_gear = 12.0 # 43 km/h per gear, hits 6th at 259 km/h
 	
-	engine_rpm = 1000.0 + (gear_speed * 8000.0)
-	
-	# Add some rev spikes based on throttle input when accelerating
-	if motor_input > 0.1:
-		engine_rpm += 1500.0 * motor_input
+	if shift_timer <= 0.0:
+		var target_gear = clamp(int(speed / speed_per_gear), 0, gears - 1)
+		if target_gear > current_gear_sim:
+			# Initiate an upshift! Disconnect the clutch for 250ms
+			shift_timer = 0.25
+			current_gear_sim = target_gear
+		elif target_gear < current_gear_sim:
+			# Hysteresis: only downshift if we drop at least 2 m/s below the gear threshold
+			var speed_in_gear = speed - (current_gear_sim * speed_per_gear)
+			if speed_in_gear < -2.0:
+				current_gear_sim = target_gear
 		
-	# Clamp to realistic limits
-	engine_rpm = clamp(engine_rpm, 1000.0, 10000.0)
+	var target_rpm = 1000.0
+	if shift_timer > 0.0:
+		shift_timer -= delta
+		# Clutch is in: RPM drops freely, NO engine power to wheels (creates physical stutter!)
+		target_rpm = 4000.0
+		motor_input = 0.0
+		engine_rpm = lerp(engine_rpm, target_rpm, 12.0 * delta)
+	else:
+		# Clutch is out: RPM bound to wheel speed in the current gear
+		var speed_in_gear = speed - (current_gear_sim * speed_per_gear)
+		var gear_speed = clamp(speed_in_gear / speed_per_gear, 0.0, 1.0)
+		
+		if current_gear_sim == 0:
+			target_rpm = lerp(1000.0, 9000.0, gear_speed)
+		else:
+			target_rpm = lerp(5000.0, 9000.0, gear_speed)
+		
+		# Add rev spikes based on throttle input when accelerating
+		if motor_input > 0.1:
+			target_rpm += 1500.0 * motor_input
+			
+		# Clamp to realistic limits
+		target_rpm = clamp(target_rpm, 1000.0, 10000.0)
+		
+		# Smooth approach to target
+		engine_rpm = lerp(engine_rpm, target_rpm, 20.0 * delta)
 	
 	# --- FMOD ENGINE UPDATE ---
 	if ClassDB.class_exists("FmodServer"):

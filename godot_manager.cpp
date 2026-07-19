@@ -40,7 +40,18 @@ void alsa_capture_loop() {
     int err;
     snd_pcm_t *capture_handle;
     
-    if ((err = snd_pcm_open(&capture_handle, "default", SND_PCM_STREAM_CAPTURE, 0)) < 0) {
+    // Dynamically grab the default PulseAudio/Pipewire sink and set PULSE_SOURCE to its monitor
+    FILE *f = popen("pactl get-default-sink 2>/dev/null", "r");
+    char cmd_buffer[256];
+    if (f && fgets(cmd_buffer, sizeof(cmd_buffer), f)) {
+        cmd_buffer[strcspn(cmd_buffer, "\n")] = 0;
+        std::string monitor = std::string(cmd_buffer) + ".monitor";
+        setenv("PULSE_SOURCE", monitor.c_str(), 1);
+        std::cout << "ALSA Capture: Set PULSE_SOURCE to " << monitor << std::endl;
+    }
+    if (f) pclose(f);
+
+    if ((err = snd_pcm_open(&capture_handle, "pulse", SND_PCM_STREAM_CAPTURE, 0)) < 0) {
         std::cerr << "Cannot open ALSA capture device: " << snd_strerror(err) << std::endl;
         return;
     }
