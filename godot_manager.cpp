@@ -19,6 +19,9 @@
 #include "servers/audio/audio_effect.h"
 #include "servers/audio/audio_server.h"
 #include <vector>
+#include <alsa/asoundlib.h>
+#include <thread>
+#include <atomic>
 
 extern "C" void gcg_audio_mix(float* interleaved_buffer, int frames);
 extern "C" void gcg_video_record_audio(const int16_t* pcm_data, int frames);
@@ -30,33 +33,49 @@ extern "C" int gcg_get_godot_mix_rate() {
     return 48000;
 }
 
-class AudioEffectInstanceGCG : public AudioEffectInstance {
-    GDCLASS(AudioEffectInstanceGCG, AudioEffectInstance);
-public:
-    virtual void process(const AudioFrame *p_src_frames, AudioFrame *p_dst_frames, int p_frame_count) override {
-        // Pass audio through transparently
-        for (int i = 0; i < p_frame_count; i++) {
-            p_dst_frames[i] = p_src_frames[i];
-        }
+static std::thread alsa_capture_thread;
+static std::atomic<bool> alsa_capture_active{false};
 
-        // Intercept and push to the video encoder
-        std::vector<int16_t> pcm(p_frame_count * 2);
-        const float* f_ptr = (const float*)p_src_frames;
-        for (int i = 0; i < p_frame_count * 2; ++i) {
-            pcm[i] = static_cast<int16_t>(std::max(-1.0f, std::min(1.0f, f_ptr[i])) * 32767.0f);
-        }
-        gcg_video_record_audio(pcm.data(), p_frame_count);
+void alsa_capture_loop() {
+    int err;
+    snd_pcm_t *capture_handle;
+    
+    if ((err = snd_pcm_open(&capture_handle, "default", SND_PCM_STREAM_CAPTURE, 0)) < 0) {
+        std::cerr << "Cannot open ALSA capture device: " << snd_strerror(err) << std::endl;
+        return;
     }
-};
+    
+    snd_pcm_hw_params_t *hw_params;
+    snd_pcm_hw_params_malloc(&hw_params);
+    snd_pcm_hw_params_any(capture_handle, hw_params);
+    snd_pcm_hw_params_set_access(capture_handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
+    snd_pcm_hw_params_set_format(capture_handle, hw_params, SND_PCM_FORMAT_S16_LE);
+    unsigned int rate = 48000;
+    snd_pcm_hw_params_set_rate_near(capture_handle, hw_params, &rate, 0);
+    snd_pcm_hw_params_set_channels(capture_handle, hw_params, 2);
+    
+    if ((err = snd_pcm_hw_params(capture_handle, hw_params)) < 0) {
+        std::cerr << "Cannot set ALSA capture params: " << snd_strerror(err) << std::endl;
+        snd_pcm_hw_params_free(hw_params);
+        snd_pcm_close(capture_handle);
+        return;
+    }
+    snd_pcm_hw_params_free(hw_params);
+    snd_pcm_prepare(capture_handle);
 
-class AudioEffectGCG : public AudioEffect {
-    GDCLASS(AudioEffectGCG, AudioEffect);
-public:
-    virtual Ref<AudioEffectInstance> instantiate() override {
-        Ref<AudioEffectInstanceGCG> ins = memnew(AudioEffectInstanceGCG);
-        return ins;
+    int frames = 1024;
+    std::vector<int16_t> buffer(frames * 2);
+    
+    while (alsa_capture_active) {
+        err = snd_pcm_readi(capture_handle, buffer.data(), frames);
+        if (err == -EPIPE) {
+            snd_pcm_prepare(capture_handle); // overrun/underrun
+        } else if (err > 0) {
+            gcg_video_record_audio(buffer.data(), err);
+        }
     }
-};
+    snd_pcm_close(capture_handle);
+}
 
 class AudioStreamPlaybackGCG : public AudioStreamPlaybackResampled {
     GDCLASS(AudioStreamPlaybackGCG, AudioStreamPlaybackResampled);
@@ -162,8 +181,6 @@ bool GodotManager::init(int argc, char* argv[]) {
     ClassDB::register_class<LuaEventBridge>();
     ClassDB::register_class<AudioStreamGCG>();
     ClassDB::register_class<AudioStreamPlaybackGCG>();
-    ClassDB::register_class<AudioEffectGCG>();
-    ClassDB::register_class<AudioEffectInstanceGCG>();
 
     SceneTree* tree = SceneTree::get_singleton();
     if (tree && tree->get_root()) {
@@ -174,12 +191,10 @@ bool GodotManager::init(int argc, char* argv[]) {
         tree->get_root()->add_child(player);
         player->play();
         
-        // Attach capture effect to Master bus
-        Ref<AudioEffectGCG> capture_effect = memnew(AudioEffectGCG);
-        int master_idx = AudioServer::get_singleton()->get_bus_index("Master");
-        AudioServer::get_singleton()->add_bus_effect(master_idx, capture_effect);
-        
-        std::printf("GCG_AudioBridge player and capture effect added.\n");
+        // Start ALSA capture thread instead of AudioEffectGCG
+        alsa_capture_active = true;
+        alsa_capture_thread = std::thread(alsa_capture_loop);
+        std::printf("GCG ALSA capture thread started.\n");
     } else {
         std::printf("ERROR: SceneTree or root is null.\n");
     }
@@ -200,6 +215,14 @@ void GodotManager::iteration() {
 
 void GodotManager::shutdown() {
     if (godot_instance) {
+        // Stop ALSA thread
+        if (alsa_capture_active) {
+            alsa_capture_active = false;
+            if (alsa_capture_thread.joinable()) {
+                alsa_capture_thread.join();
+            }
+        }
+        
         // destroy_godot_instance safely tears it down
         libgodot_destroy_godot_instance(static_cast<GDExtensionObjectPtr>(godot_instance));
         godot_instance = nullptr;

@@ -42,10 +42,17 @@ var default_radius_rear = 0.5
 var use_shapecast = 1.0
 var drivetrain_mode = 0.0
 var tire_turn_speed = 10.0
-var slip_FL = 0.0
-var slip_FR = 0.0
-var slip_RL = 0.0
-var slip_RR = 0.0
+var slip_FL: float = 0.0
+var slip_FR: float = 0.0
+var slip_RL: float = 0.0
+var slip_RR: float = 0.0
+
+var engine_rpm: float = 1000.0
+
+var fmod_event = null
+var fmod_event_2 = null
+var fmod_banks = []
+var engine_audio: AudioStreamPlayer = null
 var show_collision_debug = 0.0
 
 # Resources
@@ -123,7 +130,13 @@ func _ready():
 	var w_rl = create_wheel("RL", mount_RL, radius_rear, false, true, use_shapecast)
 	var w_rr = create_wheel("RR", mount_RR, radius_rear, false, true, use_shapecast)
 	wheels = [w_fl, w_fr, w_rl, w_rr]
-
+	
+	# --- FMOD INIT ---
+	# --- FMOD INIT ---
+	if ClassDB.class_exists("FmodServer"):
+		fmod_banks.append(FmodServer.load_bank("res://Audio/Master.strings.bank", 0))
+		fmod_banks.append(FmodServer.load_bank("res://Audio/Master.bank", 0))
+		fmod_banks.append(FmodServer.load_bank("res://Audio/Vehicles.bank", 0))
 func create_wheel(w_name: String, pos: Vector3, radius: float, is_front: bool, is_drive: bool, use_shapecast: bool) -> RayCast3D:
 	var w = RayCast3D.new()
 	w.name = "Wheel" + w_name
@@ -181,6 +194,7 @@ func create_wheel(w_name: String, pos: Vector3, radius: float, is_front: bool, i
 		
 	add_child(w)
 	return w
+
 
 func _physics_process(delta: float) -> void:
 	# Update mass and COM from properties set by Lua script
@@ -273,3 +287,52 @@ func _physics_process(delta: float) -> void:
 			var mi = child.get_node_or_null("CollisionDebugVisual")
 			if mi:
 				mi.visible = show_debug
+				
+	# --- FAKE GEAR RPM LOGIC FOR FMOD ---
+	# --- FAKE 6-GEAR RPM MATH ---
+	var speed = linear_velocity.length()
+	var max_speed_mps = 80.0
+	var gears = 6
+	var speed_per_gear = max_speed_mps / float(gears)
+	var current_gear = clamp(int(speed / speed_per_gear), 0, gears - 1)
+	var gear_speed = fmod(speed, speed_per_gear) / speed_per_gear
+	
+	engine_rpm = 1000.0 + (gear_speed * 8000.0)
+	
+	# Add some rev spikes based on throttle input when accelerating
+	if motor_input > 0.1:
+		engine_rpm += 1500.0 * motor_input
+		
+	# Clamp to realistic limits
+	engine_rpm = clamp(engine_rpm, 1000.0, 10000.0)
+	
+	# --- FMOD ENGINE UPDATE ---
+	if ClassDB.class_exists("FmodServer"):
+		FmodServer.update()
+		if fmod_event == null and fmod_event_2 == null:
+			# FMOD bank loading takes a few frames to populate the event descriptions
+			var events = FmodServer.get_all_event_descriptions()
+			if events.size() > 0:
+				for e in events:
+					if str(e.get_guid()) == "{0c8363b4-23af-4f9c-af4b-0951bfd37d84}":
+						fmod_event = FmodServer.create_event_instance_from_description(e)
+						if fmod_event: fmod_event.start()
+					if str(e.get_guid()) == "{7aa5e8f1-8ec2-42c6-b465-1241a603a055}":
+						fmod_event_2 = FmodServer.create_event_instance_from_description(e)
+						if fmod_event_2: fmod_event_2.start()
+		
+		# We must set a listener position, otherwise we might not hear the 3D event
+		if FmodServer.has_method("set_listener_transform3d"):
+			FmodServer.set_listener_transform3d(0, global_transform)
+			
+		if fmod_event:
+			fmod_event.set_parameter_by_name("RPM", engine_rpm)
+			fmod_event.set_parameter_by_name("Load", clamp(motor_input, 0.0, 1.0))
+			if fmod_event.has_method("set_3d_attributes"):
+				fmod_event.set_3d_attributes(global_transform)
+				
+		if fmod_event_2:
+			fmod_event_2.set_parameter_by_name("RPM", engine_rpm)
+			fmod_event_2.set_parameter_by_name("Load", clamp(motor_input, 0.0, 1.0))
+			if fmod_event_2.has_method("set_3d_attributes"):
+				fmod_event_2.set_3d_attributes(global_transform)
