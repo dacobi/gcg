@@ -16,7 +16,7 @@ var radius_rear = 0.5
 # Tuning coefficients set by Lua script
 var engine_force_value = 8000.0
 var brake_force_value = 200.0
-var max_steer = 0.4
+var max_steer = 0.35
 var wheel_friction_slip = 10.5
 var suspension_travel = 0.25
 var suspension_stiffness = 120.0
@@ -26,7 +26,7 @@ var damping_relaxation = 8.0
 var downforce_multiplier = 120.0
 var car_mass = 1200.0
 var center_of_mass_y = -0.2
-var center_of_mass_z = 0.0
+var center_of_mass_z = -0.5
 
 # Properties accessed by RaycastWheel
 var motor_input := 0.0
@@ -41,7 +41,7 @@ var default_radius_front = 0.5
 var default_radius_rear = 0.5
 var use_shapecast = 1.0
 var drivetrain_mode = 0.0
-var tire_turn_speed = 10.0
+var tire_turn_speed = 3.0
 var slip_FL: float = 0.0
 var slip_FR: float = 0.0
 var slip_RL: float = 0.0
@@ -57,6 +57,8 @@ var show_collision_debug = 0.0
 
 var shift_timer: float = 0.0
 var current_gear_sim: int = 0
+
+var skid_marks: Array[GPUParticles3D] = []
 
 # Resources
 var accel_curve: Curve
@@ -133,6 +135,30 @@ func _ready():
 	var w_rl = create_wheel("RL", mount_RL, radius_rear, false, true, use_shapecast)
 	var w_rr = create_wheel("RR", mount_RR, radius_rear, false, true, use_shapecast)
 	wheels = [w_fl, w_fr, w_rl, w_rr]
+	
+	# Create dynamic skid mark particle systems
+	var skid_mat = StandardMaterial3D.new()
+	skid_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	skid_mat.vertex_color_use_as_albedo = true
+	skid_mat.albedo_color = Color(0.1, 0.1, 0.1, 0.6)
+	var skid_mesh = QuadMesh.new()
+	skid_mesh.material = skid_mat
+	skid_mesh.size = Vector2(0.3, 0.8)
+	skid_mesh.orientation = PlaneMesh.FACE_Y
+	var skid_proc = ParticleProcessMaterial.new()
+	skid_proc.gravity = Vector3.ZERO
+	
+	for i in range(4):
+		var p = GPUParticles3D.new()
+		p.emitting = false
+		p.amount = 200
+		p.lifetime = 2.0
+		p.fixed_fps = 60
+		p.process_material = skid_proc
+		p.draw_pass_1 = skid_mesh
+		p.local_coords = false # Particles stay on road when car moves
+		add_child(p)
+		skid_marks.append(p)
 	
 	# --- FMOD INIT ---
 	# --- FMOD INIT ---
@@ -219,6 +245,10 @@ func _physics_process(delta: float) -> void:
 	
 	var forward_speed = -global_transform.basis.z.dot(linear_velocity)
 	
+	# Dynamic ESP / Yaw Stabilizer
+	var yaw_damping = clampf(forward_speed / 15.0, 0.0, 8.0)
+	apply_torque(Vector3(0, -angular_velocity.y * mass * yaw_damping, 0))
+	
 	# Scale engine acceleration force
 	acceleration = engine_force_value * 0.15
 	
@@ -275,19 +305,41 @@ func _physics_process(delta: float) -> void:
 		
 		w.apply_wheel_physics(self)
 		
-		# Tutorial _basic_steering_rotation logic
+		# Target-based steering logic for joysticks
 		if w.is_steer:
-			var turn_input = -float(steer_input) * tire_turn_speed
-			if turn_input:
-				w.rotation.y = clampf(w.rotation.y + turn_input * delta,
-					-max_steer, max_steer)
-			else:
-				w.rotation.y = move_toward(w.rotation.y, 0, tire_turn_speed * delta)
+			# Speed sensitive steering: drastically reduce max steering angle at high speeds
+			var current_speed = linear_velocity.length()
+			var speed_steer_limit = clampf(1.0 - (current_speed / 80.0), 0.1, 1.0)
+			var dynamic_max_steer = max_steer * speed_steer_limit
+			
+			var target_steer = -float(steer_input) * dynamic_max_steer
+			w.rotation.y = move_toward(w.rotation.y, target_steer, tire_turn_speed * delta)
 				
 		w.is_braking = (brake_input > 0.1) or hand_break
 		
 		if w.is_colliding():
 			grounded = true
+			
+			# Skid marks
+			if skid_marks.size() > i and skid_marks[i] != null:
+				skid_marks[i].global_position = w.get_collision_point() + Vector3.UP * 0.05
+				skid_marks[i].look_at(skid_marks[i].global_position + global_transform.basis.z)
+				
+				var is_skidding = false
+				if hand_break or w.grip_factor > 0.4:
+					is_skidding = true
+				if w.is_braking and forward_speed > 10.0:
+					is_skidding = true
+				skid_marks[i].emitting = is_skidding
+		else:
+			if skid_marks.size() > i and skid_marks[i] != null:
+				skid_marks[i].emitting = false
+			
+	# Update slip telemetry variables
+	slip_FL = wheels[0].grip_factor
+	slip_FR = wheels[1].grip_factor
+	slip_RL = wheels[2].grip_factor
+	slip_RR = wheels[3].grip_factor
 
 	if grounded:
 		center_of_mass = Vector3.ZERO

@@ -85,12 +85,12 @@ while true do
 		
 		imguiSeparator()
 		imguiText("Tire Slip Telemetry")
-		imguiSameLine()
+		-- imguiSameLine()
 		imguiProgressBar("FL", "telemetry_slip_FL")
-		imguiSameLine()
+		-- imguiSameLine()
 		imguiProgressBar("FR", "telemetry_slip_FR")
 		imguiProgressBar("RL", "telemetry_slip_RL")
-		imguiSameLine()
+		-- imguiSameLine()
 		imguiProgressBar("RR", "telemetry_slip_RR")
 		
 		imguiText("Engine RPM Telemetry")

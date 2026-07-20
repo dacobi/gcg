@@ -63,6 +63,7 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 	if visual_pivot and is_instance_valid(visual_pivot):
 		var target_y = position.y - spring_len
 		visual_pivot.position = Vector3(position.x, move_toward(visual_pivot.position.y, target_y, 5 * get_physics_process_delta_time()), position.z)
+		visual_pivot.rotation.y = rotation.y
 
 	contact = global_position - global_basis.y * spring_len # Contact is now the wheel origin point
 	var force_pos     := contact - car.global_position
@@ -98,8 +99,28 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 	elif car.get("is_slipping"):
 		x_traction = 0.1
 
-	var gravity        := -car.get_gravity().y
-	var x_force        = -global_basis.x * steering_x_vel * x_traction * ((car.mass * gravity)/float(car.get("total_wheels")))
+	var gravity        = -car.get_gravity().y
+	var weight_on_wheel = (car.mass * gravity)/float(car.get("total_wheels"))
+	
+	# Massive baseline traction multiplier
+	var x_force        = -global_basis.x * steering_x_vel * x_traction * weight_on_wheel * 3.0
+	
+	# Aggressive Dynamic Understeer: Front wheels lose efficiency as speed increases
+	# This guarantees the front tires wash out before the rear tires can spin out
+	var speed = car.linear_velocity.length()
+	if is_steer:
+		var understeer_factor = clampf(1.0 - (speed / 60.0), 0.3, 1.0)
+		x_force *= understeer_factor
+	
+	# Clamp lateral force to prevent 360 spins at 250 km/h
+	var max_grip = weight_on_wheel * float(car.get("wheel_friction_slip"))
+	
+	# Rear wheels get an absolute hard cap bonus to prevent snapping
+	if not is_steer:
+		max_grip *= 1.5
+		
+	if x_force.length() > max_grip:
+		x_force = x_force.normalized() * max_grip
 
 	## Tire Z traction (Longitudinal)
 	var f_vel          := forward_dir.dot(tire_vel)
@@ -107,6 +128,12 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 	if is_braking:
 		z_friction = z_brake_traction
 	var z_force        = global_basis.z * f_vel * z_friction * ((car.mass * gravity)/float(car.get("total_wheels")))
+	
+	# Clamp longitudinal force (braking) to prevent instant stops at 250 km/h
+	# 1.5 represents a very strong real-world sports car tire friction coefficient
+	var max_z_grip = ((car.mass * gravity)/float(car.get("total_wheels"))) * 1.5
+	if z_force.length() > max_z_grip:
+		z_force = z_force.normalized() * max_z_grip
 
 	car.apply_force(y_force, force_pos)
 	car.apply_force(x_force, force_pos)
