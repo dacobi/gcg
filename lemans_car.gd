@@ -6,10 +6,10 @@ var brake_input: float = 0.0
 var steer_input: float = 0.0
 var handbrake_input: float = 0.0
 
-var mount_FL = Vector3(-1.3, 0.025, -1.7)
-var mount_FR = Vector3(1.3, 0.025, -1.7)
-var mount_RL = Vector3(-1.3, 0.025, 1.75)
-var mount_RR = Vector3(1.3, 0.025, 1.75)
+var mount_FL = Vector3(-1.0, -0.1, -1.7)
+var mount_FR = Vector3(1.0, -0.1, -1.7)
+var mount_RL = Vector3(-1.1, -0.1, 1.75)
+var mount_RR = Vector3(1.1, -0.1, 1.75)
 var radius_front = 0.5
 var radius_rear = 0.5
 
@@ -140,6 +140,17 @@ func _ready():
 		fmod_banks.append(FmodServer.load_bank("res://Audio/Master.strings.bank", 0))
 		fmod_banks.append(FmodServer.load_bank("res://Audio/Master.bank", 0))
 		fmod_banks.append(FmodServer.load_bank("res://Audio/Vehicles.bank", 0))
+		
+	# --- HUD INIT ---
+	var canvas = CanvasLayer.new()
+	add_child(canvas)
+	var hud = Control.new()
+	var hud_script = load("res://hud.gd")
+	if hud_script:
+		hud.set_script(hud_script)
+		hud.set("car", self)
+		hud.set_anchors_preset(Control.PRESET_FULL_RECT)
+		canvas.add_child(hud)
 func create_wheel(w_name: String, pos: Vector3, radius: float, is_front: bool, is_drive: bool, use_shapecast: bool) -> RayCast3D:
 	var w = RayCast3D.new()
 	w.name = "Wheel" + w_name
@@ -152,6 +163,7 @@ func create_wheel(w_name: String, pos: Vector3, radius: float, is_front: bool, i
 	w.spring_damping = damping_compression * 15.0
 	w.max_spring_force = suspension_max_force
 	w.over_extend = 0.05
+	w.enabled = true
 	
 	w.is_motor = is_drive
 	w.is_steer = is_front
@@ -241,47 +253,56 @@ func _physics_process(delta: float) -> void:
 	if hand_break:
 		wheels[2].is_braking = true
 		wheels[3].is_braking = true
-		
-	# Apply drivetrain mode (AWD, RWD, FWD)
-	for i in range(4):
-		if drivetrain_mode < 0.5:
-			wheels[i].is_motor = true
-		elif drivetrain_mode < 1.5:
-			wheels[i].is_motor = (i >= 2)
-		else:
-			wheels[i].is_motor = (i < 2)
 
-	# Apply steering angle
-	var target_angle = -steer_input * max_steer
-	wheels[0].rotation.y = lerp(wheels[0].rotation.y, target_angle, tire_turn_speed * delta)
-	wheels[1].rotation.y = lerp(wheels[1].rotation.y, target_angle, tire_turn_speed * delta)
-	
-	# Run wheel physics
+	# Run wheel physics exactly like tutorial
 	var grounded = false
-	for w in wheels:
+	for i in range(4):
+		var w = wheels[i]
+		
 		w.rest_dist = suspension_travel
 		w.spring_strength = suspension_stiffness * 250.0
 		w.spring_damping = damping_compression * 200.0
-		w.max_spring_force = suspension_max_force
+		
+		var r = radius_front if i < 2 else radius_rear
+		w.wheel_radius = r
+		if w.visual_wheel and is_instance_valid(w.visual_wheel):
+			var scale_f = r / 0.5
+			w.visual_wheel.scale = Vector3(scale_f, scale_f, scale_f)
+			
 		w.z_brake_traction = brake_force_value * 0.002
+		w.is_motor = true # AWD like tutorial
+		w.is_steer = (i < 2)
 		
 		w.apply_wheel_physics(self)
+		
+		# Tutorial _basic_steering_rotation logic
+		if w.is_steer:
+			var turn_input = -float(steer_input) * tire_turn_speed
+			if turn_input:
+				w.rotation.y = clampf(w.rotation.y + turn_input * delta,
+					-max_steer, max_steer)
+			else:
+				w.rotation.y = move_toward(w.rotation.y, 0, tire_turn_speed * delta)
+				
+		w.is_braking = (brake_input > 0.1) or hand_break
+		
 		if w.is_colliding():
 			grounded = true
-			
-	# Update slip telemetry variables
-	slip_FL = wheels[0].grip_factor
-	slip_FR = wheels[1].grip_factor
-	slip_RL = wheels[2].grip_factor
-	slip_RR = wheels[3].grip_factor
-			
-	# Align center of mass when airborne for stability
-	if not grounded:
-		center_of_mass.y = center_of_mass_y - 0.5
+
+	if grounded:
+		center_of_mass = Vector3.ZERO
+	else:
+		center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+		center_of_mass = Vector3.DOWN*0.5
 		
-	# Downforce
-	var current_speed = linear_velocity.length()
-	apply_central_force(-global_transform.basis.y * (current_speed * downforce_multiplier))
+	# Downforce and Aerodynamic Drag
+	var current_speed_for_aero = linear_velocity.length()
+	apply_central_force(-global_transform.basis.y * (current_speed_for_aero * downforce_multiplier))
+	
+	if current_speed_for_aero > 0.1:
+		var drag_coeff = 0.30
+		var drag_force = -linear_velocity.normalized() * (current_speed_for_aero * current_speed_for_aero * drag_coeff)
+		apply_central_force(drag_force)
 
 	# Update collision debug visual visibility
 	var show_debug = show_collision_debug > 0.5
@@ -292,39 +313,47 @@ func _physics_process(delta: float) -> void:
 				mi.visible = show_debug
 				
 	# --- FAKE GEAR RPM LOGIC FOR FMOD ---
-	# We use a fixed speed boundary to ensure the car shifts reliably without requiring insane terminal velocity
 	var speed = linear_velocity.length()
 	var gears = 6
-	var speed_per_gear = 12.0 # 43 km/h per gear, hits 6th at 259 km/h
 	
+	# Dynamic gear lengths (in m/s). 11.1 m/s = 40 km/h, 22.2 = 80 km/h, etc.
+	var gear_max_speeds = [11.1, 22.2, 36.1, 50.0, 63.8, 100.0]
+	
+	var target_gear = 0
+	for i in range(gears):
+		if speed < gear_max_speeds[i]:
+			target_gear = i
+			break
+		if i == gears - 1:
+			target_gear = i
+			
 	if shift_timer <= 0.0:
-		var target_gear = clamp(int(speed / speed_per_gear), 0, gears - 1)
 		if target_gear > current_gear_sim:
-			# Initiate an upshift! Disconnect the clutch for 250ms
+			# Initiate an upshift! Disconnect the clutch for 250ms (faster, punchy shifts)
 			shift_timer = 0.25
 			current_gear_sim = target_gear
 		elif target_gear < current_gear_sim:
-			# Hysteresis: only downshift if we drop at least 2 m/s below the gear threshold
-			var speed_in_gear = speed - (current_gear_sim * speed_per_gear)
-			if speed_in_gear < -2.0:
+			# Hysteresis: only downshift if we drop at least 2 m/s below the previous gear threshold
+			var prev_max = 0.0 if current_gear_sim == 0 else gear_max_speeds[current_gear_sim - 1]
+			if speed < prev_max - 2.0:
 				current_gear_sim = target_gear
 		
 	var target_rpm = 1000.0
 	if shift_timer > 0.0:
 		shift_timer -= delta
-		# Clutch is in: RPM drops freely, NO engine power to wheels (creates physical stutter!)
-		target_rpm = 4000.0
-		motor_input = 0.0
-		engine_rpm = lerp(engine_rpm, target_rpm, 12.0 * delta)
+		# Clutch is in: purely visual and audio gear shift effect (no momentum loss)
+		target_rpm = 6500.0
+		engine_rpm = lerp(engine_rpm, target_rpm, 6.0 * delta)
 	else:
 		# Clutch is out: RPM bound to wheel speed in the current gear
-		var speed_in_gear = speed - (current_gear_sim * speed_per_gear)
-		var gear_speed = clamp(speed_in_gear / speed_per_gear, 0.0, 1.0)
+		var prev_max = 0.0 if current_gear_sim == 0 else gear_max_speeds[current_gear_sim - 1]
+		var current_max = gear_max_speeds[current_gear_sim]
+		var gear_speed = clamp((speed - prev_max) / (current_max - prev_max), 0.0, 1.0)
 		
 		if current_gear_sim == 0:
 			target_rpm = lerp(1000.0, 9000.0, gear_speed)
 		else:
-			target_rpm = lerp(5000.0, 9000.0, gear_speed)
+			target_rpm = lerp(6500.0, 9000.0, gear_speed)
 		
 		# Add rev spikes based on throttle input when accelerating
 		if motor_input > 0.1:

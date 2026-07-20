@@ -10,7 +10,7 @@ extends Node3D
 var is_paused = false
 var orbit_yaw = 0.0
 var orbit_pitch = 0.5
-var orbit_dist = 12.0
+var orbit_dist = 18.0
 
 var cam_rx = 0.0
 var cam_ry = 0.0
@@ -51,7 +51,7 @@ var t_car = 0.15
 func _ready():
 	is_square = false
 	for arg in OS.get_cmdline_args():
-		if "show_car.lua" in arg:
+		if "show_car.lua" in arg or "testphysics.lua" in arg:
 			is_square = true
 			break
 
@@ -70,19 +70,33 @@ func _ready():
 			center_line.visible = false
 			center_line.use_collision = false
 
-		# Create a large flat square floor box (300m x 300m) with no hole in the middle
+		# Create a large flat square floor box (1200m x 1200m) with no hole in the middle
 		var floor_box = CSGBox3D.new()
 		floor_box.name = "ArenaFloor"
-		floor_box.size = Vector3(300.0, 0.32, 300.0)
+		floor_box.size = Vector3(1200.0, 0.32, 1200.0)
 		floor_box.position = Vector3(0.0, -0.16, 0.0)
-		floor_box.material = road_bed.material
+		var shader = Shader.new()
+		shader.code = """
+		shader_type spatial;
+		uniform vec4 color1 : source_color = vec4(0.0, 0.0, 0.0, 1.0);
+		uniform vec4 color2 : source_color = vec4(0.0, 1.0, 1.0, 1.0);
+		uniform float grid_scale = 120.0;
+		void fragment() {
+			vec2 pos = floor(UV * grid_scale);
+			float pattern = mod(pos.x + pos.y, 2.0);
+			ALBEDO = mix(color1.rgb, color2.rgb, pattern);
+		}
+		"""
+		var checker_mat = ShaderMaterial.new()
+		checker_mat.shader = shader
+		floor_box.material = checker_mat
 		floor_box.use_collision = true
 		add_child(floor_box)
 
 		# Generate a smooth rounded square path curve (for camera movement, edit mode, and fence)
 		var curve = Curve3D.new()
-		var size = 150.0
-		var r = 20.0
+		var size = 600.0
+		var r = 80.0
 		var num_points_side = 50
 		var num_points_corner = 25
 		
@@ -613,6 +627,11 @@ func _process(delta):
 			var look_target = supercar.global_position + Vector3(0, 1.5, 0) + supercar.linear_velocity * 0.1
 			var target_transform = camera_node.global_transform.looking_at(look_target, Vector3.UP)
 			camera_node.global_transform = camera_node.global_transform.interpolate_with(target_transform, 15.0 * delta)
+			
+			# Dynamic FOV warp effect based on physical speed
+			var speed = supercar.linear_velocity.length()
+			var target_fov = lerp(75.0, 120.0, clamp(speed / 100.0, 0.0, 1.0))
+			camera_node.fov = lerp(camera_node.fov, target_fov, 4.0 * delta)
 
 func setup_polygons():
 	road_bed.mode = CSGPolygon3D.MODE_PATH
