@@ -69,12 +69,23 @@ var wheels: Array = []
 var start_transform: Transform3D
 
 func _ready():
-	continuous_cd = true
-	# Resize collision box to extend just beyond the wheels
+	# Resize collision box to act as the main hull, shrunk and lifted slightly
 	var body_col = get_node_or_null("BodyCol")
 	if body_col and body_col.shape is BoxShape3D:
 		body_col.shape = body_col.shape.duplicate()
-		body_col.shape.size = Vector3(3.1, 0.5, 3.4)
+		body_col.shape.size = Vector3(2.8, 0.4, 3.0)
+		body_col.position.y += 0.2
+		
+		# Add 4 perfectly smooth skid spheres at the bottom corners to prevent snagging on sharp ramps
+		for z_pos in [-1.5, 1.5]:
+			for x_pos in [-1.4, 1.4]:
+				var sphere_col = CollisionShape3D.new()
+				var sphere = SphereShape3D.new()
+				sphere.radius = 0.3
+				sphere_col.shape = sphere
+				# Position the spheres exactly at the corners, slightly lower than the box
+				sphere_col.position = Vector3(x_pos, 0.1, z_pos)
+				add_child.call_deferred(sphere_col)
 
 	default_radius_front = radius_front
 	default_radius_rear = radius_rear

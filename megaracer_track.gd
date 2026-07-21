@@ -272,20 +272,34 @@ func _ready():
 			# A long slalom line of cones down the middle
 			spawn.call(cone_scn, Vector3(0, 0.2, -100 + i*8), 0, 1.0, true, 2.0)
 			
-		# Spawn scattered static foliage
-		for i in range(30):
-			var rx = randf_range(-150, 150)
-			var rz = randf_range(80, 200)
-			spawn.call(tree_scn, Vector3(rx, 0, rz), randf_range(0, 360), randf_range(0.8, 1.5), false)
+		# Foliage spawn helper function
+		var is_valid_spawn = func(pos: Vector3) -> bool:
+			# Don't spawn within 50m of the exact center
+			if Vector2(pos.x, pos.z).length() < 50.0: return false
 			
-			var rx2 = randf_range(-200, -80)
-			var rz2 = randf_range(-100, 100)
-			spawn.call(tree2_scn, Vector3(rx2, 0, rz2), randf_range(0, 360), randf_range(0.8, 1.3), false)
+			# Don't spawn anywhere near the ramps!
+			for data in ramps_data:
+				var dist = Vector2(pos.x - data["pos"].x, pos.z - data["pos"].z).length()
+				# Create a huge safe buffer zone around each ramp (ramp size + 35 meters)
+				var buffer = max(data["w"], data["d"]) + 35.0
+				if dist < buffer:
+					return false
+			return true
+
+		# Spawn scattered static foliage safely
+		for i in range(150):
+			var rx = randf_range(-300, 300)
+			var rz = randf_range(-300, 300)
+			var pos = Vector3(rx, 0, rz)
 			
-			var rx3 = randf_range(-150, 150)
-			var rz3 = randf_range(-150, 150)
-			if Vector2(rx3, rz3).length() > 50.0:
-				spawn.call(bush_scn, Vector3(rx3, 0, rz3), randf_range(0, 360), randf_range(0.5, 2.0), false)
+			if is_valid_spawn.call(pos):
+				var prop_type = randi() % 3
+				if prop_type == 0:
+					spawn.call(tree_scn, pos, randf_range(0, 360), randf_range(0.8, 1.5), false)
+				elif prop_type == 1:
+					spawn.call(tree2_scn, pos, randf_range(0, 360), randf_range(0.8, 1.3), false)
+				else:
+					spawn.call(bush_scn, pos, randf_range(0, 360), randf_range(0.5, 2.0), false)
 
 	else:
 		# Make sure the sweep-based track visuals and their collisions are active
