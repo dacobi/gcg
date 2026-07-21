@@ -71,10 +71,11 @@ func _ready():
 			center_line.use_collision = false
 
 		# Create a large flat square floor box (1200m x 1200m) with no hole in the middle
+		# Increased thickness to 10m to prevent high-speed cars from clipping through when landing
 		var floor_box = CSGBox3D.new()
 		floor_box.name = "ArenaFloor"
-		floor_box.size = Vector3(1200.0, 0.32, 1200.0)
-		floor_box.position = Vector3(0.0, -0.16, 0.0)
+		floor_box.size = Vector3(1200.0, 10.0, 1200.0)
+		floor_box.position = Vector3(0.0, -5.0, 0.0)
 		var shader = Shader.new()
 		shader.code = """
 		shader_type spatial;
@@ -185,24 +186,40 @@ func _ready():
 			if "start_transform" in supercar:
 				supercar.start_transform = supercar.global_transform
 				
+		# --- PROCEDURAL CONCRETE MATERIAL ---
+		var concrete_mat = StandardMaterial3D.new()
+		var noise = FastNoiseLite.new()
+		noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+		noise.frequency = 0.05
+		var noise_tex = NoiseTexture2D.new()
+		noise_tex.noise = noise
+		noise_tex.seamless = true
+		concrete_mat.albedo_color = Color(0.6, 0.6, 0.6)
+		concrete_mat.albedo_texture = noise_tex
+		concrete_mat.roughness = 0.9
+
 		# --- SPAWN RAMPS ---
-		var ramp1 = CSGPolygon3D.new()
-		ramp1.polygon = PackedVector2Array([Vector2(0, 0), Vector2(30, 0), Vector2(30, 8)])
-		ramp1.depth = 15.0
-		ramp1.position = Vector3(40, 0, -80)
-		ramp1.rotation_degrees = Vector3(0, -45, 0)
-		ramp1.material = border_l.material
-		ramp1.use_collision = true
-		add_child(ramp1)
-		
-		var ramp2 = CSGPolygon3D.new()
-		ramp2.polygon = PackedVector2Array([Vector2(0, 0), Vector2(20, 0), Vector2(20, 5)])
-		ramp2.depth = 10.0
-		ramp2.position = Vector3(-50, 0, -60)
-		ramp2.rotation_degrees = Vector3(0, 30, 0)
-		ramp2.material = center_line.material
-		ramp2.use_collision = true
-		add_child(ramp2)
+		var ramps_data = [
+			{"pos": Vector3(40, 0, -80), "rot": -45, "w": 30, "h": 8, "d": 15},
+			{"pos": Vector3(-50, 0, -60), "rot": 30, "w": 20, "h": 5, "d": 10},
+			{"pos": Vector3(100, 0, 50), "rot": 135, "w": 40, "h": 12, "d": 25},
+			{"pos": Vector3(-120, 0, 80), "rot": 90, "w": 15, "h": 4, "d": 15},
+			{"pos": Vector3(0, 0, 150), "rot": 180, "w": 25, "h": 7, "d": 20},
+			{"pos": Vector3(-150, 0, -150), "rot": 45, "w": 35, "h": 10, "d": 20},
+			{"pos": Vector3(150, 0, -150), "rot": -45, "w": 20, "h": 6, "d": 15},
+			{"pos": Vector3(80, 0, 120), "rot": 200, "w": 30, "h": 8, "d": 20},
+			{"pos": Vector3(-80, 0, 120), "rot": 160, "w": 30, "h": 8, "d": 20},
+			{"pos": Vector3(0, 0, -200), "rot": 0, "w": 50, "h": 15, "d": 30}
+		]
+		for data in ramps_data:
+			var ramp = CSGPolygon3D.new()
+			ramp.polygon = PackedVector2Array([Vector2(0, 0), Vector2(data["w"], 0), Vector2(data["w"], data["h"])])
+			ramp.depth = data["d"]
+			ramp.position = data["pos"]
+			ramp.rotation_degrees = Vector3(0, data["rot"], 0)
+			ramp.material = concrete_mat
+			ramp.use_collision = true
+			add_child(ramp)
 		
 		# --- SPAWN MODELS ---
 		var barrier_scn = load("res://assets/models/extra_objects/traffic_barrier.glb")
@@ -211,38 +228,64 @@ func _ready():
 		var tree2_scn = load("res://assets/models/environment/pine_tree_2.glb")
 		var bush_scn = load("res://assets/models/environment/bush.glb")
 		
-		var spawn = func(scn, pos: Vector3, rot_y: float = 0.0, s: float = 1.0):
+		var spawn = func(scn, pos: Vector3, rot_y: float = 0.0, s: float = 1.0, is_rigid: bool = false, mass_val: float = 1.0):
 			if scn:
 				var inst = scn.instantiate()
-				inst.position = pos
-				inst.rotation_degrees.y = rot_y
-				inst.scale = Vector3(s, s, s)
-				add_child(inst)
-				# Dynamically generate convex physics collisions for the loaded meshes
-				for child in inst.find_children("*", "MeshInstance3D", true, false):
-					child.create_multiple_convex_collisions()
+				
+				if is_rigid:
+					var parent_node = RigidBody3D.new()
+					parent_node.mass = mass_val
+					parent_node.position = pos
+					parent_node.rotation_degrees.y = rot_y
+					inst.scale = Vector3(s, s, s)
+					parent_node.add_child(inst)
+					add_child(parent_node)
 					
-		# Spawn barriers and cones
+					for child in inst.find_children("*", "MeshInstance3D", true, false):
+						var shape = CollisionShape3D.new()
+						shape.shape = child.mesh.create_convex_shape(true, true)
+						shape.position = child.position * s
+						shape.rotation = child.rotation
+						shape.scale = child.scale * s
+						parent_node.add_child(shape)
+				else:
+					inst.position = pos
+					inst.rotation_degrees.y = rot_y
+					inst.scale = Vector3(s, s, s)
+					add_child(inst)
+					for child in inst.find_children("*", "MeshInstance3D", true, false):
+						child.create_multiple_convex_collisions()
+					
+		# Spawn rigid dynamic barriers and cones
 		for i in range(12):
-			spawn.call(barrier_scn, Vector3(20 + i*4, 0.0, 50), 0)
-			spawn.call(cone_scn, Vector3(-30 + i*3, 0.0, 40), 0)
-			spawn.call(barrier_scn, Vector3(80, 0.0, -20 + i*4), 90)
+			# Original lines
+			spawn.call(barrier_scn, Vector3(20 + i*4, 0.5, 50), 0, 1.0, true, 20.0)
+			spawn.call(cone_scn, Vector3(-30 + i*3, 0.2, 40), 0, 1.0, true, 2.0)
+			spawn.call(barrier_scn, Vector3(80, 0.5, -20 + i*4), 90, 1.0, true, 20.0)
 			
-		# Spawn scattered foliage
+			# Additional lines
+			spawn.call(cone_scn, Vector3(10 + i*3, 0.2, -40), 45, 1.0, true, 2.0)
+			spawn.call(barrier_scn, Vector3(-80, 0.5, 20 - i*4), 90, 1.0, true, 20.0)
+			spawn.call(cone_scn, Vector3(-60 - i*3, 0.2, 80), -45, 1.0, true, 2.0)
+			
+		for i in range(25):
+			# A long slalom line of cones down the middle
+			spawn.call(cone_scn, Vector3(0, 0.2, -100 + i*8), 0, 1.0, true, 2.0)
+			
+		# Spawn scattered static foliage
 		for i in range(30):
 			var rx = randf_range(-150, 150)
 			var rz = randf_range(80, 200)
-			spawn.call(tree_scn, Vector3(rx, 0, rz), randf_range(0, 360), randf_range(0.8, 1.5))
+			spawn.call(tree_scn, Vector3(rx, 0, rz), randf_range(0, 360), randf_range(0.8, 1.5), false)
 			
 			var rx2 = randf_range(-200, -80)
 			var rz2 = randf_range(-100, 100)
-			spawn.call(tree2_scn, Vector3(rx2, 0, rz2), randf_range(0, 360), randf_range(0.8, 1.3))
+			spawn.call(tree2_scn, Vector3(rx2, 0, rz2), randf_range(0, 360), randf_range(0.8, 1.3), false)
 			
 			var rx3 = randf_range(-150, 150)
 			var rz3 = randf_range(-150, 150)
-			# Don't spawn bushes exactly in the center
 			if Vector2(rx3, rz3).length() > 50.0:
-				spawn.call(bush_scn, Vector3(rx3, 0, rz3), randf_range(0, 360), randf_range(0.5, 2.0))
+				spawn.call(bush_scn, Vector3(rx3, 0, rz3), randf_range(0, 360), randf_range(0.5, 2.0), false)
 
 	else:
 		# Make sure the sweep-based track visuals and their collisions are active

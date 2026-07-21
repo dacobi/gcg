@@ -69,6 +69,7 @@ var wheels: Array = []
 var start_transform: Transform3D
 
 func _ready():
+	continuous_cd = true
 	# Resize collision box to extend just beyond the wheels
 	var body_col = get_node_or_null("BodyCol")
 	if body_col and body_col.shape is BoxShape3D:
