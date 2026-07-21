@@ -57,6 +57,7 @@ var show_collision_debug = 0.0
 
 var shift_timer: float = 0.0
 var current_gear_sim: int = 0
+var brake_timer: float = 0.0
 
 var skid_marks: Array[GPUParticles3D] = []
 
@@ -371,13 +372,21 @@ func _physics_process(delta: float) -> void:
 	# Dynamic gear lengths (in m/s). 11.1 m/s = 40 km/h, 22.2 = 80 km/h, etc.
 	var gear_max_speeds = [11.1, 22.2, 36.1, 50.0, 63.8, 100.0]
 	
+	if brake_input > 0.1 or hand_break:
+		brake_timer += delta
+	else:
+		brake_timer = 0.0
+		
 	var target_gear = 0
-	for i in range(gears):
-		if speed < gear_max_speeds[i]:
-			target_gear = i
-			break
-		if i == gears - 1:
-			target_gear = i
+	if forward_speed < -1.0:
+		target_gear = -1
+	else:
+		for i in range(gears):
+			if speed < gear_max_speeds[i]:
+				target_gear = i
+				break
+			if i == gears - 1:
+				target_gear = i
 			
 	if shift_timer <= 0.0:
 		if target_gear > current_gear_sim:
@@ -385,27 +394,42 @@ func _physics_process(delta: float) -> void:
 			shift_timer = 0.25
 			current_gear_sim = target_gear
 		elif target_gear < current_gear_sim:
-			# Hysteresis: only downshift if we drop at least 2 m/s below the previous gear threshold
-			var prev_max = 0.0 if current_gear_sim == 0 else gear_max_speeds[current_gear_sim - 1]
-			if speed < prev_max - 2.0:
+			if brake_timer > 0.5:
+				# Drop down gears silently when braking hard
 				current_gear_sim = target_gear
+			else:
+				# Hysteresis: only downshift if we drop at least 2 m/s below the previous gear threshold
+				var prev_max = 0.0 if current_gear_sim <= 0 else gear_max_speeds[current_gear_sim - 1]
+				if speed < prev_max - 2.0:
+					current_gear_sim = target_gear
 		
 	var target_rpm = 1000.0
-	if shift_timer > 0.0:
+	if brake_timer > 0.5:
+		# Clutch out and drop to idle immediately while braking
+		target_rpm = 1000.0
+		engine_rpm = lerp(engine_rpm, target_rpm, 10.0 * delta)
+	elif shift_timer > 0.0:
 		shift_timer -= delta
 		# Clutch is in: purely visual and audio gear shift effect (no momentum loss)
 		target_rpm = 6500.0
 		engine_rpm = lerp(engine_rpm, target_rpm, 6.0 * delta)
 	else:
 		# Clutch is out: RPM bound to wheel speed in the current gear
-		var prev_max = 0.0 if current_gear_sim == 0 else gear_max_speeds[current_gear_sim - 1]
-		var current_max = gear_max_speeds[current_gear_sim]
-		var gear_speed = clamp((speed - prev_max) / (current_max - prev_max), 0.0, 1.0)
+		var gear_speed = 0.0
 		
-		if current_gear_sim == 0:
+		if current_gear_sim == -1:
+			# Reverse gear logic (max 50 km/h = 13.88 m/s)
+			gear_speed = clamp(speed / 13.88, 0.0, 1.0)
 			target_rpm = lerp(1000.0, 9000.0, gear_speed)
 		else:
-			target_rpm = lerp(6500.0, 9000.0, gear_speed)
+			var prev_max = 0.0 if current_gear_sim <= 0 else gear_max_speeds[current_gear_sim - 1]
+			var current_max = gear_max_speeds[current_gear_sim] if current_gear_sim >= 0 else gear_max_speeds[0]
+			gear_speed = clamp((speed - prev_max) / (current_max - prev_max), 0.0, 1.0)
+			
+			if current_gear_sim <= 0:
+				target_rpm = lerp(1000.0, 9000.0, gear_speed)
+			else:
+				target_rpm = lerp(6500.0, 9000.0, gear_speed)
 		
 		# Add rev spikes based on throttle input when accelerating
 		if motor_input > 0.1:
@@ -415,7 +439,7 @@ func _physics_process(delta: float) -> void:
 		target_rpm = clamp(target_rpm, 1000.0, 10000.0)
 		
 		# Smooth approach to target
-		engine_rpm = lerp(engine_rpm, target_rpm, 20.0 * delta)
+		engine_rpm = lerp(engine_rpm, target_rpm, 15.0 * delta)
 	
 	# --- FMOD ENGINE UPDATE ---
 	if ClassDB.class_exists("FmodServer"):

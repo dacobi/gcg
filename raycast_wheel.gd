@@ -79,8 +79,13 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 	if is_motor and car.get("motor_input"):
 		var speed_ratio = vel / float(car.get("max_speed"))
 		var ac := 1.0
-		if car.get("accel_curve"):
+		
+		# Reverse speed limiter (max 50 km/h = 13.88 m/s)
+		if vel < -13.88 and float(car.get("motor_input")) < 0.0:
+			ac = 0.0
+		elif car.get("accel_curve"):
 			ac = car.get("accel_curve").sample_baked(speed_ratio)
+			
 		var accel_force = forward_dir * float(car.get("acceleration")) * float(car.get("motor_input")) * ac
 		car.apply_force(accel_force, force_pos)
 
@@ -130,8 +135,8 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 	var z_force        = global_basis.z * f_vel * z_friction * ((car.mass * gravity)/float(car.get("total_wheels")))
 	
 	# Clamp longitudinal force (braking) to prevent instant stops at 250 km/h
-	# 1.5 represents a very strong real-world sports car tire friction coefficient
-	var max_z_grip = ((car.mass * gravity)/float(car.get("total_wheels"))) * 1.5
+	# Increased by 10x per user request for arcade-style hard braking
+	var max_z_grip = weight_on_wheel * 15.0
 	if z_force.length() > max_z_grip:
 		z_force = z_force.normalized() * max_z_grip
 
