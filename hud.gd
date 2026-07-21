@@ -19,9 +19,11 @@ func _draw() -> void:
 	var speed = car.linear_velocity.length() * 3.6
 	var rpm = car.get("engine_rpm")
 	if rpm == null: rpm = 1000.0
-	var gear = car.get("current_gear_sim")
-	if gear == null: gear = 0
-	gear += 1
+	var gear_sim = car.get("current_gear_sim")
+	if gear_sim == null: gear_sim = 0
+	var gear_str = str(gear_sim + 1)
+	if gear_sim == -1:
+		gear_str = "R"
 	
 	var cyan = Color(0.0, 1.0, 1.0, 1.0)
 	var magenta = Color(1.0, 0.0, 1.0, 1.0)
@@ -63,7 +65,7 @@ func _draw() -> void:
 	
 	# RPM Text
 	draw_string(font, center_rpm + Vector2(-30, 40), "RPM x1000", HORIZONTAL_ALIGNMENT_CENTER, -1, 14, magenta)
-	draw_string(font, center_rpm + Vector2(-35, 70), "GEAR: " + str(gear), HORIZONTAL_ALIGNMENT_CENTER, -1, 24, cyan)
+	draw_string(font, center_rpm + Vector2(-35, 70), "GEAR: " + gear_str, HORIZONTAL_ALIGNMENT_CENTER, -1, 24, cyan)
 	
 	# --- SPEED GAUGE ---
 	draw_circle(center_speed, 90, dark_bg)

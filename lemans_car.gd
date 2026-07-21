@@ -26,7 +26,7 @@ var damping_relaxation = 8.0
 var downforce_multiplier = 120.0
 var car_mass = 1200.0
 var center_of_mass_y = -0.2
-var center_of_mass_z = -0.5
+var center_of_mass_z = -0.1
 
 # Properties accessed by RaycastWheel
 var motor_input := 0.0
@@ -247,7 +247,15 @@ func _physics_process(delta: float) -> void:
 	var forward_speed = -global_transform.basis.z.dot(linear_velocity)
 	
 	# Dynamic ESP / Yaw Stabilizer
-	var yaw_damping = clampf(forward_speed / 15.0, 0.0, 8.0)
+	var yaw_damping = clampf(forward_speed / 20.0, 0.0, 1.5)
+	
+	# ARCADE DRIFT ASSIST:
+	# If the player is counter-steering (steer_input and angular_velocity.y have the SAME sign),
+	# it means they are trying to catch or hold a drift. Apply massive yaw damping to lock the slide!
+	if (float(steer_input) * angular_velocity.y) > 0.1:
+		var counter_steer_amount = absf(float(steer_input))
+		yaw_damping = lerp(yaw_damping, 25.0, counter_steer_amount)
+		
 	apply_torque(Vector3(0, -angular_velocity.y * mass * yaw_damping, 0))
 	
 	# Scale engine acceleration force
