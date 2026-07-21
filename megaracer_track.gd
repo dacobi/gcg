@@ -232,46 +232,63 @@ func _ready():
 			if scn:
 				var inst = scn.instantiate()
 				
+				# Destroy any rogue cameras, lights, or environments exported from Blender
+				var bad_types = ["Camera3D", "DirectionalLight3D", "PointLight3D", "SpotLight3D", "WorldEnvironment", "AnimationPlayer", "ReflectionProbe", "FogVolume", "Decal", "VoxelGI", "LightmapGI"]
+				for type_name in bad_types:
+					for child in inst.find_children("*", type_name, true, false):
+						child.free() 
+				
 				if is_rigid:
 					var parent_node = RigidBody3D.new()
 					parent_node.mass = mass_val
 					parent_node.position = pos
 					parent_node.rotation_degrees.y = rot_y
-					inst.scale = Vector3(s, s, s)
+					inst.scale *= s
 					parent_node.add_child(inst)
 					add_child(parent_node)
 					
 					for child in inst.find_children("*", "MeshInstance3D", true, false):
 						var shape = CollisionShape3D.new()
 						shape.shape = child.mesh.create_convex_shape(true, true)
-						shape.position = child.position * s
+						# Important: apply the root instance's GLTF conversion scale to the collision shape!
+						shape.position = child.position * inst.scale
 						shape.rotation = child.rotation
-						shape.scale = child.scale * s
+						shape.scale = child.scale * inst.scale
 						parent_node.add_child(shape)
 				else:
 					inst.position = pos
 					inst.rotation_degrees.y = rot_y
-					inst.scale = Vector3(s, s, s)
+					inst.scale *= s
 					add_child(inst)
 					for child in inst.find_children("*", "MeshInstance3D", true, false):
 						child.create_multiple_convex_collisions()
 					
-		# Spawn rigid dynamic barriers and cones
+		# Spawn rigid dynamic barriers and cones safely in the air to prevent physics explosions!
 		for i in range(12):
 			# Original lines
-			spawn.call(barrier_scn, Vector3(20 + i*4, 0.5, 50), 0, 1.0, true, 20.0)
-			spawn.call(cone_scn, Vector3(-30 + i*3, 0.2, 40), 0, 1.0, true, 2.0)
-			spawn.call(barrier_scn, Vector3(80, 0.5, -20 + i*4), 90, 1.0, true, 20.0)
+			spawn.call(barrier_scn, Vector3(20 + i*4, 5.0, 50), 0, 1.0, true, 20.0)
+			spawn.call(cone_scn, Vector3(-30 + i*3, 5.0, 40), 0, 1.0, true, 2.0)
+			spawn.call(barrier_scn, Vector3(80, 5.0, -20 + i*4), 90, 1.0, true, 20.0)
 			
 			# Additional lines
-			spawn.call(cone_scn, Vector3(10 + i*3, 0.2, -40), 45, 1.0, true, 2.0)
-			spawn.call(barrier_scn, Vector3(-80, 0.5, 20 - i*4), 90, 1.0, true, 20.0)
-			spawn.call(cone_scn, Vector3(-60 - i*3, 0.2, 80), -45, 1.0, true, 2.0)
+			spawn.call(cone_scn, Vector3(10 + i*3, 5.0, -40), 45, 1.0, true, 2.0)
+			spawn.call(barrier_scn, Vector3(-80, 5.0, 20 - i*4), 90, 1.0, true, 20.0)
+			spawn.call(cone_scn, Vector3(-60 - i*3, 5.0, 80), -45, 1.0, true, 2.0)
 			
 		for i in range(25):
-			# A long slalom line of cones down the middle
-			spawn.call(cone_scn, Vector3(0, 0.2, -100 + i*8), 0, 1.0, true, 2.0)
-			
+			# A long slalom line of cones down the middle, with a massive safety gap for the car's spawn
+			var z_pos = -107 + i*8
+			if absf(z_pos) > 15.0:
+				spawn.call(cone_scn, Vector3(0, 5.0, z_pos), 0, 1.0, true, 2.0)
+				
+		# Spawn some trees outside the track
+		for i in range(40):
+			var angle = i * (PI * 2.0 / 40.0)
+			var radius = 150.0 + randf_range(-20.0, 20.0)
+			var x = cos(angle) * radius
+			var z = sin(angle) * radius
+			spawn.call(tree_scn, Vector3(x, 0.0, z), randf_range(0, 360), randf_range(0.8, 1.5), false)
+
 		# Foliage spawn helper function
 		var is_valid_spawn = func(pos: Vector3) -> bool:
 			# Don't spawn within 50m of the exact center
