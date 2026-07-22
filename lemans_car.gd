@@ -17,7 +17,7 @@ var radius_rear = 0.5
 # Tuning coefficients set by Lua script
 var engine_force_value = 8000.0
 var brake_force_value = 200.0
-var max_steer = 0.35
+var max_steer = 0.8
 var wheel_friction_slip = 10.5
 var suspension_travel = 0.25
 var suspension_stiffness = 120.0
@@ -48,7 +48,7 @@ var default_radius_front = 0.5
 var default_radius_rear = 0.5
 var use_shapecast = 1.0
 var drivetrain_mode = 0.0
-var tire_turn_speed = 3.0
+var tire_turn_speed = 6.0
 var slip_FL: float = 0.0
 var slip_FR: float = 0.0
 var slip_RL: float = 0.0
@@ -369,14 +369,20 @@ func _physics_process(delta: float) -> void:
 	
 	var forward_speed = -global_transform.basis.z.dot(linear_velocity)
 	
-	# Dynamic ESP / Yaw Stabilizer
-	var yaw_damping = clampf(forward_speed / 20.0, 0.0, esp_max_yaw_damping)
+	# --- ESP & DRIFT ASSIST LOGIC ---
+	# Calculate yaw damping based on absolute speed, so it doesn't suddenly shut off 
+	# when the car spins past 90 degrees (which previously caused the 180-degree snap!)
+	var abs_speed = linear_velocity.length()
+	var yaw_damping = clampf(abs_speed / 20.0, 0.0, esp_max_yaw_damping)
 	
 	# ARCADE DRIFT ASSIST:
 	# If the player is counter-steering (steer_input and angular_velocity.y have the SAME sign),
-	# it means they are trying to catch or hold a drift. Apply massive yaw damping to lock the slide!
-	if (float(steer_input) * angular_velocity.y) > 0.1:
-		var counter_steer_amount = absf(float(steer_input))
+	# reduce yaw damping (or increase it if drift_assist_damping is high) to catch the drift!
+	if forward_speed > 10.0:
+		var counter_steer_amount = 0.0
+		if sign(steer_input) == sign(angular_velocity.y):
+			counter_steer_amount = abs(steer_input)
+			
 		yaw_damping = lerp(yaw_damping, drift_assist_damping, counter_steer_amount)
 		
 	apply_torque(Vector3(0, -angular_velocity.y * mass * yaw_damping, 0))
@@ -483,7 +489,8 @@ func _physics_process(delta: float) -> void:
 		air_time = 0.0
 
 	if grounded:
-		center_of_mass = Vector3.ZERO
+		center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+		center_of_mass = Vector3(0, center_of_mass_y, center_of_mass_z)
 	else:
 		center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 		center_of_mass = Vector3.DOWN*0.5

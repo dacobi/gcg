@@ -112,10 +112,10 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 	if grip_factor > 0.4:
 		if is_steer:
 			# Front wheels: give massive grip bonus during a slide to pull the nose out
-			x_traction = maxf(x_traction, 0.8)
+			x_traction = maxf(x_traction, 0.9)
 		else:
-			# Rear wheels: guarantee enough grip to catch the slide when you release the e-brake
-			x_traction = maxf(x_traction, 0.6)
+			# Rear wheels: drop the artificial grip limit so they can become truly slippery during donuts
+			x_traction = maxf(x_traction, 0.2)
 
 	var gravity        = -car.get_gravity().y
 	var weight_on_wheel = (car.mass * gravity)/float(car.get("total_wheels"))
