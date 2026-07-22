@@ -291,14 +291,6 @@ func _ready():
 			if absf(z_pos) > 15.0:
 				spawn.call(cone_scn, Vector3(0, 0.2, z_pos), 0, 1.0, true, 2.0)
 				
-		# Spawn some trees outside the track
-		for i in range(40):
-			var angle = i * (PI * 2.0 / 40.0)
-			var radius = 150.0 + randf_range(-20.0, 20.0)
-			var x = cos(angle) * radius
-			var z = sin(angle) * radius
-			spawn.call(tree_scn, Vector3(x, 0.0, z), randf_range(0, 360), randf_range(0.8, 1.5), false)
-
 		# Foliage spawn helper function
 		var is_valid_spawn = func(pos: Vector3) -> bool:
 			# Don't spawn within 50m of the exact center
@@ -312,6 +304,16 @@ func _ready():
 				if dist < buffer:
 					return false
 			return true
+
+		# Spawn some trees outside the track
+		for i in range(40):
+			var angle = i * (PI * 2.0 / 40.0)
+			var radius = 150.0 + randf_range(-20.0, 20.0)
+			var x = cos(angle) * radius
+			var z = sin(angle) * radius
+			var pos = Vector3(x, 0.0, z)
+			if is_valid_spawn.call(pos):
+				spawn.call(tree_scn, pos, randf_range(0, 360), randf_range(0.8, 1.5), false)
 
 		# Spawn scattered static foliage safely
 		for i in range(150):

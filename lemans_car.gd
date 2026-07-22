@@ -127,9 +127,10 @@ func _ready():
 	grip_curve.add_point(Vector2(0.25, 0.8))
 	grip_curve.add_point(Vector2(0.9, 0.0))
 
-	# Enable contacts reporting
+	# Enable	# Contact monitor for sparks and FMOD collisions
 	contact_monitor = true
 	max_contacts_reported = 4
+	body_entered.connect(_on_prop_collided)
 	
 	# Create visual debug meshes for CollisionShape3D children
 	for child in get_children():
@@ -173,6 +174,9 @@ func _ready():
 	bumper.gravity_scale = 0.0
 	bumper.collision_layer = 8 # Bumper layer
 	bumper.collision_mask = 4  # ONLY collides with Props (Cones/Barriers)
+	bumper.contact_monitor = true
+	bumper.max_contacts_reported = 2
+	bumper.body_entered.connect(_on_prop_collided)
 	
 	var bumper_col = CollisionShape3D.new()
 	var bumper_shape = BoxShape3D.new()
@@ -214,6 +218,9 @@ func _ready():
 	rear_bumper.gravity_scale = 0.0
 	rear_bumper.collision_layer = 8 # Bumper layer
 	rear_bumper.collision_mask = 4  # ONLY collides with Props (Cones/Barriers)
+	rear_bumper.contact_monitor = true
+	rear_bumper.max_contacts_reported = 2
+	rear_bumper.body_entered.connect(_on_prop_collided)
 	
 	var rear_bumper_col = CollisionShape3D.new()
 	var rear_bumper_shape = BoxShape3D.new()
@@ -281,6 +288,7 @@ func _ready():
 		fmod_banks.append(FmodServer.load_bank("res://Audio/Master.strings.bank", 0))
 		fmod_banks.append(FmodServer.load_bank("res://Audio/Master.bank", 0))
 		fmod_banks.append(FmodServer.load_bank("res://Audio/Vehicles.bank", 0))
+		fmod_banks.append(FmodServer.load_bank("res://Audio/SFX.bank", 0))
 		
 	# --- HUD INIT ---
 	var canvas = CanvasLayer.new()
@@ -613,3 +621,19 @@ func _physics_process(delta: float) -> void:
 			fmod_event_2.set_parameter_by_name("Load", clamp(motor_input, 0.0, 1.0))
 			if fmod_event_2.has_method("set_3d_attributes"):
 				fmod_event_2.set_3d_attributes(global_transform)
+
+func _on_prop_collided(body: Node):
+	if body is PhysicsBody3D and body.collision_layer == 4:
+		if ClassDB.class_exists("FmodServer"):
+			if FmodServer.has_method("create_event_instance"):
+				var ev = FmodServer.create_event_instance("event:/Interactables/Wooden Collision")
+				if ev:
+					if ev.has_method("set_parameter_by_name"):
+						var collision_speed = linear_velocity.length() * 2.0
+						ev.set_parameter_by_name("speed", collision_speed)
+					if ev.has_method("set_3d_attributes"):
+						ev.set_3d_attributes(self.global_transform)
+					if ev.has_method("start"):
+						ev.start()
+					if ev.has_method("release"):
+						ev.release()
