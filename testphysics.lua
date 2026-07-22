@@ -41,6 +41,12 @@ setGlobalFloat("telemetry_slip_RL", 0.0)
 setGlobalFloat("telemetry_slip_RR", 0.0)
 setGlobalFloat("show_collision_debug", 0.0)
 
+setGlobalFloat("esp_max_yaw_damping", 1.5)
+setGlobalFloat("drift_assist_damping", 25.0)
+setGlobalFloat("aero_drag_coeff", 0.3)
+setGlobalFloat("steer_speed_limit_max_speed", 80.0)
+setGlobalFloat("steer_speed_limit_min_mult", 0.1)
+
 -- Load car settings on startup if present
 godotLoadCarSettings()
 
@@ -82,6 +88,14 @@ while true do
 		imguiCheckbox("Use Shapecast", "use_shapecast")
 		imguiCheckbox("Show Collision Mesh", "show_collision_debug")
 		imguiSliderFloat("Steer Speed", "tire_turn_speed", 1.0, 30.0)
+		
+		imguiSeparator()
+		imguiText("Handling & Drifting")
+		imguiSliderFloat("ESP Yaw Damp", "esp_max_yaw_damping", 0.0, 5.0)
+		imguiSliderFloat("Drift Assist", "drift_assist_damping", 0.0, 100.0)
+		imguiSliderFloat("Aero Drag", "aero_drag_coeff", 0.0, 2.0)
+		imguiSliderFloat("Steer Limit Speed", "steer_speed_limit_max_speed", 10.0, 200.0)
+		imguiSliderFloat("Steer Limit Min", "steer_speed_limit_min_mult", 0.0, 1.0)
 		
 		imguiSeparator()
 		imguiText("Tire Slip Telemetry")
@@ -256,6 +270,12 @@ while true do
 				godotSetProperty("drivetrain_mode", getGlobalFloat("drivetrain_mode"), supercar)
 				godotSetProperty("tire_turn_speed", getGlobalFloat("tire_turn_speed"), supercar)
 				godotSetProperty("show_collision_debug", getGlobalFloat("show_collision_debug"), supercar)
+				
+				godotSetProperty("esp_max_yaw_damping", getGlobalFloat("esp_max_yaw_damping"), supercar)
+				godotSetProperty("drift_assist_damping", getGlobalFloat("drift_assist_damping"), supercar)
+				godotSetProperty("aero_drag_coeff", getGlobalFloat("aero_drag_coeff"), supercar)
+				godotSetProperty("steer_speed_limit_max_speed", getGlobalFloat("steer_speed_limit_max_speed"), supercar)
+				godotSetProperty("steer_speed_limit_min_mult", getGlobalFloat("steer_speed_limit_min_mult"), supercar)
 				
 				-- Sub-sample telemetry queries to 50 FPS (every 2 frames) to save thread roundtrips
 				frame_count = frame_count + 1

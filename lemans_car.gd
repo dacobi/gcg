@@ -28,6 +28,12 @@ var car_mass = 1200.0
 var center_of_mass_y = -0.2
 var center_of_mass_z = -0.1
 
+var esp_max_yaw_damping = 1.5
+var drift_assist_damping = 25.0
+var aero_drag_coeff = 0.30
+var steer_speed_limit_max_speed = 80.0
+var steer_speed_limit_min_mult = 0.1
+
 # Properties accessed by RaycastWheel
 var motor_input := 0.0
 var hand_break := false
@@ -259,14 +265,14 @@ func _physics_process(delta: float) -> void:
 	var forward_speed = -global_transform.basis.z.dot(linear_velocity)
 	
 	# Dynamic ESP / Yaw Stabilizer
-	var yaw_damping = clampf(forward_speed / 20.0, 0.0, 1.5)
+	var yaw_damping = clampf(forward_speed / 20.0, 0.0, esp_max_yaw_damping)
 	
 	# ARCADE DRIFT ASSIST:
 	# If the player is counter-steering (steer_input and angular_velocity.y have the SAME sign),
 	# it means they are trying to catch or hold a drift. Apply massive yaw damping to lock the slide!
 	if (float(steer_input) * angular_velocity.y) > 0.1:
 		var counter_steer_amount = absf(float(steer_input))
-		yaw_damping = lerp(yaw_damping, 25.0, counter_steer_amount)
+		yaw_damping = lerp(yaw_damping, drift_assist_damping, counter_steer_amount)
 		
 	apply_torque(Vector3(0, -angular_velocity.y * mass * yaw_damping, 0))
 	
@@ -330,7 +336,7 @@ func _physics_process(delta: float) -> void:
 		if w.is_steer:
 			# Speed sensitive steering: drastically reduce max steering angle at high speeds
 			var current_speed = linear_velocity.length()
-			var speed_steer_limit = clampf(1.0 - (current_speed / 80.0), 0.1, 1.0)
+			var speed_steer_limit = clampf(1.0 - (current_speed / steer_speed_limit_max_speed), steer_speed_limit_min_mult, 1.0)
 			var dynamic_max_steer = max_steer * speed_steer_limit
 			
 			var target_steer = -float(steer_input) * dynamic_max_steer
@@ -373,8 +379,7 @@ func _physics_process(delta: float) -> void:
 	apply_central_force(-global_transform.basis.y * (current_speed_for_aero * downforce_multiplier))
 	
 	if current_speed_for_aero > 0.1:
-		var drag_coeff = 0.30
-		var drag_force = -linear_velocity.normalized() * (current_speed_for_aero * current_speed_for_aero * drag_coeff)
+		var drag_force = -linear_velocity.normalized() * (current_speed_for_aero * current_speed_for_aero * aero_drag_coeff)
 		apply_central_force(drag_force)
 
 	# Update collision debug visual visibility
