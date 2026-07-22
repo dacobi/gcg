@@ -472,6 +472,13 @@ func _physics_process(delta: float) -> void:
 	slip_RL = wheels[2].grip_factor
 	slip_RR = wheels[3].grip_factor
 
+	# --- AIR STABILIZATION ---
+	if not grounded:
+		# Heavily damp all rotational momentum (forward pitching from the jump lip)
+		# This stops the spinning and locks the car into its natural launch trajectory
+		var damp_torque = -angular_velocity * 15000.0
+		apply_torque(damp_torque)
+
 	if grounded:
 		center_of_mass = Vector3.ZERO
 	else:

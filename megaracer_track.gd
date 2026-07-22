@@ -213,7 +213,36 @@ func _ready():
 		]
 		for data in ramps_data:
 			var ramp = CSGPolygon3D.new()
-			ramp.polygon = PackedVector2Array([Vector2(0, 0), Vector2(data["w"], 0), Vector2(data["w"], data["h"])])
+			
+			var curve_points = PackedVector2Array()
+			curve_points.append(Vector2(0, 0))
+			var w = float(data["w"])
+			var h = float(data["h"])
+			curve_points.append(Vector2(w, 0))
+			
+			# Hybrid 50/50 curve mathematics
+			var xc = w / 2.0
+			var m = (4.0 * h) / (3.0 * w)
+			var A = m / (2.0 * xc)
+			var yc = A * xc * xc
+			
+			var segments = 20
+			# Generate curve backwards to maintain counter-clockwise winding order
+			for i in range(segments, 0, -1):
+				var t = float(i) / float(segments)
+				var px = t * w
+				var py = 0.0
+				
+				# Bottom 50%: Smooth parabolic transition
+				if px <= xc:
+					py = A * px * px
+				# Top 50%: Straight constant slope to eliminate launch rotation
+				else:
+					py = yc + m * (px - xc)
+					
+				curve_points.append(Vector2(px, py))
+				
+			ramp.polygon = curve_points
 			ramp.depth = data["d"]
 			ramp.position = data["pos"]
 			ramp.rotation_degrees = Vector3(0, data["rot"], 0)
