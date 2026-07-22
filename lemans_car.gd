@@ -5,6 +5,7 @@ var accel_input: float = 0.0
 var brake_input: float = 0.0
 var steer_input: float = 0.0
 var handbrake_input: float = 0.0
+var air_time: float = 0.0
 
 var mount_FL = Vector3(-1.0, -0.1, -1.7)
 var mount_FR = Vector3(1.0, -0.1, -1.7)
@@ -431,7 +432,7 @@ func _physics_process(delta: float) -> void:
 			w.visual_wheel.scale = Vector3(scale_f, scale_f, scale_f)
 			
 		w.z_brake_traction = brake_force_value * 0.002
-		w.is_motor = true # AWD like tutorial
+		w.is_motor = (i >= 2) # RWD only! Front wheels pulling forward ruins donuts.
 		w.is_steer = (i < 2)
 		
 		w.apply_wheel_physics(self)
@@ -445,8 +446,6 @@ func _physics_process(delta: float) -> void:
 			
 			var target_steer = -float(steer_input) * dynamic_max_steer
 			w.rotation.y = move_toward(w.rotation.y, target_steer, tire_turn_speed * delta)
-				
-		w.is_braking = (brake_input > 0.1) or hand_break
 		
 		if w.is_colliding():
 			grounded = true
@@ -474,10 +473,14 @@ func _physics_process(delta: float) -> void:
 
 	# --- AIR STABILIZATION ---
 	if not grounded:
-		# Heavily damp all rotational momentum (forward pitching from the jump lip)
-		# This stops the spinning and locks the car into its natural launch trajectory
-		var damp_torque = -angular_velocity * 15000.0
-		apply_torque(damp_torque)
+		air_time += delta
+		if air_time > 0.2:
+			# Heavily damp all rotational momentum (forward pitching from the jump lip)
+			# This stops the spinning and locks the car into its natural launch trajectory
+			var damp_torque = -angular_velocity * 15000.0
+			apply_torque(damp_torque)
+	else:
+		air_time = 0.0
 
 	if grounded:
 		center_of_mass = Vector3.ZERO
@@ -519,7 +522,11 @@ func _physics_process(delta: float) -> void:
 					mi.visible = show_debug
 					
 	# --- FAKE GEAR RPM LOGIC FOR FMOD ---
-	var speed = abs(forward_speed) # Ignore vertical falling speed
+	# Calculate horizontal speed to prevent downshifting while drifting sideways!
+	# This ignores the Y axis (falling) but respects lateral slides.
+	var horizontal_vel = linear_velocity
+	horizontal_vel.y = 0.0
+	var speed = horizontal_vel.length()
 	var gears = 6
 	
 	# Dynamic gear lengths (in m/s). 11.1 m/s = 40 km/h, 22.2 = 80 km/h, etc.
@@ -533,7 +540,7 @@ func _physics_process(delta: float) -> void:
 	var target_gear = 0
 	if speed < 0.5 and abs(motor_input) < 0.05:
 		target_gear = -2
-	elif motor_input < -0.05 or forward_speed < -0.5:
+	elif motor_input < -0.05 or (forward_speed < -0.5 and motor_input < 0.05):
 		target_gear = -1
 	else:
 		for i in range(gears):
