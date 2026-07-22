@@ -243,6 +243,16 @@ func _ready():
 					parent_node.mass = mass_val
 					parent_node.position = pos
 					parent_node.rotation_degrees.y = rot_y
+					parent_node.collision_layer = 4 # Props layer
+					parent_node.collision_mask = 15 # Hits World, Car, Props, and Bumper
+					
+					# Shift center of mass up to stop bottom-heavy weeble-wobble effect
+					parent_node.center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+					if scn == barrier_scn:
+						parent_node.center_of_mass = Vector3(0, 0.6, 0)
+					else:
+						parent_node.center_of_mass = Vector3(0, 0.4, 0)
+					
 					inst.scale *= s
 					parent_node.add_child(inst)
 					add_child(parent_node)
@@ -263,23 +273,23 @@ func _ready():
 					for child in inst.find_children("*", "MeshInstance3D", true, false):
 						child.create_multiple_convex_collisions()
 					
-		# Spawn rigid dynamic barriers and cones safely in the air to prevent physics explosions!
+		# Spawn rigid dynamic barriers and cones
 		for i in range(12):
 			# Original lines
-			spawn.call(barrier_scn, Vector3(20 + i*4, 5.0, 50), 0, 1.0, true, 20.0)
-			spawn.call(cone_scn, Vector3(-30 + i*3, 5.0, 40), 0, 1.0, true, 2.0)
-			spawn.call(barrier_scn, Vector3(80, 5.0, -20 + i*4), 90, 1.0, true, 20.0)
+			spawn.call(barrier_scn, Vector3(20 + i*4, 0.5, 50), 0, 1.0, true, 5.0)
+			spawn.call(cone_scn, Vector3(-30 + i*3, 0.2, 40), 0, 1.0, true, 2.0)
+			spawn.call(barrier_scn, Vector3(80, 0.5, -20 + i*4), 90, 1.0, true, 5.0)
 			
 			# Additional lines
-			spawn.call(cone_scn, Vector3(10 + i*3, 5.0, -40), 45, 1.0, true, 2.0)
-			spawn.call(barrier_scn, Vector3(-80, 5.0, 20 - i*4), 90, 1.0, true, 20.0)
-			spawn.call(cone_scn, Vector3(-60 - i*3, 5.0, 80), -45, 1.0, true, 2.0)
+			spawn.call(cone_scn, Vector3(10 + i*3, 0.2, -40), 45, 1.0, true, 2.0)
+			spawn.call(barrier_scn, Vector3(-80, 0.5, 20 - i*4), 90, 1.0, true, 5.0)
+			spawn.call(cone_scn, Vector3(-60 - i*3, 0.2, 80), -45, 1.0, true, 2.0)
 			
 		for i in range(25):
 			# A long slalom line of cones down the middle, with a massive safety gap for the car's spawn
 			var z_pos = -107 + i*8
 			if absf(z_pos) > 15.0:
-				spawn.call(cone_scn, Vector3(0, 5.0, z_pos), 0, 1.0, true, 2.0)
+				spawn.call(cone_scn, Vector3(0, 0.2, z_pos), 0, 1.0, true, 2.0)
 				
 		# Spawn some trees outside the track
 		for i in range(40):

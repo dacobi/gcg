@@ -75,6 +75,10 @@ var wheels: Array = []
 var start_transform: Transform3D
 
 func _ready():
+	# Configure Main Hull layer and mask
+	collision_layer = 2 # Car layer
+	collision_mask = 5  # Hits World (1) and Props (4)
+
 	# Resize collision box to act as the main hull, shrunk and lifted slightly
 	var body_col = get_node_or_null("BodyCol")
 	if body_col and body_col.shape is BoxShape3D:
@@ -89,9 +93,23 @@ func _ready():
 				var sphere = SphereShape3D.new()
 				sphere.radius = 0.3
 				sphere_col.shape = sphere
-				# Position the spheres exactly at the corners, slightly lower than the box
 				sphere_col.position = Vector3(x_pos, 0.1, z_pos)
-				add_child.call_deferred(sphere_col)
+				
+				# Generate debug visual for the sphere so it works with the toggle
+				var mi = MeshInstance3D.new()
+				mi.name = "CollisionDebugVisual"
+				var sph = SphereMesh.new()
+				sph.radius = 0.3
+				sph.height = 0.6
+				mi.mesh = sph
+				var mat = StandardMaterial3D.new()
+				mat.albedo_color = Color(1, 0, 0, 0.4)
+				mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				mi.material_override = mat
+				mi.visible = false
+				sphere_col.add_child(mi)
+				
+				add_child(sphere_col)
 
 	default_radius_front = radius_front
 	default_radius_rear = radius_rear
@@ -146,6 +164,84 @@ func _ready():
 			mi.material_override = mat
 			mi.visible = false
 			child.add_child(mi)
+			
+	# --- PROP-ONLY ANGLED BUMPER ---
+	# We use a RigidBody3D attached via a joint so it properly shares the physics space and collides at high speeds!
+	var bumper = RigidBody3D.new()
+	bumper.name = "AngledBumper"
+	bumper.mass = 1.0
+	bumper.gravity_scale = 0.0
+	bumper.collision_layer = 8 # Bumper layer
+	bumper.collision_mask = 4  # ONLY collides with Props (Cones/Barriers)
+	
+	var bumper_col = CollisionShape3D.new()
+	var bumper_shape = BoxShape3D.new()
+	bumper_shape.size = Vector3(3.0, 1.0, 2.0)
+	bumper_col.shape = bumper_shape
+	# Slant it forwards like a plow! (Negative X rotation tilts it down)
+	bumper_col.rotation_degrees.x = -45.0
+	# Position it at the very front of the car
+	bumper_col.position = Vector3(0.0, -0.2, -2.5)
+	
+	var bumper_mi = MeshInstance3D.new()
+	bumper_mi.name = "CollisionDebugVisual"
+	var bumper_mesh = BoxMesh.new()
+	bumper_mesh.size = bumper_shape.size
+	bumper_mi.mesh = bumper_mesh
+	var bumper_mat = StandardMaterial3D.new()
+	bumper_mat.albedo_color = Color(0, 0, 1, 0.4) # BLUE
+	bumper_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bumper_mi.material_override = bumper_mat
+	bumper_mi.visible = false
+	
+	bumper_col.add_child(bumper_mi)
+	bumper.add_child(bumper_col)
+	add_child(bumper)
+	
+	var joint = Generic6DOFJoint3D.new()
+	joint.name = "BumperJoint"
+	add_child(joint)
+	# Position the joint exactly where the bumper is for maximum stability
+	joint.position = bumper_col.position
+	joint.node_a = joint.get_path_to(self)
+	joint.node_b = joint.get_path_to(bumper)
+	# A new Generic6DOFJoint3D has all axes locked by default, making it perfectly rigid!
+	
+	# --- PROP-ONLY REAR BUMPER ---
+	var rear_bumper = RigidBody3D.new()
+	rear_bumper.name = "RearBumper"
+	rear_bumper.mass = 1.0
+	rear_bumper.gravity_scale = 0.0
+	rear_bumper.collision_layer = 8 # Bumper layer
+	rear_bumper.collision_mask = 4  # ONLY collides with Props (Cones/Barriers)
+	
+	var rear_bumper_col = CollisionShape3D.new()
+	var rear_bumper_shape = BoxShape3D.new()
+	rear_bumper_shape.size = Vector3(3.0, 1.0, 1.0) # Flat wall
+	rear_bumper_col.shape = rear_bumper_shape
+	rear_bumper_col.position = Vector3(0.0, -0.2, 2.5) # Placed at the back
+	
+	var rear_bumper_mi = MeshInstance3D.new()
+	rear_bumper_mi.name = "CollisionDebugVisual"
+	var rear_bumper_mesh = BoxMesh.new()
+	rear_bumper_mesh.size = rear_bumper_shape.size
+	rear_bumper_mi.mesh = rear_bumper_mesh
+	var rear_bumper_mat = StandardMaterial3D.new()
+	rear_bumper_mat.albedo_color = Color(0, 0, 1, 0.4) # BLUE
+	rear_bumper_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	rear_bumper_mi.material_override = rear_bumper_mat
+	rear_bumper_mi.visible = false
+	
+	rear_bumper_col.add_child(rear_bumper_mi)
+	rear_bumper.add_child(rear_bumper_col)
+	add_child(rear_bumper)
+	
+	var rear_joint = Generic6DOFJoint3D.new()
+	rear_joint.name = "RearBumperJoint"
+	add_child(rear_joint)
+	rear_joint.position = rear_bumper_col.position
+	rear_joint.node_a = rear_joint.get_path_to(self)
+	rear_joint.node_b = rear_joint.get_path_to(rear_bumper)
 			
 	# Dynamically build wheels at startup
 	var use_shapecast = true
@@ -390,6 +486,23 @@ func _physics_process(delta: float) -> void:
 			if mi:
 				mi.visible = show_debug
 				
+	# Also update the bumper's debug visual
+	var bumper = get_node_or_null("AngledBumper")
+	if bumper:
+		for child in bumper.get_children():
+			if child is CollisionShape3D:
+				var mi = child.get_node_or_null("CollisionDebugVisual")
+				if mi:
+					mi.visible = show_debug
+					
+	var rear_bumper = get_node_or_null("RearBumper")
+	if rear_bumper:
+		for child in rear_bumper.get_children():
+			if child is CollisionShape3D:
+				var mi = child.get_node_or_null("CollisionDebugVisual")
+				if mi:
+					mi.visible = show_debug
+					
 	# --- FAKE GEAR RPM LOGIC FOR FMOD ---
 	var speed = linear_velocity.length()
 	var gears = 6
