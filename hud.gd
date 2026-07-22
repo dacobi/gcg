@@ -24,6 +24,8 @@ func _draw() -> void:
 	var gear_str = str(gear_sim + 1)
 	if gear_sim == -1:
 		gear_str = "R"
+	elif gear_sim == -2:
+		gear_str = "N"
 	
 	var cyan = Color(0.0, 1.0, 1.0, 1.0)
 	var magenta = Color(1.0, 0.0, 1.0, 1.0)

@@ -510,13 +510,15 @@ func _physics_process(delta: float) -> void:
 	# Dynamic gear lengths (in m/s). 11.1 m/s = 40 km/h, 22.2 = 80 km/h, etc.
 	var gear_max_speeds = [11.1, 22.2, 36.1, 50.0, 63.8, 100.0]
 	
-	if brake_input > 0.1 or hand_break:
+	if (brake_input > 0.1 and forward_speed > 1.0) or hand_break:
 		brake_timer += delta
 	else:
 		brake_timer = 0.0
 		
 	var target_gear = 0
-	if forward_speed < -1.0:
+	if speed < 0.5 and abs(motor_input) < 0.05:
+		target_gear = -2
+	elif motor_input < -0.05 or forward_speed < -0.5:
 		target_gear = -1
 	else:
 		for i in range(gears):
@@ -537,9 +539,12 @@ func _physics_process(delta: float) -> void:
 				current_gear_sim = target_gear
 			else:
 				# Hysteresis: only downshift if we drop at least 2 m/s below the previous gear threshold
-				var prev_max = 0.0 if current_gear_sim <= 0 else gear_max_speeds[current_gear_sim - 1]
-				if speed < prev_max - 2.0:
+				if current_gear_sim <= 0:
 					current_gear_sim = target_gear
+				else:
+					var prev_max = gear_max_speeds[current_gear_sim - 1]
+					if speed < prev_max - 2.0:
+						current_gear_sim = target_gear
 		
 	var target_rpm = 1000.0
 	if brake_timer > 0.5:
@@ -559,6 +564,9 @@ func _physics_process(delta: float) -> void:
 			# Reverse gear logic (max 50 km/h = 13.88 m/s)
 			gear_speed = clamp(speed / 13.88, 0.0, 1.0)
 			target_rpm = lerp(1000.0, 9000.0, gear_speed)
+		elif current_gear_sim == -2:
+			# Neutral gear
+			target_rpm = 1000.0
 		else:
 			var prev_max = 0.0 if current_gear_sim <= 0 else gear_max_speeds[current_gear_sim - 1]
 			var current_max = gear_max_speeds[current_gear_sim] if current_gear_sim >= 0 else gear_max_speeds[0]
@@ -569,10 +577,6 @@ func _physics_process(delta: float) -> void:
 			else:
 				target_rpm = lerp(6500.0, 9000.0, gear_speed)
 		
-		# Add rev spikes based on throttle input when accelerating
-		if motor_input > 0.1:
-			target_rpm += 1500.0 * motor_input
-			
 		# Clamp to realistic limits
 		target_rpm = clamp(target_rpm, 1000.0, 10000.0)
 		
