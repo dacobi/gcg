@@ -62,7 +62,7 @@ var engine_audio: AudioStreamPlayer = null
 var show_collision_debug = 0.0
 
 var shift_timer: float = 0.0
-var current_gear_sim: int = 0
+var current_gear_sim: int = -2
 var brake_timer: float = 0.0
 
 var skid_marks: Array[GPUParticles3D] = []
@@ -219,7 +219,7 @@ func _ready():
 	var rear_bumper_shape = BoxShape3D.new()
 	rear_bumper_shape.size = Vector3(3.0, 1.0, 1.0) # Flat wall
 	rear_bumper_col.shape = rear_bumper_shape
-	rear_bumper_col.position = Vector3(0.0, -0.2, 2.5) # Placed at the back
+	rear_bumper_col.position = Vector3(0.0, -0.2, 3.0) # Placed further back at the tail lights
 	
 	var rear_bumper_mi = MeshInstance3D.new()
 	rear_bumper_mi.name = "CollisionDebugVisual"
@@ -504,7 +504,7 @@ func _physics_process(delta: float) -> void:
 					mi.visible = show_debug
 					
 	# --- FAKE GEAR RPM LOGIC FOR FMOD ---
-	var speed = linear_velocity.length()
+	var speed = abs(forward_speed) # Ignore vertical falling speed
 	var gears = 6
 	
 	# Dynamic gear lengths (in m/s). 11.1 m/s = 40 km/h, 22.2 = 80 km/h, etc.
