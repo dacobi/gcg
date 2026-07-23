@@ -16,8 +16,8 @@ local supercar = godotGetNodePointer("SuperCar")
 -- Initialize physics global properties for ImGui to read/write
 setGlobalFloat("engine_force_value", 90000.0)
 setGlobalFloat("brake_force_value", 400.0)
-setGlobalFloat("max_steer", 0.55)
-setGlobalFloat("wheel_friction_slip", 18.0)
+setGlobalFloat("max_steer", 1.2)
+setGlobalFloat("wheel_friction_slip", 1.5)
 setGlobalFloat("suspension_travel", 0.25)
 setGlobalFloat("suspension_stiffness", 220.0)
 setGlobalFloat("suspension_max_force", 15000.0)
@@ -42,10 +42,9 @@ setGlobalFloat("telemetry_slip_RR", 0.0)
 setGlobalFloat("show_collision_debug", 0.0)
 
 setGlobalFloat("esp_max_yaw_damping", 1.5)
-setGlobalFloat("drift_assist_damping", 25.0)
 setGlobalFloat("aero_drag_coeff", 0.3)
 setGlobalFloat("steer_speed_limit_max_speed", 80.0)
-setGlobalFloat("steer_speed_limit_min_mult", 0.1)
+setGlobalFloat("steer_speed_limit_min_mult", 0.7)
 
 -- Load car settings on startup if present
 godotLoadCarSettings()
@@ -69,7 +68,7 @@ while true do
 		
 		imguiSliderFloat("Engine Force", "engine_force_value", 1000.0, 100000.0)
 		imguiSliderFloat("Brake Force", "brake_force_value", 50.0, 1000.0)
-		imguiSliderFloat("Max Steer", "max_steer", 0.1, 1.0)
+		imguiSliderFloat("Max Steer", "max_steer", 0.1, 1.5)
 		imguiSliderFloat("Wheel Friction", "wheel_friction_slip", 1.0, 20.0)
 		imguiSliderFloat("Susp. Travel", "suspension_travel", 0.1, 1.0)
 		imguiSliderFloat("Susp. Stiffness", "suspension_stiffness", 10.0, 300.0)
@@ -92,7 +91,6 @@ while true do
 		imguiSeparator()
 		imguiText("Handling & Drifting")
 		imguiSliderFloat("ESP Yaw Damp", "esp_max_yaw_damping", 0.0, 5.0)
-		imguiSliderFloat("Drift Assist", "drift_assist_damping", 0.0, 100.0)
 		imguiSliderFloat("Aero Drag", "aero_drag_coeff", 0.0, 2.0)
 		imguiSliderFloat("Steer Limit Speed", "steer_speed_limit_max_speed", 10.0, 200.0)
 		imguiSliderFloat("Steer Limit Min", "steer_speed_limit_min_mult", 0.0, 1.0)
@@ -272,7 +270,6 @@ while true do
 				godotSetProperty("show_collision_debug", getGlobalFloat("show_collision_debug"), supercar)
 				
 				godotSetProperty("esp_max_yaw_damping", getGlobalFloat("esp_max_yaw_damping"), supercar)
-				godotSetProperty("drift_assist_damping", getGlobalFloat("drift_assist_damping"), supercar)
 				godotSetProperty("aero_drag_coeff", getGlobalFloat("aero_drag_coeff"), supercar)
 				godotSetProperty("steer_speed_limit_max_speed", getGlobalFloat("steer_speed_limit_max_speed"), supercar)
 				godotSetProperty("steer_speed_limit_min_mult", getGlobalFloat("steer_speed_limit_min_mult"), supercar)

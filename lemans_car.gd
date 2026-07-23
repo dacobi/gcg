@@ -33,7 +33,7 @@ var esp_max_yaw_damping = 1.5
 var drift_assist_damping = 25.0
 var aero_drag_coeff = 0.30
 var steer_speed_limit_max_speed = 80.0
-var steer_speed_limit_min_mult = 0.1
+var steer_speed_limit_min_mult = 0.7
 
 # Properties accessed by RaycastWheel
 var motor_input := 0.0
@@ -367,24 +367,20 @@ func _physics_process(delta: float) -> void:
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = Vector3(0, center_of_mass_y, center_of_mass_z)
 	
+	var horizontal_vel = linear_velocity
+	horizontal_vel.y = 0.0
+	
 	var forward_speed = -global_transform.basis.z.dot(linear_velocity)
 	
 	# --- ESP & DRIFT ASSIST LOGIC ---
-	# Calculate yaw damping based on absolute speed, so it doesn't suddenly shut off 
-	# when the car spins past 90 degrees (which previously caused the 180-degree snap!)
+	
+	# Dynamic ESP / Yaw Stabilizer
+	# A clean, realistic Electronic Stability Program. It applies a smooth counter-torque proportional to 
+	# your rotation speed to prevent the car from spinning like a top.
+	# You can adjust 'esp_max_yaw_damping' in the editor to control how strictly it fights your drifts.
 	var abs_speed = linear_velocity.length()
 	var yaw_damping = clampf(abs_speed / 20.0, 0.0, esp_max_yaw_damping)
 	
-	# ARCADE DRIFT ASSIST:
-	# If the player is counter-steering (steer_input and angular_velocity.y have the SAME sign),
-	# reduce yaw damping (or increase it if drift_assist_damping is high) to catch the drift!
-	if forward_speed > 10.0:
-		var counter_steer_amount = 0.0
-		if sign(steer_input) == sign(angular_velocity.y):
-			counter_steer_amount = abs(steer_input)
-			
-		yaw_damping = lerp(yaw_damping, drift_assist_damping, counter_steer_amount)
-		
 	apply_torque(Vector3(0, -angular_velocity.y * mass * yaw_damping, 0))
 	
 	# Scale engine acceleration force
@@ -438,7 +434,7 @@ func _physics_process(delta: float) -> void:
 			w.visual_wheel.scale = Vector3(scale_f, scale_f, scale_f)
 			
 		w.z_brake_traction = brake_force_value * 0.002
-		w.is_motor = (i >= 2) # RWD only! Front wheels pulling forward ruins donuts.
+		w.is_motor = (i >= 2) # Strict RWD realistic physics
 		w.is_steer = (i < 2)
 		
 		w.apply_wheel_physics(self)
@@ -531,7 +527,7 @@ func _physics_process(delta: float) -> void:
 	# --- FAKE GEAR RPM LOGIC FOR FMOD ---
 	# Calculate horizontal speed to prevent downshifting while drifting sideways!
 	# This ignores the Y axis (falling) but respects lateral slides.
-	var horizontal_vel = linear_velocity
+	horizontal_vel = linear_velocity
 	horizontal_vel.y = 0.0
 	var speed = horizontal_vel.length()
 	var gears = 6

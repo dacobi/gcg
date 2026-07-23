@@ -103,19 +103,13 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 	# Handbrake only locks the REAR wheels, allowing the front wheels to steer the drift!
 	if car.get("hand_break") and not is_steer:
 		x_traction = 0.01
-	elif car.get("is_slipping"):
-		x_traction = 0.1
-		
-	# Prevent traction from dropping completely to 0 on ice, keeping some slide control
-	x_traction = maxf(x_traction, 0.3)
-	
-	if grip_factor > 0.4:
+	else:
 		if is_steer:
-			# Front wheels: give massive grip bonus during a slide to pull the nose out
-			x_traction = maxf(x_traction, 0.9)
+			# Front tires maintain full natural curve, with a strong minimum anchor for pivots
+			x_traction = maxf(x_traction, 0.5)
 		else:
-			# Rear wheels: drop the artificial grip limit so they can become truly slippery during donuts
-			x_traction = maxf(x_traction, 0.2)
+			# Rear tires maintain 100% natural baseline grip, but are allowed to slip smoothly down to 10% on power!
+			x_traction = maxf(x_traction, 0.1)
 
 	var gravity        = -car.get_gravity().y
 	var weight_on_wheel = (car.mass * gravity)/float(car.get("total_wheels"))
@@ -124,13 +118,6 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 	# We cap the lateral slip multiplier to 3.0 so you can slide sideways at 200km/h without stopping instantly
 	var lateral_slip = minf(absf(steering_x_vel), 3.0)
 	var x_force = -global_basis.x * signf(steering_x_vel) * lateral_slip * x_traction * weight_on_wheel * 2.0
-	
-	# Moderate Dynamic Understeer: Front wheels lose some efficiency as speed increases
-	# This keeps the car stable at high speeds without making it impossible to drift
-	var speed = car.linear_velocity.length()
-	if is_steer:
-		var understeer_factor = clampf(1.0 - (speed / 100.0), 0.6, 1.0)
-		x_force *= understeer_factor
 	
 	# Clamp lateral force to prevent 360 spins at 250 km/h
 	var max_grip = weight_on_wheel * float(car.get("wheel_friction_slip"))
