@@ -44,7 +44,7 @@ setGlobalFloat("show_collision_debug", 0.0)
 setGlobalFloat("esp_max_yaw_damping", 1.5)
 setGlobalFloat("aero_drag_coeff", 0.3)
 setGlobalFloat("steer_speed_limit_max_speed", 80.0)
-setGlobalFloat("steer_speed_limit_min_mult", 0.7)
+setGlobalFloat("steer_speed_limit_min_mult", 0.2)
 
 -- Load car settings on startup if present
 godotLoadCarSettings()

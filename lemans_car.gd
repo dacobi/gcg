@@ -439,12 +439,25 @@ func _physics_process(delta: float) -> void:
 		
 		w.apply_wheel_physics(self)
 		
-		# Target-based steering logic for joysticks
+		# Update steering
 		if w.is_steer:
-			# Speed sensitive steering: drastically reduce max steering angle at high speeds
 			var current_speed = linear_velocity.length()
+			
+			# RACING MODE: Cap normal steering to ~25 degrees (0.45 rad) max, then apply speed limit
+			var normal_max_steer = minf(max_steer, 0.45)
 			var speed_steer_limit = clampf(1.0 - (current_speed / steer_speed_limit_max_speed), steer_speed_limit_min_mult, 1.0)
-			var dynamic_max_steer = max_steer * speed_steer_limit
+			var racing_steer = normal_max_steer * speed_steer_limit
+			
+			# DRIFT MODE: Unlock the steering up to the full max_steer limit when sliding!
+			var velocity_dir = horizontal_vel.normalized()
+			var forward_dir = -global_transform.basis.z
+			var slip_angle = 0.0
+			if horizontal_vel.length_squared() > 1.0:
+				slip_angle = acos(clampf(forward_dir.dot(velocity_dir), -1.0, 1.0))
+			
+			var drift_steer = clampf(slip_angle * 1.2, 0.0, max_steer)
+			
+			var dynamic_max_steer = maxf(racing_steer, drift_steer)
 			
 			var target_steer = -float(steer_input) * dynamic_max_steer
 			w.rotation.y = move_toward(w.rotation.y, target_steer, tire_turn_speed * delta)
