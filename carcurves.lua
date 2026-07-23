@@ -7,37 +7,44 @@ print("Controls: Up/Down arrow keys to Accelerate and Brake/Reverse.")
 print("          Left/Right arrow keys to Steer.")
 print("Press ESC to exit.\n")
 
+setAudioVolume(50)
+
 -- Get the supercar node pointer
 godotSelectRoot()
 local supercar = godotGetNodePointer("SuperCar")
 
 -- Initialize physics global properties for ImGui to read/write
-setGlobalFloat("engine_force_value", 50000.0)
-setGlobalFloat("brake_force_value", 200.0)
-setGlobalFloat("max_steer", 0.4)
-setGlobalFloat("wheel_friction_slip", 10.5)
+setGlobalFloat("engine_force_value", 90000.0)
+setGlobalFloat("brake_force_value", 400.0)
+setGlobalFloat("max_steer", 1.2)
+setGlobalFloat("wheel_friction_slip", 1.5)
 setGlobalFloat("suspension_travel", 0.25)
-setGlobalFloat("suspension_stiffness", 200.0)
-setGlobalFloat("suspension_max_force", 12000.0)
-setGlobalFloat("damping_compression", 6.0)
-setGlobalFloat("damping_relaxation", 8.0)
-setGlobalFloat("downforce_multiplier", 120.0)
-setGlobalFloat("car_mass", 800.0)
-setGlobalFloat("center_of_mass_y", -0.2)
+setGlobalFloat("suspension_stiffness", 220.0)
+setGlobalFloat("suspension_max_force", 15000.0)
+setGlobalFloat("damping_compression", 8.0)
+setGlobalFloat("damping_relaxation", 10.0)
+setGlobalFloat("downforce_multiplier", 180.0)
+setGlobalFloat("car_mass", 1000.0)
+setGlobalFloat("center_of_mass_y", -0.35)
 setGlobalFloat("center_of_mass_z", 0.5)
-setGlobalFloat("max_speed", 400.0)
+setGlobalFloat("max_speed", 250.0)
 setGlobalFloat("over_extend", 0.05)
-setGlobalFloat("z_traction", 0.05)
+setGlobalFloat("z_traction", 0.15)
 setGlobalFloat("radius_front", 0.5)
 setGlobalFloat("radius_rear", 0.5)
 setGlobalFloat("use_shapecast", 1.0)
 setGlobalFloat("drivetrain_mode", 0.0)
-setGlobalFloat("tire_turn_speed", 10.0)
+setGlobalFloat("tire_turn_speed", 15.0)
 setGlobalFloat("telemetry_slip_FL", 0.0)
 setGlobalFloat("telemetry_slip_FR", 0.0)
 setGlobalFloat("telemetry_slip_RL", 0.0)
 setGlobalFloat("telemetry_slip_RR", 0.0)
 setGlobalFloat("show_collision_debug", 0.0)
+
+setGlobalFloat("esp_max_yaw_damping", 1.5)
+setGlobalFloat("aero_drag_coeff", 0.3)
+setGlobalFloat("steer_speed_limit_max_speed", 80.0)
+setGlobalFloat("steer_speed_limit_min_mult", 0.2)
 
 -- Load car settings on startup if present
 godotLoadCarSettings()
@@ -61,7 +68,7 @@ while true do
 		
 		imguiSliderFloat("Engine Force", "engine_force_value", 1000.0, 100000.0)
 		imguiSliderFloat("Brake Force", "brake_force_value", 50.0, 1000.0)
-		imguiSliderFloat("Max Steer", "max_steer", 0.1, 1.0)
+		imguiSliderFloat("Max Steer", "max_steer", 0.1, 1.5)
 		imguiSliderFloat("Wheel Friction", "wheel_friction_slip", 1.0, 20.0)
 		imguiSliderFloat("Susp. Travel", "suspension_travel", 0.1, 1.0)
 		imguiSliderFloat("Susp. Stiffness", "suspension_stiffness", 10.0, 300.0)
@@ -82,14 +89,24 @@ while true do
 		imguiSliderFloat("Steer Speed", "tire_turn_speed", 1.0, 30.0)
 		
 		imguiSeparator()
-		imguiText("Tire Slip Telemetry")
+		imguiText("Handling & Drifting")
+		imguiSliderFloat("ESP Yaw Damp", "esp_max_yaw_damping", 0.0, 5.0)
+		imguiSliderFloat("Aero Drag", "aero_drag_coeff", 0.0, 2.0)
+		imguiSliderFloat("Steer Limit Speed", "steer_speed_limit_max_speed", 10.0, 200.0)
+		imguiSliderFloat("Steer Limit Min", "steer_speed_limit_min_mult", 0.0, 1.0)
 		
+		imguiSeparator()
+		imguiText("Tire Slip Telemetry")
+		-- imguiSameLine()
 		imguiProgressBar("FL", "telemetry_slip_FL")
-		imguiSameLine()
+		-- imguiSameLine()
 		imguiProgressBar("FR", "telemetry_slip_FR")
 		imguiProgressBar("RL", "telemetry_slip_RL")
-		imguiSameLine()
+		-- imguiSameLine()
 		imguiProgressBar("RR", "telemetry_slip_RR")
+		
+		imguiText("Engine RPM Telemetry")
+		imguiProgressBar("RPM", "telemetry_engine_rpm_normalized")
 		
 		imguiSeparator()
 		
@@ -252,6 +269,11 @@ while true do
 				godotSetProperty("tire_turn_speed", getGlobalFloat("tire_turn_speed"), supercar)
 				godotSetProperty("show_collision_debug", getGlobalFloat("show_collision_debug"), supercar)
 				
+				godotSetProperty("esp_max_yaw_damping", getGlobalFloat("esp_max_yaw_damping"), supercar)
+				godotSetProperty("aero_drag_coeff", getGlobalFloat("aero_drag_coeff"), supercar)
+				godotSetProperty("steer_speed_limit_max_speed", getGlobalFloat("steer_speed_limit_max_speed"), supercar)
+				godotSetProperty("steer_speed_limit_min_mult", getGlobalFloat("steer_speed_limit_min_mult"), supercar)
+				
 				-- Sub-sample telemetry queries to 50 FPS (every 2 frames) to save thread roundtrips
 				frame_count = frame_count + 1
 				if frame_count % 2 == 0 then
@@ -259,6 +281,10 @@ while true do
 					setGlobalFloat("telemetry_slip_FR", godotGetProperty("slip_FR", supercar) or 0.0)
 					setGlobalFloat("telemetry_slip_RL", godotGetProperty("slip_RL", supercar) or 0.0)
 					setGlobalFloat("telemetry_slip_RR", godotGetProperty("slip_RR", supercar) or 0.0)
+					
+					local rpm = tonumber(godotGetProperty("engine_rpm", supercar)) or 1000.0
+					setGlobalFloat("telemetry_engine_rpm", rpm)
+					setGlobalFloat("telemetry_engine_rpm_normalized", (rpm - 1000.0) / 9000.0)
 				end
 				
 				if track then

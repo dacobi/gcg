@@ -43,9 +43,9 @@ var mouse_dx = 0.0
 var mouse_dy = 0.0
 
 # Scenic straightaway/bridge start position parameters
-var scale_x = 120.0
-var scale_z = 240.0
-var height_offset = 14.0
+var scale_x = 480.0
+var scale_z = 960.0
+var height_offset = 56.0
 var t_car = 0.15
 
 func _ready():
@@ -499,10 +499,10 @@ func spawn_barriers():
 		dummy.progress = float(offset)
 		var t1 = dummy.global_transform
 		
-		dummy.progress = float(offset - 6.5)
+		dummy.progress = float(offset - 26.0)
 		var t_prev = dummy.global_transform
 		
-		dummy.progress = float(offset + 6.5)
+		dummy.progress = float(offset + 26.0)
 		var t_next = dummy.global_transform
 		
 		var fwd_prev = -t_prev.basis.z.normalized()
@@ -545,10 +545,12 @@ func spawn_barriers():
 				st_verts = 0
 				col_verts = 0
 			
-			var track_width = 12.3 # Border center is at 12.3
-			var outer_offset = track_width if is_left_turn else -track_width
+			var actual_wall_dist = 49.2 # Border center is at 49.2
+			var raycast_dist = 45.0 # Safely inside the asphalt edge to hit solid collision
 			
-			var guess_surface_pos = t1.origin + t1.basis.x * outer_offset + t1.basis.y * 0.4
+			var raycast_offset = raycast_dist if is_left_turn else -raycast_dist
+			
+			var guess_surface_pos = t1.origin + t1.basis.x * raycast_offset + t1.basis.y * 0.4
 			var ray_start = guess_surface_pos + t1.basis.y * 10.0
 			var ray_end = guess_surface_pos - t1.basis.y * 10.0
 			
@@ -561,6 +563,11 @@ func spawn_barriers():
 			if result:
 				hit_pos = result.position
 				hit_normal = result.normal
+				
+			# Push the final position out to the actual wall distance so it sits on the neon line
+			var push_out_dist = actual_wall_dist - raycast_dist
+			var push_out_vec = t1.basis.x * push_out_dist if is_left_turn else -t1.basis.x * push_out_dist
+			hit_pos += push_out_vec
 			
 			var top_pos = hit_pos + hit_normal * 3.5
 			var bot_pos_col = hit_pos - hit_normal * 1.0
@@ -757,7 +764,7 @@ func _process(delta):
 		dummy.queue_free()
 		return
 
-	if reset_car or (supercar and supercar.global_position.y < -30.0):
+	if reset_car or (supercar and supercar.global_position.y < -150.0):
 		reset_car = false
 		if supercar:
 			if is_square:
@@ -810,61 +817,61 @@ func _process(delta):
 func setup_polygons():
 	road_bed.mode = CSGPolygon3D.MODE_PATH
 	road_bed.path_node = road_bed.get_path_to(path_node)
-	road_bed.path_interval = 0.5
+	road_bed.path_interval = 2.0
 	road_bed.path_rotation = CSGPolygon3D.PATH_ROTATION_PATH_FOLLOW
 	road_bed.path_local = true
 	road_bed.path_continuous_u = true
 	road_bed.path_u_distance = 16.0
 	road_bed.use_collision = true
 	road_bed.polygon = PackedVector2Array([
-		Vector2(-12.0, 0.0),
-		Vector2(12.0, 0.0),
-		Vector2(12.0, -0.32),
-		Vector2(-12.0, -0.32)
+		Vector2(-52.0, 0.0),
+		Vector2(52.0, 0.0),
+		Vector2(52.0, -0.32),
+		Vector2(-52.0, -0.32)
 	])
 	
 	border_l.mode = CSGPolygon3D.MODE_PATH
 	border_l.path_node = border_l.get_path_to(path_node)
-	border_l.path_interval = 0.5
+	border_l.path_interval = 2.0
 	border_l.path_rotation = CSGPolygon3D.PATH_ROTATION_PATH_FOLLOW
 	border_l.path_local = true
 	border_l.path_continuous_u = true
 	border_l.path_u_distance = 16.0
-	border_l.use_collision = true
+	border_l.use_collision = false
 	border_l.polygon = PackedVector2Array([
-		Vector2(-12.6, 0.2),
-		Vector2(-12.0, 0.2),
-		Vector2(-12.0, -0.08),
-		Vector2(-12.6, -0.08)
+		Vector2(-50.4, 0.2),
+		Vector2(-48.0, 0.2),
+		Vector2(-48.0, -0.08),
+		Vector2(-50.4, -0.08)
 	])
 	
 	border_r.mode = CSGPolygon3D.MODE_PATH
 	border_r.path_node = border_r.get_path_to(path_node)
-	border_r.path_interval = 0.5
+	border_r.path_interval = 2.0
 	border_r.path_rotation = CSGPolygon3D.PATH_ROTATION_PATH_FOLLOW
 	border_r.path_local = true
 	border_r.path_continuous_u = true
 	border_r.path_u_distance = 16.0
-	border_r.use_collision = true
+	border_r.use_collision = false
 	border_r.polygon = PackedVector2Array([
-		Vector2(12.0, 0.2),
-		Vector2(12.6, 0.2),
-		Vector2(12.6, -0.08),
-		Vector2(12.0, -0.08)
+		Vector2(48.0, 0.2),
+		Vector2(50.4, 0.2),
+		Vector2(50.4, -0.08),
+		Vector2(48.0, -0.08)
 	])
 	
 	center_line.mode = CSGPolygon3D.MODE_PATH
 	center_line.path_node = center_line.get_path_to(path_node)
-	center_line.path_interval = 0.5
+	center_line.path_interval = 2.0
 	center_line.path_rotation = CSGPolygon3D.PATH_ROTATION_PATH_FOLLOW
 	center_line.path_local = true
 	center_line.path_continuous_u = true
 	center_line.path_u_distance = 8.0
 	center_line.polygon = PackedVector2Array([
-		Vector2(-0.24, 0.02),
-		Vector2(0.24, 0.02),
-		Vector2(0.24, -0.02),
-		Vector2(-0.24, -0.02)
+		Vector2(-1.2, 0.15),
+		Vector2(1.2, 0.15),
+		Vector2(1.2, 0.05),
+		Vector2(-1.2, 0.05)
 	])
 
 func update_active_ramp():
