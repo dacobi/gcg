@@ -346,6 +346,7 @@ func _ready():
 	spotlight_l.light_energy = 12.0
 	spotlight_l.spot_range = 60.0
 	spotlight_l.spot_angle = 35.0
+	spotlight_l.shadow_enabled = true
 	spotlight_l.transform = trans_l * Transform3D(Basis.from_euler(Vector3(deg_to_rad(-5), 0, 0)), Vector3(0.0, 0.05, -0.15))
 	scene.add_child(spotlight_l)
 	spotlight_l.owner = scene
@@ -411,6 +412,7 @@ func _ready():
 	spotlight_r.light_energy = 12.0
 	spotlight_r.spot_range = 60.0
 	spotlight_r.spot_angle = 35.0
+	spotlight_r.shadow_enabled = true
 	spotlight_r.transform = trans_r * Transform3D(Basis.from_euler(Vector3(deg_to_rad(-5), 0, 0)), Vector3(0.0, 0.05, -0.15))
 	scene.add_child(spotlight_r)
 	spotlight_r.owner = scene
@@ -429,7 +431,7 @@ func _ready():
 	taillight_l.name = "TaillightBarLeft"
 	taillight_l.material = mat_taillight
 	taillight_l.size = Vector3(w_third, 0.04, 0.05)
-	taillight_l.position = Vector3(-w_third, -0.1, 3.3)
+	taillight_l.position = Vector3(-w_third, 0.15, 3.30) # Moved up and in!
 	combiner.add_child(taillight_l)
 	taillight_l.owner = scene
 
@@ -438,7 +440,7 @@ func _ready():
 	taillight_r_bar.name = "TaillightBarRight"
 	taillight_r_bar.material = mat_taillight
 	taillight_r_bar.size = Vector3(w_third, 0.04, 0.05)
-	taillight_r_bar.position = Vector3(w_third, -0.1, 3.3)
+	taillight_r_bar.position = Vector3(w_third, 0.15, 3.30)
 	combiner.add_child(taillight_r_bar)
 	taillight_r_bar.owner = scene
 
@@ -447,26 +449,140 @@ func _ready():
 	taillight_m.name = "TaillightBarMiddle"
 	taillight_m.material = mat_body
 	taillight_m.size = Vector3(w_third, 0.04, 0.05)
-	taillight_m.position = Vector3(0.0, -0.1, 3.3)
+	taillight_m.position = Vector3(0.0, 0.15, 3.30)
 	combiner.add_child(taillight_m)
 	taillight_m.owner = scene
 
-	# Two connector bars connecting the middle third to the body
+	# Two vertical connector bars dropping straight down into the diffuser panel
 	var conn_l = CSGBox3D.new()
 	conn_l.name = "TaillightConnectorLeft"
 	conn_l.material = mat_body
-	conn_l.size = Vector3(0.05, 0.04, 0.3)
-	conn_l.position = Vector3(-0.16, -0.1, 3.15)
+	conn_l.size = Vector3(0.05, 0.10, 0.05) # 10cm tall vertical standoffs!
+	conn_l.position = Vector3(-0.16, 0.10, 3.30)
 	combiner.add_child(conn_l)
 	conn_l.owner = scene
 
 	var conn_r = CSGBox3D.new()
 	conn_r.name = "TaillightConnectorRight"
 	conn_r.material = mat_body
-	conn_r.size = Vector3(0.05, 0.04, 0.3)
-	conn_r.position = Vector3(0.16, -0.1, 3.15)
+	conn_r.size = Vector3(0.05, 0.10, 0.05)
+	conn_r.position = Vector3(0.16, 0.10, 3.30)
 	combiner.add_child(conn_r)
 	conn_r.owner = scene
+	
+	# --- EXHAUST CUTOUTS, TAILPIPES & DIFFUSER ---
+	
+	var mat_matte = StandardMaterial3D.new()
+	mat_matte.albedo_color = Color(0.05, 0.05, 0.05)
+	mat_matte.metallic = 0.0
+	mat_matte.roughness = 1.0
+	
+	# Massive Detached Rear Diffuser Block (Rounded!)
+	var diffuser_combiner = CSGCombiner3D.new()
+	diffuser_combiner.name = "RearDiffuser"
+	scene.add_child(diffuser_combiner)
+	diffuser_combiner.owner = scene
+	
+	var diff_poly = CSGPolygon3D.new()
+	diff_poly.name = "DiffuserPanel"
+	diff_poly.mode = CSGPolygon3D.MODE_DEPTH
+	diff_poly.depth = 0.8
+	
+	var d_pts = PackedVector2Array()
+	# Draw perfectly rounded corners!
+	for j in range(9):
+		var angle = (float(j)/8.0) * (PI/2.0)
+		d_pts.append(Vector2(0.8 + cos(angle)*0.1, 0.1 + sin(angle)*0.1))
+	for j in range(9):
+		var angle = PI/2.0 + (float(j)/8.0) * (PI/2.0)
+		d_pts.append(Vector2(-0.8 + cos(angle)*0.1, 0.1 + sin(angle)*0.1))
+	for j in range(9):
+		var angle = PI + (float(j)/8.0) * (PI/2.0)
+		d_pts.append(Vector2(-0.8 + cos(angle)*0.1, -0.1 + sin(angle)*0.1))
+	for j in range(9):
+		var angle = 3.0*PI/2.0 + (float(j)/8.0) * (PI/2.0)
+		d_pts.append(Vector2(0.8 + cos(angle)*0.1, -0.1 + sin(angle)*0.1))
+		
+	diff_poly.polygon = d_pts
+	diff_poly.position = Vector3(0.0, -0.15, 3.45) # Pulled out aggressively 20cm further!
+	diff_poly.material = mat_matte
+	diffuser_combiner.add_child(diff_poly)
+	diff_poly.owner = scene
+	
+	var exhaust_idx = 1
+	var build_exhaust = func(x_pos):
+		# 3-Piece Pill Cutout (Shifted to cut into the protruding diffuser)
+		var cut_box = CSGBox3D.new()
+		cut_box.name = "CutBox" + str(exhaust_idx)
+		cut_box.operation = CSGCombiner3D.OPERATION_SUBTRACTION
+		cut_box.size = Vector3(0.2, 0.118, 0.8)
+		cut_box.position = Vector3(x_pos, -0.12, 3.6)
+		cut_box.material = mat_matte
+		diffuser_combiner.add_child(cut_box)
+		cut_box.owner = scene
+		
+		var cut_cyl_l = CSGCylinder3D.new()
+		cut_cyl_l.name = "CutCylL" + str(exhaust_idx)
+		cut_cyl_l.operation = CSGCombiner3D.OPERATION_SUBTRACTION
+		cut_cyl_l.radius = 0.06
+		cut_cyl_l.height = 0.8
+		cut_cyl_l.sides = 64
+		cut_cyl_l.rotation_degrees.x = 90
+		cut_cyl_l.position = Vector3(x_pos - 0.1, -0.12, 3.6)
+		cut_cyl_l.material = mat_matte
+		diffuser_combiner.add_child(cut_cyl_l)
+		cut_cyl_l.owner = scene
+		
+		var cut_cyl_r = CSGCylinder3D.new()
+		cut_cyl_r.name = "CutCylR" + str(exhaust_idx)
+		cut_cyl_r.operation = CSGCombiner3D.OPERATION_SUBTRACTION
+		cut_cyl_r.radius = 0.06
+		cut_cyl_r.height = 0.8
+		cut_cyl_r.sides = 64
+		cut_cyl_r.rotation_degrees.x = 90
+		cut_cyl_r.position = Vector3(x_pos + 0.1, -0.12, 3.6)
+		cut_cyl_r.material = mat_matte
+		diffuser_combiner.add_child(cut_cyl_r)
+		cut_cyl_r.owner = scene
+		
+		# Flattened Chrome Tailpipes
+		var pipe_idx = 1
+		for offset_x in [-0.06, 0.06]:
+			var pipe_out = CSGCylinder3D.new()
+			pipe_out.name = "PipeOut" + str(exhaust_idx) + "_" + str(pipe_idx)
+			pipe_out.operation = CSGCombiner3D.OPERATION_UNION
+			pipe_out.radius = 0.04
+			pipe_out.height = 0.20 # Increased to 20cm length
+			pipe_out.sides = 64
+			pipe_out.rotation_degrees.x = 90
+			pipe_out.position = Vector3(x_pos + offset_x, -0.12, 3.45) # Centered on the diffuser face to protrude 10cm!
+			pipe_out.material = mat_chrome
+			diffuser_combiner.add_child(pipe_out)
+			pipe_out.owner = scene
+			
+			var pipe_in = CSGCylinder3D.new()
+			pipe_in.name = "PipeIn" + str(exhaust_idx) + "_" + str(pipe_idx)
+			pipe_in.operation = CSGCombiner3D.OPERATION_SUBTRACTION
+			pipe_in.radius = 0.03
+			pipe_in.height = 0.21 # Sized to puncture the outer pipe
+			pipe_in.sides = 64
+			pipe_in.rotation_degrees.x = 90
+			pipe_in.position = Vector3(x_pos + offset_x, -0.12, 3.46)
+			
+			var mat_black = StandardMaterial3D.new()
+			mat_black.albedo_color = Color(0, 0, 0)
+			pipe_in.material = mat_black
+			
+			diffuser_combiner.add_child(pipe_in)
+			pipe_in.owner = scene
+			
+			pipe_idx += 1
+			
+		exhaust_idx += 1
+		
+	# Shift exhaust panels 10cm inwards (0.666 -> 0.566)
+	build_exhaust.call(-(w_third - 0.1))
+	build_exhaust.call(w_third - 0.1)
 	
 	# Find front wheel pivots and replace wheels with rear wheels
 	var fr = scene.get_node_or_null("FrontRightSteerPivot")
