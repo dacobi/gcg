@@ -403,7 +403,7 @@ func _ready():
 		curve.set_point_tilt(num_points, 0.0)
 		
 		path_node.curve = curve
-		setup_polygons()
+		build_custom_track_mesh()
 
 		# Position the supercar on a scenic straightaway/bridge
 		if supercar:
@@ -422,15 +422,14 @@ func _ready():
 	if sun:
 		sun.rotation_degrees.x -= 45.0
 	
-	# Initialize camera position behind the car
-	var camera_node = get_node_or_null("Camera3D")
-	if camera_node and supercar:
-		var offset = Vector3(0, 11.01, 15.69)
-		camera_node.global_position = supercar.global_position + supercar.global_transform.basis * offset
-		camera_node.look_at(supercar.global_position + supercar.global_transform.basis * Vector3(0, 0.4, -0.5), supercar.global_transform.basis.y)
+		var camera_node = get_node_or_null("Camera3D")
+		if camera_node and supercar:
+			var offset = Vector3(0, 11.01, 15.69)
+			camera_node.global_position = supercar.global_position + supercar.global_transform.basis * offset
+			camera_node.look_at(supercar.global_position + supercar.global_transform.basis * Vector3(0, 0.4, -0.5), supercar.global_transform.basis.y)
 
-	if not is_square:
-		spawn_barriers()
+		if not is_square:
+			spawn_barriers()
 	print("\n=== EDIT MODE CONTROLS ===")
 	print("Press E to enter Edit Mode.")
 	print("Press N to spawn a new ramp at the edit camera location.")
@@ -814,66 +813,6 @@ func _process(delta):
 			var target_fov = lerp(75.0, 120.0, clamp(speed / 100.0, 0.0, 1.0))
 			camera_node.fov = lerp(camera_node.fov, target_fov, 4.0 * delta)
 
-func setup_polygons():
-	road_bed.mode = CSGPolygon3D.MODE_PATH
-	road_bed.path_node = road_bed.get_path_to(path_node)
-	road_bed.path_interval = 2.0
-	road_bed.path_rotation = CSGPolygon3D.PATH_ROTATION_PATH_FOLLOW
-	road_bed.path_local = true
-	road_bed.path_continuous_u = true
-	road_bed.path_u_distance = 16.0
-	road_bed.use_collision = true
-	road_bed.polygon = PackedVector2Array([
-		Vector2(-52.0, 0.0),
-		Vector2(52.0, 0.0),
-		Vector2(52.0, -0.32),
-		Vector2(-52.0, -0.32)
-	])
-	
-	border_l.mode = CSGPolygon3D.MODE_PATH
-	border_l.path_node = border_l.get_path_to(path_node)
-	border_l.path_interval = 2.0
-	border_l.path_rotation = CSGPolygon3D.PATH_ROTATION_PATH_FOLLOW
-	border_l.path_local = true
-	border_l.path_continuous_u = true
-	border_l.path_u_distance = 16.0
-	border_l.use_collision = false
-	border_l.polygon = PackedVector2Array([
-		Vector2(-50.4, 0.2),
-		Vector2(-48.0, 0.2),
-		Vector2(-48.0, -0.08),
-		Vector2(-50.4, -0.08)
-	])
-	
-	border_r.mode = CSGPolygon3D.MODE_PATH
-	border_r.path_node = border_r.get_path_to(path_node)
-	border_r.path_interval = 2.0
-	border_r.path_rotation = CSGPolygon3D.PATH_ROTATION_PATH_FOLLOW
-	border_r.path_local = true
-	border_r.path_continuous_u = true
-	border_r.path_u_distance = 16.0
-	border_r.use_collision = false
-	border_r.polygon = PackedVector2Array([
-		Vector2(48.0, 0.2),
-		Vector2(50.4, 0.2),
-		Vector2(50.4, -0.08),
-		Vector2(48.0, -0.08)
-	])
-	
-	center_line.mode = CSGPolygon3D.MODE_PATH
-	center_line.path_node = center_line.get_path_to(path_node)
-	center_line.path_interval = 2.0
-	center_line.path_rotation = CSGPolygon3D.PATH_ROTATION_PATH_FOLLOW
-	center_line.path_local = true
-	center_line.path_continuous_u = true
-	center_line.path_u_distance = 8.0
-	center_line.polygon = PackedVector2Array([
-		Vector2(-1.2, 0.15),
-		Vector2(1.2, 0.15),
-		Vector2(1.2, 0.05),
-		Vector2(-1.2, 0.05)
-	])
-
 func update_active_ramp():
 	if not active_ramp: return
 	
@@ -926,4 +865,155 @@ func update_active_ramp():
 	var origin_pos = final_pos - rotated_basis.z * 3.0
 	
 	active_ramp.global_transform = Transform3D(rotated_basis, origin_pos)
+	dummy.queue_free()
+
+func build_custom_track_mesh():
+	# Delete original CSG extrusions since we are hand-generating the mesh
+	if road_bed and is_instance_valid(road_bed): road_bed.queue_free()
+	if border_l and is_instance_valid(border_l): border_l.queue_free()
+	if border_r and is_instance_valid(border_r): border_r.queue_free()
+	if center_line and is_instance_valid(center_line): center_line.queue_free()
+	
+	var length = path_node.curve.get_baked_length()
+	var step = 4.0
+	var num_steps = int(length / step)
+	
+	var dummy = PathFollow3D.new()
+	dummy.rotation_mode = PathFollow3D.ROTATION_ORIENTED
+	path_node.add_child(dummy)
+	
+	var profiles = {
+		"road": {"mat": road_bed.material, "st": SurfaceTool.new(), "pts": [], "uvs": [], "idx": [], "slices": 0},
+		"border_l": {"mat": border_l.material, "st": SurfaceTool.new(), "pts": [], "uvs": [], "idx": [], "slices": 0},
+		"border_r": {"mat": border_r.material, "st": SurfaceTool.new(), "pts": [], "uvs": [], "idx": [], "slices": 0},
+		"center": {"mat": center_line.material, "st": SurfaceTool.new(), "pts": [], "uvs": [], "idx": [], "slices": 0}
+	}
+	
+	for key in profiles:
+		profiles[key].st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		
+	var gate_center = 25.0
+	
+	var dummy_gate = PathFollow3D.new()
+	dummy_gate.rotation_mode = PathFollow3D.ROTATION_ORIENTED
+	path_node.add_child(dummy_gate)
+	dummy_gate.progress = gate_center
+	var t1_gate = dummy_gate.global_transform
+	dummy_gate.queue_free()
+	
+	for i in range(num_steps + 1):
+		var progress = float(i) * step
+		var is_last = (i == num_steps)
+		if is_last:
+			dummy.progress = 0.0
+			progress = length
+		else:
+			dummy.progress = progress
+			
+		var t = dummy.global_transform
+		
+		var dist_to_gate = abs(progress - gate_center)
+		if dist_to_gate > length / 2.0:
+			dist_to_gate = length - dist_to_gate
+			
+		var flair = 0.0
+		if dist_to_gate <= 10.0:
+			flair = 13.0
+		elif dist_to_gate <= 23.0:
+			flair = 13.0 - (dist_to_gate - 10.0)
+			
+		var shapes = {
+			"road": [Vector2(-52.0 - flair, -0.32), Vector2(52.0 + flair, -0.32), Vector2(52.0 + flair, 0.0), Vector2(-52.0 - flair, 0.0), Vector2(-52.0 - flair, -0.32)],
+			"border_l": [Vector2(-50.4 - flair, -0.08), Vector2(-48.0 - flair, -0.08), Vector2(-48.0 - flair, 0.2), Vector2(-50.4 - flair, 0.2), Vector2(-50.4 - flair, -0.08)],
+			"border_r": [Vector2(48.0 + flair, -0.08), Vector2(50.4 + flair, -0.08), Vector2(50.4 + flair, 0.2), Vector2(48.0 + flair, 0.2), Vector2(48.0 + flair, -0.08)],
+			"center": [Vector2(-1.2, 0.05), Vector2(1.2, 0.05), Vector2(1.2, 0.15), Vector2(-1.2, 0.15), Vector2(-1.2, 0.05)]
+		}
+		
+		for key in profiles:
+			var prof = profiles[key]
+			var pts = shapes[key]
+			var v_start = prof.slices * pts.size()
+			var v_offset = progress / 16.0 if key != "center" else progress / 8.0
+			
+			for j in range(pts.size()):
+				var p2 = pts[j]
+				var p3 = t.origin + t.basis.x * p2.x + t.basis.y * p2.y
+				prof.pts.append(p3)
+				var u = float(j) / float(pts.size() - 1) * 4.0
+				prof.uvs.append(Vector2(u, v_offset))
+				
+			if prof.slices > 0:
+				var prev_start = (prof.slices - 1) * pts.size()
+				for j in range(pts.size() - 1):
+					var v0 = prev_start + j
+					var v1 = prev_start + j + 1
+					var v2 = v_start + j
+					var v3 = v_start + j + 1
+					
+					prof.idx.push_back(v0)
+					prof.idx.push_back(v2)
+					prof.idx.push_back(v1)
+					
+					prof.idx.push_back(v1)
+					prof.idx.push_back(v2)
+					prof.idx.push_back(v3)
+					
+			prof.slices += 1
+			
+	# Commit meshes
+	for key in profiles:
+		var prof = profiles[key]
+		for i in range(prof.pts.size()):
+			prof.st.set_uv(prof.uvs[i])
+			prof.st.add_vertex(prof.pts[i])
+		for i in prof.idx:
+			prof.st.add_index(i)
+		prof.st.generate_normals()
+		prof.st.set_material(prof.mat)
+		
+		var mesh = prof.st.commit()
+		var mesh_instance = MeshInstance3D.new()
+		mesh_instance.mesh = mesh
+		add_child(mesh_instance)
+		
+		if key == "road":
+			mesh_instance.create_trimesh_collision()
+			
+	# Build monolithic pillars at the gate
+	if t1_gate:
+		var gate_node = Node3D.new()
+		gate_node.global_transform = t1_gate
+		add_child(gate_node)
+		
+		var build_pillar = func(x_pos):
+			var pillar = CSGBox3D.new()
+			pillar.size = Vector3(8.0, 30.0, 8.0)
+			pillar.position = Vector3(x_pos, 15.0, 0.0)
+			pillar.material = profiles["road"].mat
+			pillar.use_collision = true
+			
+			var glow_band = CSGBox3D.new()
+			glow_band.size = Vector3(8.5, 2.0, 8.5)
+			glow_band.position = Vector3(0, 5.0, 0)
+			glow_band.material = profiles["border_l"].mat
+			pillar.add_child(glow_band)
+			return pillar
+			
+		gate_node.add_child(build_pillar.call(-52.0))
+		gate_node.add_child(build_pillar.call(52.0))
+		
+		var beam = CSGBox3D.new()
+		beam.size = Vector3(112.0, 6.0, 8.0)
+		beam.position = Vector3(0.0, 33.0, 0.0)
+		beam.material = profiles["road"].mat
+		beam.use_collision = true
+		
+		var beam_glow = CSGBox3D.new()
+		beam_glow.size = Vector3(112.6, 2.0, 8.5)
+		beam_glow.position = Vector3(0.0, 0.0, 0.0)
+		beam_glow.material = profiles["center"].mat
+		beam.add_child(beam_glow)
+		
+		gate_node.add_child(beam)
+
 	dummy.queue_free()
