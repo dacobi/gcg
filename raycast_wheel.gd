@@ -111,16 +111,20 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 			# Rear tires maintain 100% natural baseline grip, but are allowed to slip smoothly down to 10% on power!
 			x_traction = maxf(x_traction, 0.1)
 
+	# Use dynamic suspension load! This correctly factors in downforce, body roll, and banked track angles!
+	var dynamic_load = maxf(0.0, spring_force - spring_damp_f)
 	var gravity        = -car.get_gravity().y
-	var weight_on_wheel = (car.mass * gravity)/float(car.get("total_wheels"))
+	var static_weight = (car.mass * gravity) / float(car.get("total_wheels"))
+	# We leave a small 20% baseline grip so the car doesn't instantly snap spin if it crests a hill
+	var effective_load = maxf(dynamic_load, static_weight * 0.2)
 	
 	# Convert viscous lateral drag (parachute effect) into constant Coulomb friction
 	# We cap the lateral slip multiplier to 3.0 so you can slide sideways at 200km/h without stopping instantly
 	var lateral_slip = minf(absf(steering_x_vel), 3.0)
-	var x_force = -global_basis.x * signf(steering_x_vel) * lateral_slip * x_traction * weight_on_wheel * 2.0
+	var x_force = -global_basis.x * signf(steering_x_vel) * lateral_slip * x_traction * effective_load * 2.0
 	
 	# Clamp lateral force to prevent 360 spins at 250 km/h
-	var max_grip = weight_on_wheel * float(car.get("wheel_friction_slip"))
+	var max_grip = effective_load * float(car.get("wheel_friction_slip"))
 	
 	# Rear wheels get a slight absolute hard cap bonus to prevent snapping
 	if not is_steer:
@@ -134,11 +138,11 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 	var z_friction     := z_traction
 	if is_braking:
 		z_friction = z_brake_traction
-	var z_force        = global_basis.z * f_vel * z_friction * ((car.mass * gravity)/float(car.get("total_wheels")))
+	var z_force        = global_basis.z * f_vel * z_friction * effective_load
 	
 	# Clamp longitudinal force (braking) to prevent instant stops at 250 km/h
 	# 5x baseline (7.5G max decel)
-	var max_z_grip = weight_on_wheel * 7.5
+	var max_z_grip = effective_load * 7.5
 	if z_force.length() > max_z_grip:
 		z_force = z_force.normalized() * max_z_grip
 

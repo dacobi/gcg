@@ -381,7 +381,13 @@ func _physics_process(delta: float) -> void:
 	var abs_speed = linear_velocity.length()
 	var yaw_damping = clampf(abs_speed / 20.0, 0.0, esp_max_yaw_damping)
 	
-	apply_torque(Vector3(0, -angular_velocity.y * mass * yaw_damping, 0))
+	# Calculate spin (yaw) purely relative to the car's physical roof-to-floor axis!
+	var local_angular_vel = global_transform.basis.inverse() * angular_velocity
+	var local_yaw_rate = local_angular_vel.y
+	
+	# Apply a counter-torque strictly along the car's local Up vector
+	var counter_torque = -global_transform.basis.y * (local_yaw_rate * mass * yaw_damping)
+	apply_torque(counter_torque)
 	
 	# Scale engine acceleration force
 	acceleration = engine_force_value * 0.15
