@@ -194,6 +194,26 @@ func _ready():
 		back_chop.position = Vector3(0, 0, 4.0) # Cuts off everything behind Z = 2.0
 		cab_comb.add_child(back_chop)
 		
+		# --- WHEEL WELL PROTECTORS ---
+		# Subtracts massive boxes from the cabin core to completely chop out the corners!
+		var w_fl = CSGBox3D.new()
+		w_fl.operation = CSGCombiner3D.OPERATION_SUBTRACTION
+		w_fl.size = Vector3(1.5, 1.5, 1.5) # Massive brutal cube!
+		w_fl.position = Vector3(-1.3, -0.125, -1.7)
+		cab_comb.add_child(w_fl)
+		
+		var w_fr = w_fl.duplicate()
+		w_fr.position = Vector3(1.3, -0.125, -1.7)
+		cab_comb.add_child(w_fr)
+		
+		var w_rl = w_fl.duplicate()
+		w_rl.position = Vector3(-1.3, -0.125, 1.75)
+		cab_comb.add_child(w_rl)
+		
+		var w_rr = w_fl.duplicate()
+		w_rr.position = Vector3(1.3, -0.125, 1.75)
+		cab_comb.add_child(w_rr)
+		
 		# Chop off the bottom (floor)
 		var bot_chop = CSGBox3D.new()
 		bot_chop.operation = CSGCombiner3D.OPERATION_SUBTRACTION
@@ -211,6 +231,7 @@ func _ready():
 	cabin_hole.get_node("CabinCore").path_node = cabin_hole.get_node("CabinCore").get_path_to(path)
 
 	var cabin_glass = build_cabin_shape.call(true)
+	cabin_glass.scale = Vector3(0.99, 0.99, 0.99) # 1% smaller to eliminate Z-fighting with the metal walls!
 	scene.add_child(cabin_glass)
 	cabin_glass.owner = scene
 	for c in cabin_glass.get_children():
