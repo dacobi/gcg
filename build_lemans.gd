@@ -5,10 +5,10 @@ func _ready():
 	scene.name = "SuperCar"
 	scene.set_script(load("res://lemans_car.gd"))
 	
-	# Delete all visual CSG children
+	# Delete all visual CSG children and leftover suspension rods!
 	var nodes_to_delete = []
 	for child in scene.get_children():
-		if child is CSGShape3D or child is CSGCombiner3D:
+		if child is CSGShape3D or child is CSGCombiner3D or child.name.begins_with("AxleAnchor"):
 			nodes_to_delete.append(child)
 	for child in nodes_to_delete:
 		child.queue_free()
@@ -152,41 +152,127 @@ func _ready():
 	combiner.add_child(wheel_cut_rr)
 	wheel_cut_rr.owner = scene
 	
-	# --- WINDOW CUTOUTS (RECESSED GLASS) ---
+	# --- UNIFIED GLASS CABIN CORE ---
 	var mat_glass = StandardMaterial3D.new()
-	mat_glass.albedo_color = Color(0.05, 0.05, 0.05) # Pitch black tint
+	mat_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat_glass.albedo_color = Color(0.05, 0.05, 0.05, 0.95) # Obsidian tint, 95% dense!
 	mat_glass.roughness = 0.05 # Extremely glossy
 	mat_glass.metallic = 0.9 # Highly reflective
 	
-	# Front Windshield
+	var inner_poly = PackedVector2Array()
+	for p in original_poly:
+		inner_poly.append(p * 1.20) # Scaled down from 1.25 to leave a flawless 5cm metal shell!
+
+	var build_cabin_shape = func(is_glass: bool):
+		var cab_comb = CSGCombiner3D.new()
+		cab_comb.name = "CabinGlass" if is_glass else "CabinHole"
+		cab_comb.operation = CSGCombiner3D.OPERATION_UNION if is_glass else CSGCombiner3D.OPERATION_SUBTRACTION
+		
+		var cab_body = CSGPolygon3D.new()
+		cab_body.name = "CabinCore"
+		cab_body.polygon = inner_poly
+		cab_body.mode = CSGPolygon3D.MODE_PATH
+		cab_body.path_rotation = CSGPolygon3D.PATH_ROTATION_PATH_FOLLOW
+		cab_body.path_interval = 0.05
+		cab_body.smooth_faces = true
+		cab_body.path_local = true
+		if is_glass:
+			cab_body.material = mat_glass
+		cab_comb.add_child(cab_body)
+		
+		# Chop off the front (hood)
+		var front_chop = CSGBox3D.new()
+		front_chop.operation = CSGCombiner3D.OPERATION_SUBTRACTION
+		front_chop.size = Vector3(4.0, 4.0, 4.0)
+		front_chop.position = Vector3(0, 0, -3.5) # Cuts off everything in front of Z = -1.5
+		cab_comb.add_child(front_chop)
+		
+		# Chop off the back (trunk)
+		var back_chop = CSGBox3D.new()
+		back_chop.operation = CSGCombiner3D.OPERATION_SUBTRACTION
+		back_chop.size = Vector3(4.0, 4.0, 4.0)
+		back_chop.position = Vector3(0, 0, 4.0) # Cuts off everything behind Z = 2.0
+		cab_comb.add_child(back_chop)
+		
+		# Chop off the bottom (floor)
+		var bot_chop = CSGBox3D.new()
+		bot_chop.operation = CSGCombiner3D.OPERATION_SUBTRACTION
+		bot_chop.size = Vector3(4.0, 4.0, 4.0)
+		bot_chop.position = Vector3(0, -2.1, 0) # Cuts off everything below Y = -0.1 (30cm up from the floor)
+		cab_comb.add_child(bot_chop)
+		
+		return cab_comb
+
+	var cabin_hole = build_cabin_shape.call(false)
+	combiner.add_child(cabin_hole)
+	cabin_hole.owner = scene
+	for c in cabin_hole.get_children():
+		c.owner = scene
+	cabin_hole.get_node("CabinCore").path_node = cabin_hole.get_node("CabinCore").get_path_to(path)
+
+	var cabin_glass = build_cabin_shape.call(true)
+	scene.add_child(cabin_glass)
+	cabin_glass.owner = scene
+	for c in cabin_glass.get_children():
+		c.owner = scene
+	cabin_glass.get_node("CabinCore").path_node = cabin_glass.get_node("CabinCore").get_path_to(path)
+	
+	# --- WINDOW CUTOUTS (HOLE PUNCHERS) ---
+	# These shapes strictly slice holes through the metal body to reveal the glass core underneath!
+	
+	# Front Windshield Hole
 	var wind_front = CSGBox3D.new()
 	wind_front.name = "WindowFront"
-	wind_front.operation = CSGShape3D.OPERATION_SUBTRACTION
-	wind_front.material = mat_glass
-	wind_front.size = Vector3(1.4, 0.2, 1.2) # 1.4 wide, 0.2 thick (cuts shallow recess), 1.2 long
-	wind_front.rotation_degrees = Vector3(18, 0, 0) # Angled to match the hood sweep
-	wind_front.position = Vector3(0, 0.55, -0.7) # Positioned right on the front canopy slope
+	wind_front.operation = CSGCombiner3D.OPERATION_SUBTRACTION
+	wind_front.size = Vector3(1.4, 0.8, 1.925) # Snipped final 10cm off the bottom edge!
+	wind_front.rotation_degrees = Vector3(18, 0, 0)
+	wind_front.position = Vector3(0, 0.55, -0.4625) # Shifted 5cm to lock top edge!
 	combiner.add_child(wind_front)
 	wind_front.owner = scene
 	
-	# Side Window Right
-	var wind_right = CSGBox3D.new()
+	# Side Window Teardrop Shape
+	var side_window_pts = PackedVector2Array()
+	# Draw sweeping roof curve (from rear to front)
+	for i in range(33):
+		var t = float(i) / 32.0 # High-poly 32 segment curve!
+		var px = lerpf(0.7, -0.7, t) # Extended by 10cm on both ends! (Total length 1.4m)
+		var peak_x = -0.1 # Canopy peak is slightly forward
+		var dist = (px - peak_x) / 0.8 if px > peak_x else (px - peak_x) / 0.6
+		var py = 0.6 * (1.0 - dist * dist) # Height peaks at 0.6
+		if py < 0.0: py = 0.0
+		side_window_pts.append(Vector2(px, py))
+	# Flat bottom edge (loop cleanly finishes at -0.7, so we just close back to 0.7)
+	side_window_pts.append(Vector2(0.7, 0.0))
+	
+	# Side Window Right Hole
+	var wind_right = CSGPolygon3D.new()
 	wind_right.name = "WindowRight"
-	wind_right.operation = CSGShape3D.OPERATION_SUBTRACTION
-	wind_right.material = mat_glass
-	wind_right.size = Vector3(0.2, 0.4, 1.2) # 0.2 thick, 0.4 high, 1.2 long
-	wind_right.rotation_degrees = Vector3(0, 0, 20) # Angled to match the shoulder curve
-	wind_right.position = Vector3(0.9, 0.5, 0.1) # Positioned on the right side of canopy
+	wind_right.operation = CSGCombiner3D.OPERATION_SUBTRACTION
+	wind_right.polygon = side_window_pts
+	wind_right.mode = CSGPolygon3D.MODE_DEPTH
+	wind_right.depth = 1.5 # Massive depth to guarantee penetration
+	wind_right.rotation_degrees = Vector3(0, 90, 0) # Flipped to extrude deeply INWARDS!
+	wind_right.position = Vector3(1.4, 0.3, 0.1) # Pulled out to accommodate 1.5m depth
 	combiner.add_child(wind_right)
 	wind_right.owner = scene
 	
-	# Side Window Left
+	# Side Window Left Hole
 	var wind_left = wind_right.duplicate()
 	wind_left.name = "WindowLeft"
-	wind_left.rotation_degrees = Vector3(0, 0, -20)
-	wind_left.position = Vector3(-0.9, 0.5, 0.1)
+	wind_left.rotation_degrees = Vector3(0, -90, 0) # Flipped to extrude deeply INWARDS!
+	wind_left.position = Vector3(-1.4, 0.3, 0.1)
 	combiner.add_child(wind_left)
 	wind_left.owner = scene
+	
+	# Rear Window Hole (New!)
+	var wind_rear = CSGBox3D.new()
+	wind_rear.name = "WindowRear"
+	wind_rear.operation = CSGCombiner3D.OPERATION_SUBTRACTION
+	wind_rear.size = Vector3(1.2, 0.8, 1.75) # Snipped final 5cm off the bottom edge!
+	wind_rear.rotation_degrees = Vector3(-18, 0, 0)
+	wind_rear.position = Vector3(0, 0.45, 1.075) # Shifted 2.5cm to lock top edge!
+	combiner.add_child(wind_rear)
+	wind_rear.owner = scene
 	
 	# --- BACK SPOILER ---
 	var mat_spoiler = StandardMaterial3D.new()
