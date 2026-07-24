@@ -198,7 +198,7 @@ func _ready():
 		# Subtracts massive boxes from the cabin core to completely chop out the corners!
 		var w_fl = CSGBox3D.new()
 		w_fl.operation = CSGCombiner3D.OPERATION_SUBTRACTION
-		w_fl.size = Vector3(1.5, 1.5, 1.5) # Massive brutal cube!
+		w_fl.size = Vector3(1.1, 1.5, 1.5) # The 1.1m Golden Box size! Forges a 5cm metal wall without touching the 0.7m glass limit!
 		w_fl.position = Vector3(-1.3, -0.125, -1.7)
 		cab_comb.add_child(w_fl)
 		
