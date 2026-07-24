@@ -7,10 +7,10 @@ var steer_input: float = 0.0
 var handbrake_input: float = 0.0
 var air_time: float = 0.0
 
-var mount_FL = Vector3(-1.0, -0.1, -1.7)
-var mount_FR = Vector3(1.0, -0.1, -1.7)
-var mount_RL = Vector3(-1.1, -0.1, 1.75)
-var mount_RR = Vector3(1.1, -0.1, 1.75)
+var mount_FL = Vector3(-1.0, -0.025, -1.7)
+var mount_FR = Vector3(1.0, -0.025, -1.7)
+var mount_RL = Vector3(-1.1, -0.025, 1.75)
+var mount_RR = Vector3(1.1, -0.025, 1.75)
 var radius_front = 0.5
 var radius_rear = 0.5
 
