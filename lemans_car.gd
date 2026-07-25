@@ -626,14 +626,19 @@ func _physics_process(delta: float) -> void:
 		# Clutch is in: purely visual and audio gear shift effect (no momentum loss)
 		target_rpm = 6500.0
 		engine_rpm = lerp(engine_rpm, target_rpm, 6.0 * delta)
+	elif current_gear_sim >= 0 and motor_input <= 0.05:
+		# Coasting without throttle: clutch disengaged, RPM drops smoothly to idle (~1000 RPM).
+		# Downshifts happen quietly in the background without revving up the engine!
+		target_rpm = 1000.0
+		engine_rpm = lerp(engine_rpm, target_rpm, 5.0 * delta)
 	else:
-		# Clutch is out: RPM bound to wheel speed in the current gear
+		# Clutch is engaged: RPM bound to wheel speed in the current gear
 		var gear_speed = 0.0
 		
 		if current_gear_sim == -1:
-			# Reverse gear logic (max 50 km/h = 13.88 m/s)
+			# Reverse gear logic (max 50 km/h = 13.88 m/s, max 4000 RPM)
 			gear_speed = clamp(speed / 13.88, 0.0, 1.0)
-			target_rpm = lerp(1000.0, 9000.0, gear_speed)
+			target_rpm = lerp(1000.0, 4000.0, gear_speed)
 		elif current_gear_sim == -2:
 			# Neutral gear
 			target_rpm = 1000.0
@@ -648,9 +653,10 @@ func _physics_process(delta: float) -> void:
 				target_rpm = lerp(6500.0, 9000.0, gear_speed)
 		
 		# Clamp to realistic limits
-		target_rpm = clamp(target_rpm, 1000.0, 10000.0)
+		var max_rpm = 4000.0 if current_gear_sim == -1 else 10000.0
+		target_rpm = clamp(target_rpm, 1000.0, max_rpm)
 		
-		# Smooth approach to target
+		# Responsive approach to target (crisp re-engagement when throttle is pressed)
 		engine_rpm = lerp(engine_rpm, target_rpm, 15.0 * delta)
 	
 	# --- FMOD ENGINE UPDATE ---
