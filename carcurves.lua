@@ -27,7 +27,7 @@ setGlobalFloat("downforce_multiplier", 180.0)
 setGlobalFloat("car_mass", 1000.0)
 setGlobalFloat("center_of_mass_y", -0.35)
 setGlobalFloat("center_of_mass_z", 0.5)
-setGlobalFloat("max_speed", 250.0)
+setGlobalFloat("max_speed", 210.0)
 setGlobalFloat("over_extend", 0.05)
 setGlobalFloat("z_traction", 0.15)
 setGlobalFloat("radius_front", 0.5)
@@ -246,6 +246,14 @@ while true do
 				end
 				godotSetProperty("handbrake_input", handbrake, supercar)
 				
+				local nitro = 0.0
+				if joy_handle >= 0 and ioJoystickGetButtonDown(joy_handle, 2) then
+					nitro = 1.0
+				elseif ioKBDown("Left Shift") or ioKBDown("LSHIFT") or ioKBDown("n") or ioKBDown("N") then
+					nitro = 1.0
+				end
+				godotSetProperty("nitro_input", nitro, supercar)
+				
 				godotSetProperty("engine_force_value", getGlobalFloat("engine_force_value"), supercar)
 				godotSetProperty("brake_force_value", getGlobalFloat("brake_force_value"), supercar)
 				godotSetProperty("max_steer", getGlobalFloat("max_steer"), supercar)
@@ -259,7 +267,7 @@ while true do
 				godotSetProperty("car_mass", getGlobalFloat("car_mass"), supercar)
 				godotSetProperty("center_of_mass_y", getGlobalFloat("center_of_mass_y"), supercar)
 				godotSetProperty("center_of_mass_z", getGlobalFloat("center_of_mass_z"), supercar)
-				godotSetProperty("max_speed", getGlobalFloat("max_speed"), supercar)
+				godotSetProperty("slider_max_speed_kmh", getGlobalFloat("max_speed"), supercar)
 				godotSetProperty("over_extend", getGlobalFloat("over_extend"), supercar)
 				godotSetProperty("z_traction", getGlobalFloat("z_traction"), supercar)
 				godotSetProperty("radius_front", getGlobalFloat("radius_front"), supercar)

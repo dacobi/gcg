@@ -80,8 +80,10 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 		var speed_ratio = vel / float(car.get("max_speed"))
 		var ac := 1.0
 		
-		# Reverse speed limiter (max 50 km/h = 13.88 m/s)
+		# Speed limiters
 		if vel < -13.88 and float(car.get("motor_input")) < 0.0:
+			ac = 0.0
+		elif vel >= float(car.get("max_speed")) and float(car.get("motor_input")) > 0.0:
 			ac = 0.0
 		elif car.get("accel_curve"):
 			ac = car.get("accel_curve").sample_baked(speed_ratio)

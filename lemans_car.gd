@@ -41,7 +41,13 @@ var hand_break := false
 var is_slipping := false
 var total_wheels := 4
 var acceleration := 600.0
-var max_speed := 96.0
+var max_speed := 58.33
+var slider_max_speed_kmh := 210.0
+var nitro_input := 0.0
+var nitro_seconds := 0.0
+var max_nitro_seconds := 100.0
+var nitro_active := false
+var nitro_flames: Array = []
 var over_extend = 0.05
 var z_traction = 0.05
 var default_radius_front = 0.5
@@ -300,6 +306,7 @@ func _ready():
 		hud.set("car", self)
 		hud.set_anchors_preset(Control.PRESET_FULL_RECT)
 		canvas.add_child(hud)
+	_setup_nitro_flames()
 func create_wheel(w_name: String, pos: Vector3, radius: float, is_front: bool, is_drive: bool, use_shapecast: bool) -> RayCast3D:
 	var w = RayCast3D.new()
 	w.name = "Wheel" + w_name
@@ -388,8 +395,28 @@ func _physics_process(delta: float) -> void:
 	var counter_torque = -global_transform.basis.y * (local_yaw_rate * mass * yaw_damping)
 	apply_torque(counter_torque)
 	
+	# Handle nitrous system
+	if nitro_input > 0.5 and nitro_seconds > 0.01:
+		nitro_active = true
+		nitro_seconds = maxf(0.0, nitro_seconds - delta)
+		for f in nitro_flames:
+			if not f.emitting:
+				f.emitting = true
+	else:
+		if nitro_seconds <= 0.01:
+			nitro_seconds = 0.0
+		nitro_active = false
+		for f in nitro_flames:
+			if f.emitting:
+				f.emitting = false
+
 	# Scale engine acceleration force
 	acceleration = engine_force_value * 0.15
+	if nitro_active:
+		acceleration *= 2.0
+		max_speed = 300.0 / 3.6
+	else:
+		max_speed = slider_max_speed_kmh / 3.6
 	
 	# Set inputs
 	hand_break = handbrake_input > 0.5
@@ -649,7 +676,9 @@ func _physics_process(delta: float) -> void:
 				fmod_event.set_3d_attributes(global_transform)
 
 func _on_prop_collided(body: Node):
-	if body is PhysicsBody3D and body.collision_layer == 4:
+	if body.has_method("on_nitro_collected"):
+		body.on_nitro_collected(self)
+	elif body is PhysicsBody3D and body.collision_layer == 4:
 		if ClassDB.class_exists("FmodServer"):
 			if FmodServer.has_method("create_event_instance"):
 				var ev = FmodServer.create_event_instance("event:/Interactables/Wooden Collision")
@@ -663,3 +692,63 @@ func _on_prop_collided(body: Node):
 						ev.start()
 					if ev.has_method("release"):
 						ev.release()
+
+func add_nitro(seconds: float) -> void:
+	nitro_seconds = minf(max_nitro_seconds, nitro_seconds + seconds)
+
+func _setup_nitro_flames() -> void:
+	var positions = [
+		Vector3(-0.626, -0.12, 3.45),
+		Vector3(-0.506, -0.12, 3.45),
+		Vector3(0.506, -0.12, 3.45),
+		Vector3(0.626, -0.12, 3.45)
+	]
+	for pos in positions:
+		var parts = GPUParticles3D.new()
+		parts.amount = 32
+		parts.lifetime = 0.25
+		parts.speed_scale = 1.5
+		parts.explosiveness = 0.1
+		parts.position = pos
+		
+		var pmat = ParticleProcessMaterial.new()
+		pmat.direction = Vector3(0, 0, 1) # Shoot backward along +Z
+		pmat.spread = 8.0
+		pmat.initial_velocity_min = 8.0
+		pmat.initial_velocity_max = 14.0
+		pmat.gravity = Vector3(0, 2.0, 0)
+		
+		var curve = Curve.new()
+		curve.add_point(Vector2(0.0, 1.0))
+		curve.add_point(Vector2(1.0, 0.1))
+		var curve_tex = CurveTexture.new()
+		curve_tex.curve = curve
+		pmat.scale_curve = curve_tex
+		pmat.scale_min = 0.12
+		pmat.scale_max = 0.18
+		
+		var grad = Gradient.new()
+		grad.add_point(0.0, Color(0.2, 0.5, 1.0, 1.0))   # Blue base
+		grad.add_point(0.3, Color(1.0, 0.6, 0.1, 1.0))   # Orange body
+		grad.add_point(0.7, Color(1.0, 0.2, 0.0, 0.8))   # Red tongue
+		grad.add_point(1.0, Color(0.3, 0.0, 0.0, 0.0))   # Fade out
+		var grad_tex = GradientTexture1D.new()
+		grad_tex.gradient = grad
+		pmat.color_ramp = grad_tex
+		
+		parts.process_material = pmat
+		
+		var mesh = QuadMesh.new()
+		mesh.size = Vector2(0.2, 0.2)
+		var mat = StandardMaterial3D.new()
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.vertex_color_use_as_albedo = true
+		mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		mesh.material = mat
+		parts.draw_pass_1 = mesh
+		
+		parts.emitting = false
+		add_child(parts)
+		nitro_flames.append(parts)

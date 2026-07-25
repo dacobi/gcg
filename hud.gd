@@ -99,3 +99,37 @@ func _draw() -> void:
 	draw_circle(center_speed, 8, magenta)
 	
 	draw_string(font, center_speed + Vector2(-15, 30), "KM/H", HORIZONTAL_ALIGNMENT_CENTER, -1, 14, cyan)
+	
+	# --- NITROUS GAUGE (Outer Arc around Speed Gauge) ---
+	var nitro_sec = float(car.get("nitro_seconds")) if car.get("nitro_seconds") != null else 0.0
+	var max_nitro = float(car.get("max_nitro_seconds")) if car.get("max_nitro_seconds") != null else 100.0
+	var nitro_active = bool(car.get("nitro_active")) if car.get("nitro_active") != null else false
+	
+	draw_arc(center_speed, 105, PI*0.75, PI*2.25, 64, Color(dark_bg.r, dark_bg.g, dark_bg.b, 0.8), 10.0, true)
+	draw_arc(center_speed, 105, PI*0.75, PI*2.25, 64, Color(cyan.r, cyan.g, cyan.b, 0.2), 2.0, true)
+	
+	var nitro_ratio = clampf(nitro_sec / max_nitro, 0.0, 1.0)
+	if nitro_ratio > 0.0001:
+		var nitro_end_angle = lerp(PI*0.75, PI*2.25, nitro_ratio)
+		var nitro_col = Color(1.0, 0.5, 0.0) if nitro_active else Color(0.6, 0.1, 0.9)
+		var glow_col = Color(1.0, 0.2, 0.0) if nitro_active else Color(0.8, 0.2, 1.0)
+		
+		for w in range(1, 4):
+			draw_arc(center_speed, 105, PI*0.75, nitro_end_angle, 64, Color(glow_col.r, glow_col.g, glow_col.b, 0.3 / w), 10.0 + (w * 3), true)
+		draw_arc(center_speed, 105, PI*0.75, nitro_end_angle, 64, nitro_col, 8.0, true)
+		
+	for i in range(7):
+		var tick_ratio = minf(1.0, (i * 15.0) / 100.0)
+		var tangle = lerp(PI*0.75, PI*2.25, tick_ratio)
+		var tp1 = center_speed + Vector2(cos(tangle), sin(tangle)) * 100
+		var tp2 = center_speed + Vector2(cos(tangle), sin(tangle)) * 110
+		draw_line(tp1, tp2, Color(0, 0, 0, 0.8), 2.0, true)
+		
+	var nitro_str = "NITRO: 0s"
+	if nitro_sec > 0.01:
+		if nitro_sec < 10.0:
+			nitro_str = "NITRO: " + str(snapped(nitro_sec, 0.1)) + "s"
+		else:
+			nitro_str = "NITRO: " + str(int(ceil(nitro_sec))) + "s"
+	var text_col = Color(1.0, 0.6, 0.1) if nitro_active else Color(0.8, 0.3, 1.0)
+	draw_string(font, center_speed + Vector2(-35, 65), nitro_str, HORIZONTAL_ALIGNMENT_CENTER, -1, 15, text_col)

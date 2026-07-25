@@ -249,6 +249,22 @@ func _ready():
 			ramp.material = concrete_mat
 			ramp.use_collision = true
 			add_child(ramp)
+			
+			var nitro_script = load("res://nitro_powerup.gd")
+			if nitro_script:
+				var powerup = StaticBody3D.new()
+				powerup.name = "NitroPowerup_" + str(ramps_data.find(data))
+				powerup.set_script(nitro_script)
+				
+				var px = w * 0.85
+				var py = yc + m * (px - xc) + 1.5
+				var pz = -float(data["d"]) * 0.5
+				
+				var local_pos = Vector3(px, py, pz)
+				var rot_rad = deg_to_rad(float(data["rot"]))
+				var world_pos = data["pos"] + Basis.from_euler(Vector3(0, rot_rad, 0)) * local_pos
+				powerup.position = world_pos
+				add_child(powerup)
 		
 		# --- SPAWN MODELS ---
 		var barrier_scn = load("res://assets/models/extra_objects/traffic_barrier.glb")
