@@ -245,7 +245,7 @@ func _ready():
 	var wind_front = CSGBox3D.new()
 	wind_front.name = "WindowFront"
 	wind_front.operation = CSGCombiner3D.OPERATION_SUBTRACTION
-	wind_front.size = Vector3(1.4, 0.8, 1.925) # Snipped final 10cm off the bottom edge!
+	wind_front.size = Vector3(1.46, 0.8, 1.925) # Snipped final 10cm off the bottom edge!
 	wind_front.rotation_degrees = Vector3(18, 0, 0)
 	wind_front.position = Vector3(0, 0.55, -0.4625) # Shifted 5cm to lock top edge!
 	combiner.add_child(wind_front)
@@ -289,7 +289,7 @@ func _ready():
 	var wind_rear = CSGBox3D.new()
 	wind_rear.name = "WindowRear"
 	wind_rear.operation = CSGCombiner3D.OPERATION_SUBTRACTION
-	wind_rear.size = Vector3(1.2, 0.8, 1.75) # Snipped final 5cm off the bottom edge!
+	wind_rear.size = Vector3(1.46, 0.8, 1.75) # Snipped final 5cm off the bottom edge!
 	wind_rear.rotation_degrees = Vector3(-18, 0, 0)
 	wind_rear.position = Vector3(0, 0.45, 1.075) # Shifted 2.5cm to lock top edge!
 	combiner.add_child(wind_rear)
