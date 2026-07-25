@@ -57,7 +57,6 @@ var slip_RR: float = 0.0
 var engine_rpm: float = 1000.0
 
 var fmod_event = null
-var fmod_event_2 = null
 var fmod_banks = []
 var engine_audio: AudioStreamPlayer = null
 var show_collision_debug = 0.0
@@ -630,7 +629,7 @@ func _physics_process(delta: float) -> void:
 	# --- FMOD ENGINE UPDATE ---
 	if ClassDB.class_exists("FmodServer"):
 		FmodServer.update()
-		if fmod_event == null and fmod_event_2 == null:
+		if fmod_event == null:
 			# FMOD bank loading takes a few frames to populate the event descriptions
 			var events = FmodServer.get_all_event_descriptions()
 			if events.size() > 0:
@@ -638,9 +637,6 @@ func _physics_process(delta: float) -> void:
 					if str(e.get_guid()) == "{0c8363b4-23af-4f9c-af4b-0951bfd37d84}":
 						fmod_event = FmodServer.create_event_instance_from_description(e)
 						if fmod_event: fmod_event.start()
-					if str(e.get_guid()) == "{7aa5e8f1-8ec2-42c6-b465-1241a603a055}":
-						fmod_event_2 = FmodServer.create_event_instance_from_description(e)
-						if fmod_event_2: fmod_event_2.start()
 		
 		# We must set a listener position, otherwise we might not hear the 3D event
 		if FmodServer.has_method("set_listener_transform3d"):
@@ -651,12 +647,6 @@ func _physics_process(delta: float) -> void:
 			fmod_event.set_parameter_by_name("Load", clamp(motor_input, 0.0, 1.0))
 			if fmod_event.has_method("set_3d_attributes"):
 				fmod_event.set_3d_attributes(global_transform)
-				
-		if fmod_event_2:
-			fmod_event_2.set_parameter_by_name("RPM", engine_rpm)
-			fmod_event_2.set_parameter_by_name("Load", clamp(motor_input, 0.0, 1.0))
-			if fmod_event_2.has_method("set_3d_attributes"):
-				fmod_event_2.set_3d_attributes(global_transform)
 
 func _on_prop_collided(body: Node):
 	if body is PhysicsBody3D and body.collision_layer == 4:
