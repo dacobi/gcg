@@ -27,9 +27,8 @@ extern "C" void gcg_audio_mix(float* interleaved_buffer, int frames);
 extern "C" void gcg_video_record_audio(const int16_t* pcm_data, int frames);
 
 extern "C" int gcg_get_godot_mix_rate() {
-    if (AudioServer::get_singleton()) {
-        return AudioServer::get_singleton()->get_mix_rate();
-    }
+    // The ALSA capture loop and AudioMixer both operate at 48000 Hz.
+    // Returning Godot's internal 44100 Hz mix rate causes sample rate mismatch and heap buffer overflows in NvencEncoder.
     return 48000;
 }
 

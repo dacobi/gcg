@@ -590,8 +590,9 @@ private:
         while (avcodec_receive_packet(enc, pkt) == 0) {
             av_packet_rescale_ts(pkt, enc->time_base, st->time_base);
             pkt->stream_index = st->index;
+            // av_interleaved_write_frame takes ownership of pkt and unreferences it.
+            // Calling av_packet_unref(pkt) after this causes double free or corruption when interleaving audio/video!
             av_interleaved_write_frame(out_ctx, pkt);
-            av_packet_unref(pkt);
         }
         av_packet_free(&pkt);
     }
@@ -1266,7 +1267,6 @@ static void recorder_stop(Recorder& rec) {
     
     delete myNvec;
     myNvec = NULL;
-    SDL_SetWindowResizable(window, true);
 }
 
 // ---------------------------------------------------------------------------
@@ -4167,11 +4167,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 ImGui::SetNextItemWidth(200.0f);
                 ImGui::InputText("File", state->record_path_buf, sizeof(state->record_path_buf));
                 if (ImGui::MenuItem("Start Recording")) {
-                    SDL_GetWindowSize(window, &cur_w, &cur_h);
-                    cur_w = ((int)cur_w / 16)*16; cur_h = ((int)cur_h / 16)*16;
-                    SDL_SetWindowSize(window, cur_w, cur_h);
-                    cur_rel = (float)cur_w / (float)cur_h;
-                    SDL_SetWindowResizable(window, false);
                     int out_w = 0, out_h = 0;
                     SDL_GetWindowSize(window, &out_w, &out_h);
                     recorder_start(state->recorder, out_w, out_h, state->record_path_buf);
