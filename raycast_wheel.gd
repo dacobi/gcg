@@ -136,9 +136,10 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 	## Tire Z traction (Longitudinal)
 	var f_vel          := forward_dir.dot(tire_vel)
 	var z_friction     := z_traction
+	var long_slip      := minf(absf(f_vel), 1.5)
 	if is_braking:
 		z_friction = z_brake_traction
-	var z_force        = global_basis.z * f_vel * z_friction * effective_load
+	var z_force        = global_basis.z * signf(f_vel) * long_slip * z_friction * effective_load
 	
 	# Clamp longitudinal force (braking) to prevent instant stops at 250 km/h
 	# 5x baseline (7.5G max decel)

@@ -263,10 +263,10 @@ func _ready():
 	var skid_mat = StandardMaterial3D.new()
 	skid_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	skid_mat.vertex_color_use_as_albedo = true
-	skid_mat.albedo_color = Color(0.1, 0.1, 0.1, 0.6)
+	skid_mat.albedo_color = Color(0.02, 0.02, 0.02, 0.85)
 	var skid_mesh = QuadMesh.new()
 	skid_mesh.material = skid_mat
-	skid_mesh.size = Vector2(0.3, 0.8)
+	skid_mesh.size = Vector2(0.45, 0.5)
 	skid_mesh.orientation = PlaneMesh.FACE_Y
 	var skid_proc = ParticleProcessMaterial.new()
 	skid_proc.gravity = Vector3.ZERO
@@ -274,9 +274,9 @@ func _ready():
 	for i in range(4):
 		var p = GPUParticles3D.new()
 		p.emitting = false
-		p.amount = 200
-		p.lifetime = 2.0
-		p.fixed_fps = 60
+		p.amount = 800
+		p.lifetime = 4.0
+		p.fixed_fps = 0
 		p.process_material = skid_proc
 		p.draw_pass_1 = skid_mesh
 		p.local_coords = false # Particles stay on road when car moves

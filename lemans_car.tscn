@@ -111,7 +111,7 @@ albedo_color = Color(0, 0, 0, 1)
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4xtml"]
 albedo_color = Color(0, 0, 0, 1)
 
-[node name="SuperCar" type="RigidBody3D" unique_id=750772022]
+[node name="SuperCar" type="RigidBody3D" unique_id=1191469373]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
 mass = 1200.0
 physics_material_override = SubResource("PhysicsMaterial_Car")
@@ -119,241 +119,241 @@ center_of_mass_mode = 1
 center_of_mass = Vector3(0, -0.2, 0)
 script = ExtResource("1")
 
-[node name="BodyCol" type="CollisionShape3D" parent="." unique_id=2095943063]
+[node name="BodyCol" type="CollisionShape3D" parent="." unique_id=1397441636]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0.1)
 shape = SubResource("BoxShape3D_Body")
 debug_color = Color(0, 0.6, 0.7, 0.42)
 
-[node name="FrontLeftSteerPivot" type="Node3D" parent="." unique_id=1449074863]
+[node name="FrontLeftSteerPivot" type="Node3D" parent="." unique_id=801891875]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.15, -0.1, -1.1)
 
-[node name="FrontLeftWheel" type="CSGCylinder3D" parent="FrontLeftSteerPivot" unique_id=453678936]
+[node name="FrontLeftWheel" type="CSGCylinder3D" parent="FrontLeftSteerPivot" unique_id=1561561357]
 transform = Transform3D(0, -1.6666, 0, 1, 0, 0, 0, 0, 1, -0.2, 0, 0)
 height = 0.4
 sides = 32
 material = SubResource("StandardMaterial3D_TireRubber")
 
-[node name="Rim" type="CSGCylinder3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=2072070536]
+[node name="Rim" type="CSGCylinder3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=334148876]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.21, 0)
 radius = 0.35
 height = 0.04
 sides = 32
 material = SubResource("StandardMaterial3D_NeonCyan")
 
-[node name="Tread1" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=195811820]
+[node name="Tread1" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=996444974]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.5)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread2" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=436849516]
+[node name="Tread2" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=693996846]
 transform = Transform3D(0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, 0.7071, 0.3536, 0, 0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread3" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=993264231]
+[node name="Tread3" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=1541266216]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.5, 0, 0)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread4" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=1457214200]
+[node name="Tread4" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=1874560376]
 transform = Transform3D(-0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, -0.7071, 0.3536, 0, -0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread5" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=228560018]
+[node name="Tread5" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=1107230199]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -0.5)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread6" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=931554195]
+[node name="Tread6" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=592263054]
 transform = Transform3D(-0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, -0.7071, -0.3536, 0, -0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread7" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=1336161726]
+[node name="Tread7" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=1944542780]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -0.5, 0, 0)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread8" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=509948881]
+[node name="Tread8" type="CSGBox3D" parent="FrontLeftSteerPivot/FrontLeftWheel" unique_id=1006384646]
 transform = Transform3D(0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, 0.7071, -0.3536, 0, 0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="FrontRightSteerPivot" type="Node3D" parent="." unique_id=1274710996]
+[node name="FrontRightSteerPivot" type="Node3D" parent="." unique_id=555141205]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.15, -0.1, -1.1)
 
-[node name="FrontRightWheel" type="CSGCylinder3D" parent="FrontRightSteerPivot" unique_id=1182677779]
+[node name="FrontRightWheel" type="CSGCylinder3D" parent="FrontRightSteerPivot" unique_id=1565166218]
 transform = Transform3D(0, -1.6666, 0, 1, 0, 0, 0, 0, 1, 0.2, 0, 0)
 height = 0.4
 sides = 32
 material = SubResource("StandardMaterial3D_TireRubber")
 
-[node name="Rim" type="CSGCylinder3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=227409885]
+[node name="Rim" type="CSGCylinder3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=1274365845]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.21, 0)
 radius = 0.35
 height = 0.04
 sides = 32
 material = SubResource("StandardMaterial3D_NeonCyan")
 
-[node name="Tread1" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=941593402]
+[node name="Tread1" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=908237014]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.5)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread2" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=2075660158]
+[node name="Tread2" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=777960282]
 transform = Transform3D(0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, 0.7071, 0.3536, 0, 0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread3" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=49868751]
+[node name="Tread3" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=1382419336]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.5, 0, 0)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread4" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=92421083]
+[node name="Tread4" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=2114017642]
 transform = Transform3D(-0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, -0.7071, 0.3536, 0, -0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread5" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=973530967]
+[node name="Tread5" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=1914277909]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -0.5)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread6" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=1993812800]
+[node name="Tread6" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=530003528]
 transform = Transform3D(-0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, -0.7071, -0.3536, 0, -0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread7" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=1914259160]
+[node name="Tread7" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=183566673]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -0.5, 0, 0)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread8" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=833317209]
+[node name="Tread8" type="CSGBox3D" parent="FrontRightSteerPivot/FrontRightWheel" unique_id=867272373]
 transform = Transform3D(0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, 0.7071, -0.3536, 0, 0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="RearLeftSteerPivot" type="Node3D" parent="." unique_id=1464011485]
+[node name="RearLeftSteerPivot" type="Node3D" parent="." unique_id=1706452340]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.3, -0.1, 0.9)
 
-[node name="RearLeftWheel" type="CSGCylinder3D" parent="RearLeftSteerPivot" unique_id=2115025320]
+[node name="RearLeftWheel" type="CSGCylinder3D" parent="RearLeftSteerPivot" unique_id=549204452]
 transform = Transform3D(0, -1.6666, 0, 1, 0, 0, 0, 0, 1, -0.2, 0, 0)
 height = 0.4
 sides = 32
 material = SubResource("StandardMaterial3D_TireRubber")
 
-[node name="Rim" type="CSGCylinder3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=2090876186]
+[node name="Rim" type="CSGCylinder3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=1521234997]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.21, 0)
 radius = 0.35
 height = 0.04
 sides = 32
 material = SubResource("StandardMaterial3D_NeonCyan")
 
-[node name="Tread1" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=1806192010]
+[node name="Tread1" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=614535431]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.5)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread2" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=1266084400]
+[node name="Tread2" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=1210462440]
 transform = Transform3D(0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, 0.7071, 0.3536, 0, 0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread3" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=799011457]
+[node name="Tread3" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=1136327315]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.5, 0, 0)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread4" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=545482814]
+[node name="Tread4" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=1912729634]
 transform = Transform3D(-0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, -0.7071, 0.3536, 0, -0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread5" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=2035806283]
+[node name="Tread5" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=625709389]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -0.5)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread6" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=268782890]
+[node name="Tread6" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=926234359]
 transform = Transform3D(-0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, -0.7071, -0.3536, 0, -0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread7" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=1080191028]
+[node name="Tread7" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=549776606]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -0.5, 0, 0)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread8" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=1078608052]
+[node name="Tread8" type="CSGBox3D" parent="RearLeftSteerPivot/RearLeftWheel" unique_id=550739361]
 transform = Transform3D(0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, 0.7071, -0.3536, 0, 0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="RearRightSteerPivot" type="Node3D" parent="." unique_id=1273917284]
+[node name="RearRightSteerPivot" type="Node3D" parent="." unique_id=385923462]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3, -0.1, 0.9)
 
-[node name="RearRightWheel" type="CSGCylinder3D" parent="RearRightSteerPivot" unique_id=327207203]
+[node name="RearRightWheel" type="CSGCylinder3D" parent="RearRightSteerPivot" unique_id=55455870]
 transform = Transform3D(0, -1.6666, 0, 1, 0, 0, 0, 0, 1, 0.2, 0, 0)
 height = 0.4
 sides = 32
 material = SubResource("StandardMaterial3D_TireRubber")
 
-[node name="Rim" type="CSGCylinder3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=1610177803]
+[node name="Rim" type="CSGCylinder3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=1872785658]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.21, 0)
 radius = 0.35
 height = 0.04
 sides = 32
 material = SubResource("StandardMaterial3D_NeonCyan")
 
-[node name="Tread1" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=728744996]
+[node name="Tread1" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=1699526729]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.5)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread2" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=13692372]
+[node name="Tread2" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=1731821245]
 transform = Transform3D(0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, 0.7071, 0.3536, 0, 0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread3" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=1504029573]
+[node name="Tread3" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=976927837]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 0.5, 0, 0)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread4" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=1570574792]
+[node name="Tread4" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=1307766191]
 transform = Transform3D(-0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, -0.7071, 0.3536, 0, -0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread5" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=1727997745]
+[node name="Tread5" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=2109100091]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -0.5)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread6" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=509880481]
+[node name="Tread6" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=1595386735]
 transform = Transform3D(-0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, -0.7071, -0.3536, 0, -0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread7" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=1713262455]
+[node name="Tread7" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=435876116]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -0.5, 0, 0)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="Tread8" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=711664897]
+[node name="Tread8" type="CSGBox3D" parent="RearRightSteerPivot/RearRightWheel" unique_id=164682561]
 transform = Transform3D(0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, 0.7071, -0.3536, 0, 0.3536)
 operation = 2
 size = Vector3(0.08, 0.42, 0.12)
 
-[node name="LeMansCombiner" type="CSGCombiner3D" parent="." unique_id=1768679664]
+[node name="LeMansCombiner" type="CSGCombiner3D" parent="." unique_id=170620525]
 
-[node name="MainSpine" type="Path3D" parent="LeMansCombiner" unique_id=198965344]
+[node name="MainSpine" type="Path3D" parent="LeMansCombiner" unique_id=377776549]
 curve = SubResource("Curve3D_0mqly")
 
-[node name="MainBody" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=235380939]
+[node name="MainBody" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=358248250]
 polygon = PackedVector2Array(-1.375, -2.5, 1.375, -2.5, 1.375, 0, 1.368379, 0.036756426, 1.3485799, 0.073158875, 1.3157929, 0.10885675, 1.2703345, 0.14350629, 1.2126417, 0.17677379, 1.1432707, 0.20833883, 1.0628893, 0.23789749, 0.97227186, 0.26516503, 0.87229073, 0.2898789, 0.7639091, 0.3118011, 0.6481705, 0.33072048, 0.52618974, 0.34645483, 0.39914143, 0.35885262, 0.26824918, 0.36779448, 0.13477357, 0.37319425, 8.419447e-17, 0.375, -0.13477357, 0.37319425, -0.26824918, 0.36779448, -0.39914143, 0.35885262, -0.52618974, 0.34645483, -0.6481705, 0.33072048, -0.7639091, 0.3118011, -0.87229073, 0.2898789, -0.97227186, 0.26516503, -1.0628893, 0.23789749, -1.1432707, 0.20833883, -1.2126417, 0.17677379, -1.2703345, 0.14350629, -1.3157929, 0.10885675, -1.3485799, 0.073158875, -1.368379, 0.036756426, -1.375, 4.5924257e-17)
 mode = 2
 path_node = NodePath("../MainSpine")
@@ -369,71 +369,71 @@ path_joined = false
 smooth_faces = true
 material = SubResource("StandardMaterial3D_0nhqq")
 
-[node name="FenderFL" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=1137464872]
+[node name="FenderFL" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=1963971612]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, -0.925, -0.125, -1.7)
 radius = 0.65
 height = 0.75
 sides = 64
 material = SubResource("StandardMaterial3D_0nhqq")
 
-[node name="FenderFR" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=188678594]
+[node name="FenderFR" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=996787157]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0.925, -0.125, -1.7)
 radius = 0.65
 height = 0.75
 sides = 64
 material = SubResource("StandardMaterial3D_0nhqq")
 
-[node name="FenderRL" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=844101365]
+[node name="FenderRL" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=1678791434]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, -1.05, -0.125, 1.75)
 radius = 0.65
 height = 0.5
 sides = 64
 material = SubResource("StandardMaterial3D_0nhqq")
 
-[node name="FenderRR" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=592311513]
+[node name="FenderRR" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=162375219]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 1.05, -0.125, 1.75)
 radius = 0.65
 height = 0.5
 sides = 64
 material = SubResource("StandardMaterial3D_0nhqq")
 
-[node name="BottomCutter" type="CSGBox3D" parent="LeMansCombiner" unique_id=1252661013]
+[node name="BottomCutter" type="CSGBox3D" parent="LeMansCombiner" unique_id=664788013]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.4, 0)
 operation = 2
 size = Vector3(4, 10, 12)
 
-[node name="WheelCutFL" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=1316722820]
+[node name="WheelCutFL" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=1700096889]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, -1.3, -0.125, -1.7)
 operation = 2
 radius = 0.605
 height = 1.0
 sides = 64
 
-[node name="WheelCutFR" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=77584984]
+[node name="WheelCutFR" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=680812953]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 1.3, -0.125, -1.7)
 operation = 2
 radius = 0.605
 height = 1.0
 sides = 64
 
-[node name="WheelCutRL" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=385271528]
+[node name="WheelCutRL" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=1806014666]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, -1.3, -0.125, 1.75)
 operation = 2
 radius = 0.605
 height = 1.0
 sides = 64
 
-[node name="WheelCutRR" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=1969156654]
+[node name="WheelCutRR" type="CSGCylinder3D" parent="LeMansCombiner" unique_id=1500975405]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 1.3, -0.125, 1.75)
 operation = 2
 radius = 0.605
 height = 1.0
 sides = 64
 
-[node name="CabinHole" type="CSGCombiner3D" parent="LeMansCombiner" unique_id=1016250794]
+[node name="CabinHole" type="CSGCombiner3D" parent="LeMansCombiner" unique_id=1594521506]
 operation = 2
 
-[node name="CabinCore" type="CSGPolygon3D" parent="LeMansCombiner/CabinHole" unique_id=1062417846]
+[node name="CabinCore" type="CSGPolygon3D" parent="LeMansCombiner/CabinHole" unique_id=722749034]
 polygon = PackedVector2Array(-1.32, -2.4, 1.32, -2.4, 1.32, 0, 1.3136439, 0.03528617, 1.2946367, 0.07023252, 1.2631613, 0.10450249, 1.219521, 0.13776603, 1.1641362, 0.16970283, 1.0975399, 0.2000053, 1.0203738, 0.22838159, 0.933381, 0.25455844, 0.8373991, 0.27828377, 0.7333527, 0.29932907, 0.6222437, 0.31749165, 0.50514215, 0.33259666, 0.3831758, 0.34449854, 0.25751925, 0.35308272, 0.12938264, 0.3582665, 8.0826696e-17, 0.36, -0.12938264, 0.3582665, -0.25751925, 0.35308272, -0.3831758, 0.34449854, -0.50514215, 0.33259666, -0.6222437, 0.31749165, -0.7333527, 0.29932907, -0.8373991, 0.27828377, -0.933381, 0.25455844, -1.0203738, 0.22838159, -1.0975399, 0.2000053, -1.1641362, 0.16970283, -1.219521, 0.13776603, -1.2631613, 0.10450249, -1.2946367, 0.07023252, -1.3136439, 0.03528617, -1.32, 4.4087287e-17)
 mode = 2
 path_node = NodePath("../../MainSpine")
@@ -448,157 +448,157 @@ path_u_distance = 1.0
 path_joined = false
 smooth_faces = true
 
-[node name="@CSGBox3D@3" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=1395719585]
+[node name="@CSGBox3D@3" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=760361978]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3.5)
 operation = 2
 size = Vector3(4, 4, 4)
 
-[node name="@CSGBox3D@4" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=2042719071]
+[node name="@CSGBox3D@4" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=2055925626]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
 operation = 2
 size = Vector3(4, 4, 4)
 
-[node name="@CSGBox3D@5" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=873817212]
+[node name="@CSGBox3D@5" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=2067055558]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.3, -0.125, -1.7)
 operation = 2
 size = Vector3(1.1, 1.5, 1.5)
 
-[node name="_CSGBox3D_5" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=585551713]
+[node name="_CSGBox3D_5" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=1171520263]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3, -0.125, -1.7)
 operation = 2
 size = Vector3(1.1, 1.5, 1.5)
 
-[node name="@CSGBox3D@6" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=964792157]
+[node name="@CSGBox3D@6" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=442338842]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.3, -0.125, 1.75)
 operation = 2
 size = Vector3(1.1, 1.5, 1.5)
 
-[node name="@CSGBox3D@7" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=1066647686]
+[node name="@CSGBox3D@7" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=669311518]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3, -0.125, 1.75)
 operation = 2
 size = Vector3(1.1, 1.5, 1.5)
 
-[node name="@CSGBox3D@8" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=1705522488]
+[node name="@CSGBox3D@8" type="CSGBox3D" parent="LeMansCombiner/CabinHole" unique_id=1083026215]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.1, 0)
 operation = 2
-size = Vector3(4, 4, 4)
+size = Vector3(4, 4, 12)
 
-[node name="WindowFront" type="CSGBox3D" parent="LeMansCombiner" unique_id=1236778570]
+[node name="WindowFront" type="CSGBox3D" parent="LeMansCombiner" unique_id=1030706220]
 transform = Transform3D(1, 0, 0, 0, 0.95105654, -0.309017, 0, 0.309017, 0.95105654, 0, 0.55, -0.4625)
 operation = 2
 size = Vector3(1.4, 0.8, 1.925)
 
-[node name="WindowRight" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=1320813396]
+[node name="WindowRight" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=1033968435]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 1.4, 0.3, 0.1)
 operation = 2
 polygon = PackedVector2Array(0.7, 1.3322677e-16, 0.65625, 0.06383057, 0.6125, 0.12407227, 0.56875, 0.1807251, 0.525, 0.23378906, 0.48125, 0.28326416, 0.4375, 0.32915038, 0.39375, 0.37144774, 0.35, 0.41015625, 0.30625, 0.44527587, 0.2625, 0.47680664, 0.21875, 0.5047485, 0.175, 0.52910155, 0.13125, 0.5498657, 0.0875, 0.56704104, 0.04375, 0.58062744, 0, 0.590625, -0.04375, 0.5970337, -0.0875, 0.5998535, -0.13125, 0.5983724, -0.175, 0.590625, -0.21875, 0.5764974, -0.2625, 0.55598956, -0.30625, 0.52910155, -0.35, 0.49583334, -0.39375, 0.4561849, -0.4375, 0.41015625, -0.48125, 0.3577474, -0.525, 0.29895833, -0.56875, 0.23378906, -0.6125, 0.16223958, -0.65625, 0.0843099, -0.7, 0, 0.7, 0)
 depth = 1.5
 
-[node name="WindowLeft" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=1415419714]
+[node name="WindowLeft" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=1818639661]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -1.4, 0.3, 0.1)
 operation = 2
 polygon = PackedVector2Array(0.7, 1.3322677e-16, 0.65625, 0.06383057, 0.6125, 0.12407227, 0.56875, 0.1807251, 0.525, 0.23378906, 0.48125, 0.28326416, 0.4375, 0.32915038, 0.39375, 0.37144774, 0.35, 0.41015625, 0.30625, 0.44527587, 0.2625, 0.47680664, 0.21875, 0.5047485, 0.175, 0.52910155, 0.13125, 0.5498657, 0.0875, 0.56704104, 0.04375, 0.58062744, 0, 0.590625, -0.04375, 0.5970337, -0.0875, 0.5998535, -0.13125, 0.5983724, -0.175, 0.590625, -0.21875, 0.5764974, -0.2625, 0.55598956, -0.30625, 0.52910155, -0.35, 0.49583334, -0.39375, 0.4561849, -0.4375, 0.41015625, -0.48125, 0.3577474, -0.525, 0.29895833, -0.56875, 0.23378906, -0.6125, 0.16223958, -0.65625, 0.0843099, -0.7, 0, 0.7, 0)
 depth = 1.5
 
-[node name="WindowRear" type="CSGBox3D" parent="LeMansCombiner" unique_id=32419992]
+[node name="WindowRear" type="CSGBox3D" parent="LeMansCombiner" unique_id=460893327]
 transform = Transform3D(1, 0, 0, 0, 0.95105654, 0.309017, 0, -0.309017, 0.95105654, 0, 0.45, 1.075)
 operation = 2
 size = Vector3(1.2, 0.8, 1.75)
 
-[node name="SpoilerSupportL" type="CSGBox3D" parent="LeMansCombiner" unique_id=765971959]
+[node name="SpoilerSupportL" type="CSGBox3D" parent="LeMansCombiner" unique_id=49017590]
 transform = Transform3D(1, 0, 0, 0, 0.9238795, -0.38268346, 0, 0.38268346, 0.9238795, -0.7, 0.395, 2.545)
 size = Vector3(0.05, 0.81, 0.2)
 material = SubResource("StandardMaterial3D_n5q41")
 
-[node name="SpoilerSupportR" type="CSGBox3D" parent="LeMansCombiner" unique_id=115031289]
+[node name="SpoilerSupportR" type="CSGBox3D" parent="LeMansCombiner" unique_id=1006464391]
 transform = Transform3D(1, 0, 0, 0, 0.9238795, -0.38268346, 0, 0.38268346, 0.9238795, 0.7, 0.395, 2.545)
 size = Vector3(0.05, 0.81, 0.2)
 material = SubResource("StandardMaterial3D_n5q41")
 
-[node name="SpoilerWing" type="CSGBox3D" parent="LeMansCombiner" unique_id=166013559]
+[node name="SpoilerWing" type="CSGBox3D" parent="LeMansCombiner" unique_id=1242595190]
 transform = Transform3D(1, 0, 0, 0, 0.9961947, 0.08715574, 0, -0.08715574, 0.9961947, 0, 0.77, 2.7)
 size = Vector3(2.4, 0.05, 0.4)
 material = SubResource("StandardMaterial3D_n5q41")
 
-[node name="SpoilerEndplateL" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=737545324]
+[node name="SpoilerEndplateL" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=857441997]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -1.2, 0.77, 2.7)
 polygon = PackedVector2Array(-0.25, -0.12, -0.25, 0.12, 0.25, 0.15, 0.25, -0.15)
 depth = 0.05
 material = SubResource("StandardMaterial3D_n5q41")
 
-[node name="SpoilerEndplateR" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=786949560]
+[node name="SpoilerEndplateR" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=858834702]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 1.2, 0.77, 2.7)
 polygon = PackedVector2Array(-0.25, -0.12, -0.25, 0.12, 0.25, 0.15, 0.25, -0.15)
 depth = 0.05
 material = SubResource("StandardMaterial3D_n5q41")
 
-[node name="HeadlightL_Housing" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=1801223263]
+[node name="HeadlightL_Housing" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=354271637]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -0.95000005, 0.05, -2.74)
 polygon = PackedVector2Array(0.3, -0.1, 0.3, 0.15, 0.15, 0.18, 0, 0.19, -0.15, 0.2, -0.3, 0.2, -0.3, -0.1)
 depth = 0.3
 material = SubResource("StandardMaterial3D_0nhqq")
 
-[node name="HeadlightL_Cavity" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=1766988154]
+[node name="HeadlightL_Cavity" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=877693715]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -0.93, 0.05, -2.74)
 operation = 2
 polygon = PackedVector2Array(0.28, -0.08, 0.28, 0.13, 0.14, 0.16, 0, 0.17, -0.14, 0.18, -0.28, 0.18, -0.28, -0.08)
 depth = 0.26
 material = SubResource("StandardMaterial3D_alatb")
 
-[node name="HeadlightL_Cutter" type="CSGBox3D" parent="LeMansCombiner" unique_id=1606582053]
+[node name="HeadlightL_Cutter" type="CSGBox3D" parent="LeMansCombiner" unique_id=232027026]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8, 0.09, -3.04)
 operation = 2
 size = Vector3(0.24, 0.18, 0.1)
 material = SubResource("StandardMaterial3D_alatb")
 
-[node name="HeadlightR_Housing" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=1430265980]
+[node name="HeadlightR_Housing" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=891262100]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 0.65, 0.05, -2.74)
 polygon = PackedVector2Array(0.3, -0.1, 0.3, 0.15, 0.15, 0.18, 0, 0.19, -0.15, 0.2, -0.3, 0.2, -0.3, -0.1)
 depth = 0.3
 material = SubResource("StandardMaterial3D_0nhqq")
 
-[node name="HeadlightR_Cavity" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=163339689]
+[node name="HeadlightR_Cavity" type="CSGPolygon3D" parent="LeMansCombiner" unique_id=1606591727]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 0.67, 0.05, -2.74)
 operation = 2
 polygon = PackedVector2Array(0.28, -0.08, 0.28, 0.13, 0.14, 0.16, 0, 0.17, -0.14, 0.18, -0.28, 0.18, -0.28, -0.08)
 depth = 0.26
 material = SubResource("StandardMaterial3D_alatb")
 
-[node name="HeadlightR_Cutter" type="CSGBox3D" parent="LeMansCombiner" unique_id=2009987420]
+[node name="HeadlightR_Cutter" type="CSGBox3D" parent="LeMansCombiner" unique_id=464021608]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8, 0.09, -3.04)
 operation = 2
 size = Vector3(0.24, 0.18, 0.1)
 material = SubResource("StandardMaterial3D_alatb")
 
-[node name="TaillightBarLeft" type="CSGBox3D" parent="LeMansCombiner" unique_id=244188784]
+[node name="TaillightBarLeft" type="CSGBox3D" parent="LeMansCombiner" unique_id=1495493828]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6666667, 0.15, 3.3)
 size = Vector3(0.6666667, 0.04, 0.05)
 material = SubResource("StandardMaterial3D_koqta")
 
-[node name="TaillightBarRight" type="CSGBox3D" parent="LeMansCombiner" unique_id=1939899831]
+[node name="TaillightBarRight" type="CSGBox3D" parent="LeMansCombiner" unique_id=480634272]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6666667, 0.15, 3.3)
 size = Vector3(0.6666667, 0.04, 0.05)
 material = SubResource("StandardMaterial3D_koqta")
 
-[node name="TaillightBarMiddle" type="CSGBox3D" parent="LeMansCombiner" unique_id=1286545762]
+[node name="TaillightBarMiddle" type="CSGBox3D" parent="LeMansCombiner" unique_id=698323199]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 3.3)
 size = Vector3(0.6666667, 0.04, 0.05)
 material = SubResource("StandardMaterial3D_0nhqq")
 
-[node name="TaillightConnectorLeft" type="CSGBox3D" parent="LeMansCombiner" unique_id=1765724216]
+[node name="TaillightConnectorLeft" type="CSGBox3D" parent="LeMansCombiner" unique_id=2081245105]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.16, 0.1, 3.3)
 size = Vector3(0.05, 0.1, 0.05)
 material = SubResource("StandardMaterial3D_0nhqq")
 
-[node name="TaillightConnectorRight" type="CSGBox3D" parent="LeMansCombiner" unique_id=816576341]
+[node name="TaillightConnectorRight" type="CSGBox3D" parent="LeMansCombiner" unique_id=1660764934]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.16, 0.1, 3.3)
 size = Vector3(0.05, 0.1, 0.05)
 material = SubResource("StandardMaterial3D_0nhqq")
 
-[node name="CabinGlass" type="CSGCombiner3D" parent="." unique_id=499832106]
+[node name="CabinGlass" type="CSGCombiner3D" parent="." unique_id=283014306]
 transform = Transform3D(0.99, 0, 0, 0, 0.99, 0, 0, 0, 0.99, 0, 0, 0)
 
-[node name="CabinCore" type="CSGPolygon3D" parent="CabinGlass" unique_id=1326757933]
+[node name="CabinCore" type="CSGPolygon3D" parent="CabinGlass" unique_id=1104280059]
 polygon = PackedVector2Array(-1.32, -2.4, 1.32, -2.4, 1.32, 0, 1.3136439, 0.03528617, 1.2946367, 0.07023252, 1.2631613, 0.10450249, 1.219521, 0.13776603, 1.1641362, 0.16970283, 1.0975399, 0.2000053, 1.0203738, 0.22838159, 0.933381, 0.25455844, 0.8373991, 0.27828377, 0.7333527, 0.29932907, 0.6222437, 0.31749165, 0.50514215, 0.33259666, 0.3831758, 0.34449854, 0.25751925, 0.35308272, 0.12938264, 0.3582665, 8.0826696e-17, 0.36, -0.12938264, 0.3582665, -0.25751925, 0.35308272, -0.3831758, 0.34449854, -0.50514215, 0.33259666, -0.6222437, 0.31749165, -0.7333527, 0.29932907, -0.8373991, 0.27828377, -0.933381, 0.25455844, -1.0203738, 0.22838159, -1.0975399, 0.2000053, -1.1641362, 0.16970283, -1.219521, 0.13776603, -1.2631613, 0.10450249, -1.2946367, 0.07023252, -1.3136439, 0.03528617, -1.32, 4.4087287e-17)
 mode = 2
 path_node = NodePath("../../LeMansCombiner/MainSpine")
@@ -614,52 +614,52 @@ path_joined = false
 smooth_faces = true
 material = SubResource("StandardMaterial3D_vhb54")
 
-[node name="@CSGBox3D@9" type="CSGBox3D" parent="CabinGlass" unique_id=279624457]
+[node name="@CSGBox3D@9" type="CSGBox3D" parent="CabinGlass" unique_id=1407982807]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3.5)
 operation = 2
 size = Vector3(4, 4, 4)
 
-[node name="@CSGBox3D@10" type="CSGBox3D" parent="CabinGlass" unique_id=1264019686]
+[node name="@CSGBox3D@10" type="CSGBox3D" parent="CabinGlass" unique_id=1142714118]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
 operation = 2
 size = Vector3(4, 4, 4)
 
-[node name="@CSGBox3D@11" type="CSGBox3D" parent="CabinGlass" unique_id=1666875534]
+[node name="@CSGBox3D@11" type="CSGBox3D" parent="CabinGlass" unique_id=133774186]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.3, -0.125, -1.7)
 operation = 2
 size = Vector3(1.1, 1.5, 1.5)
 
-[node name="_CSGBox3D_11" type="CSGBox3D" parent="CabinGlass" unique_id=1188338830]
+[node name="_CSGBox3D_11" type="CSGBox3D" parent="CabinGlass" unique_id=747161705]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3, -0.125, -1.7)
 operation = 2
 size = Vector3(1.1, 1.5, 1.5)
 
-[node name="@CSGBox3D@12" type="CSGBox3D" parent="CabinGlass" unique_id=725097781]
+[node name="@CSGBox3D@12" type="CSGBox3D" parent="CabinGlass" unique_id=1512963752]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.3, -0.125, 1.75)
 operation = 2
 size = Vector3(1.1, 1.5, 1.5)
 
-[node name="@CSGBox3D@13" type="CSGBox3D" parent="CabinGlass" unique_id=710355034]
+[node name="@CSGBox3D@13" type="CSGBox3D" parent="CabinGlass" unique_id=817629291]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3, -0.125, 1.75)
 operation = 2
 size = Vector3(1.1, 1.5, 1.5)
 
-[node name="@CSGBox3D@14" type="CSGBox3D" parent="CabinGlass" unique_id=948893064]
+[node name="@CSGBox3D@14" type="CSGBox3D" parent="CabinGlass" unique_id=1166909793]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.1, 0)
 operation = 2
-size = Vector3(4, 4, 4)
+size = Vector3(4, 4, 12)
 
-[node name="HeadlightL_Glass" type="MeshInstance3D" parent="." unique_id=1560504751]
+[node name="HeadlightL_Glass" type="MeshInstance3D" parent="." unique_id=1577483618]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8, 0.09, -3.03)
 material_override = SubResource("StandardMaterial3D_yo8v2")
 mesh = SubResource("BoxMesh_pfx71")
 
-[node name="HeadlightL_Bulb" type="MeshInstance3D" parent="." unique_id=1172072192]
+[node name="HeadlightL_Bulb" type="MeshInstance3D" parent="." unique_id=742944773]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8, 0.1, -2.89)
 material_override = SubResource("StandardMaterial3D_wljtg")
 mesh = SubResource("SphereMesh_sl8sc")
 
-[node name="HeadlightL_SpotLight" type="SpotLight3D" parent="." unique_id=81817798]
+[node name="HeadlightL_SpotLight" type="SpotLight3D" parent="." unique_id=1816686157]
 transform = Transform3D(1, 0, 0, 0, 0.9961947, 0.08715574, 0, -0.08715574, 0.9961947, -0.8, 0.1, -2.89)
 light_color = Color(1, 0.95, 0.9, 1)
 light_energy = 12.0
@@ -667,17 +667,17 @@ shadow_enabled = true
 spot_range = 60.0
 spot_angle = 35.0
 
-[node name="HeadlightR_Glass" type="MeshInstance3D" parent="." unique_id=1239750815]
+[node name="HeadlightR_Glass" type="MeshInstance3D" parent="." unique_id=62462442]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8, 0.09, -3.03)
 material_override = SubResource("StandardMaterial3D_yo8v2")
 mesh = SubResource("BoxMesh_wk75w")
 
-[node name="HeadlightR_Bulb" type="MeshInstance3D" parent="." unique_id=472866259]
+[node name="HeadlightR_Bulb" type="MeshInstance3D" parent="." unique_id=54566427]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8, 0.1, -2.89)
 material_override = SubResource("StandardMaterial3D_wljtg")
 mesh = SubResource("SphereMesh_66gff")
 
-[node name="HeadlightR_SpotLight" type="SpotLight3D" parent="." unique_id=1260987008]
+[node name="HeadlightR_SpotLight" type="SpotLight3D" parent="." unique_id=1567926716]
 transform = Transform3D(1, 0, 0, 0, 0.9961947, 0.08715574, 0, -0.08715574, 0.9961947, 0.8, 0.1, -2.89)
 light_color = Color(1, 0.95, 0.9, 1)
 light_energy = 12.0
@@ -685,21 +685,21 @@ shadow_enabled = true
 spot_range = 60.0
 spot_angle = 35.0
 
-[node name="RearDiffuser" type="CSGCombiner3D" parent="." unique_id=52427874]
+[node name="RearDiffuser" type="CSGCombiner3D" parent="." unique_id=2067290186]
 
-[node name="DiffuserPanel" type="CSGPolygon3D" parent="RearDiffuser" unique_id=1290754103]
+[node name="DiffuserPanel" type="CSGPolygon3D" parent="RearDiffuser" unique_id=946931452]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.15, 3.45)
 polygon = PackedVector2Array(0.9, 0.1, 0.8980785, 0.119509034, 0.8923879, 0.13826834, 0.88314694, 0.15555702, 0.8707107, 0.17071068, 0.855557, 0.18314697, 0.83826834, 0.19238795, 0.819509, 0.19807853, 0.8, 0.2, -0.8, 0.2, -0.819509, 0.19807853, -0.83826834, 0.19238795, -0.855557, 0.18314697, -0.8707107, 0.17071068, -0.88314694, 0.15555702, -0.8923879, 0.13826834, -0.8980785, 0.119509034, -0.9, 0.1, -0.9, -0.1, -0.8980785, -0.119509034, -0.8923879, -0.13826834, -0.88314694, -0.15555702, -0.8707107, -0.17071068, -0.855557, -0.18314697, -0.83826834, -0.19238795, -0.819509, -0.19807853, -0.8, -0.2, 0.8, -0.2, 0.819509, -0.19807853, 0.83826834, -0.19238795, 0.855557, -0.18314697, 0.8707107, -0.17071068, 0.88314694, -0.15555702, 0.8923879, -0.13826834, 0.8980785, -0.119509034, 0.9, -0.1)
 depth = 0.8
 material = SubResource("StandardMaterial3D_gx32f")
 
-[node name="CutBox1" type="CSGBox3D" parent="RearDiffuser" unique_id=997584171]
+[node name="CutBox1" type="CSGBox3D" parent="RearDiffuser" unique_id=1976710253]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.56666666, -0.12, 3.6)
 operation = 2
 size = Vector3(0.2, 0.118, 0.8)
 material = SubResource("StandardMaterial3D_gx32f")
 
-[node name="CutCylL1" type="CSGCylinder3D" parent="RearDiffuser" unique_id=1065588699]
+[node name="CutCylL1" type="CSGCylinder3D" parent="RearDiffuser" unique_id=2042397055]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, -0.6666667, -0.12, 3.6)
 operation = 2
 radius = 0.06
@@ -707,7 +707,7 @@ height = 0.8
 sides = 64
 material = SubResource("StandardMaterial3D_gx32f")
 
-[node name="CutCylR1" type="CSGCylinder3D" parent="RearDiffuser" unique_id=1656680457]
+[node name="CutCylR1" type="CSGCylinder3D" parent="RearDiffuser" unique_id=921167767]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, -0.46666667, -0.12, 3.6)
 operation = 2
 radius = 0.06
@@ -715,14 +715,14 @@ height = 0.8
 sides = 64
 material = SubResource("StandardMaterial3D_gx32f")
 
-[node name="PipeOut1_1" type="CSGCylinder3D" parent="RearDiffuser" unique_id=481280382]
+[node name="PipeOut1_1" type="CSGCylinder3D" parent="RearDiffuser" unique_id=1589630440]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, -0.62666667, -0.12, 3.45)
 radius = 0.04
 height = 0.2
 sides = 64
 material = SubResource("StandardMaterial3D_alatb")
 
-[node name="PipeIn1_1" type="CSGCylinder3D" parent="RearDiffuser" unique_id=174134701]
+[node name="PipeIn1_1" type="CSGCylinder3D" parent="RearDiffuser" unique_id=550054289]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, -0.62666667, -0.12, 3.46)
 operation = 2
 radius = 0.03
@@ -730,14 +730,14 @@ height = 0.21
 sides = 64
 material = SubResource("StandardMaterial3D_1lb47")
 
-[node name="PipeOut1_2" type="CSGCylinder3D" parent="RearDiffuser" unique_id=1977319745]
+[node name="PipeOut1_2" type="CSGCylinder3D" parent="RearDiffuser" unique_id=684796786]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, -0.50666666, -0.12, 3.45)
 radius = 0.04
 height = 0.2
 sides = 64
 material = SubResource("StandardMaterial3D_alatb")
 
-[node name="PipeIn1_2" type="CSGCylinder3D" parent="RearDiffuser" unique_id=192754351]
+[node name="PipeIn1_2" type="CSGCylinder3D" parent="RearDiffuser" unique_id=1010871644]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, -0.50666666, -0.12, 3.46)
 operation = 2
 radius = 0.03
@@ -745,13 +745,13 @@ height = 0.21
 sides = 64
 material = SubResource("StandardMaterial3D_aprry")
 
-[node name="@CSGBox3D@15" type="CSGBox3D" parent="RearDiffuser" unique_id=1502867698]
+[node name="@CSGBox3D@15" type="CSGBox3D" parent="RearDiffuser" unique_id=2130110360]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.56666666, -0.12, 3.6)
 operation = 2
 size = Vector3(0.2, 0.118, 0.8)
 material = SubResource("StandardMaterial3D_gx32f")
 
-[node name="@CSGCylinder3D@16" type="CSGCylinder3D" parent="RearDiffuser" unique_id=1538989439]
+[node name="@CSGCylinder3D@16" type="CSGCylinder3D" parent="RearDiffuser" unique_id=1099878195]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0.46666667, -0.12, 3.6)
 operation = 2
 radius = 0.06
@@ -759,7 +759,7 @@ height = 0.8
 sides = 64
 material = SubResource("StandardMaterial3D_gx32f")
 
-[node name="@CSGCylinder3D@17" type="CSGCylinder3D" parent="RearDiffuser" unique_id=724093712]
+[node name="@CSGCylinder3D@17" type="CSGCylinder3D" parent="RearDiffuser" unique_id=78325054]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0.6666667, -0.12, 3.6)
 operation = 2
 radius = 0.06
@@ -767,14 +767,14 @@ height = 0.8
 sides = 64
 material = SubResource("StandardMaterial3D_gx32f")
 
-[node name="@CSGCylinder3D@18" type="CSGCylinder3D" parent="RearDiffuser" unique_id=2047787358]
+[node name="@CSGCylinder3D@18" type="CSGCylinder3D" parent="RearDiffuser" unique_id=848310434]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0.50666666, -0.12, 3.45)
 radius = 0.04
 height = 0.2
 sides = 64
 material = SubResource("StandardMaterial3D_alatb")
 
-[node name="@CSGCylinder3D@19" type="CSGCylinder3D" parent="RearDiffuser" unique_id=1476915831]
+[node name="@CSGCylinder3D@19" type="CSGCylinder3D" parent="RearDiffuser" unique_id=211374329]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0.50666666, -0.12, 3.46)
 operation = 2
 radius = 0.03
@@ -782,14 +782,14 @@ height = 0.21
 sides = 64
 material = SubResource("StandardMaterial3D_e2ui3")
 
-[node name="@CSGCylinder3D@20" type="CSGCylinder3D" parent="RearDiffuser" unique_id=2009908793]
+[node name="@CSGCylinder3D@20" type="CSGCylinder3D" parent="RearDiffuser" unique_id=1598757779]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0.62666667, -0.12, 3.45)
 radius = 0.04
 height = 0.2
 sides = 64
 material = SubResource("StandardMaterial3D_alatb")
 
-[node name="@CSGCylinder3D@21" type="CSGCylinder3D" parent="RearDiffuser" unique_id=170143341]
+[node name="@CSGCylinder3D@21" type="CSGCylinder3D" parent="RearDiffuser" unique_id=1230595128]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0.62666667, -0.12, 3.46)
 operation = 2
 radius = 0.03

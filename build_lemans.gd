@@ -217,7 +217,7 @@ func _ready():
 		# Chop off the bottom (floor)
 		var bot_chop = CSGBox3D.new()
 		bot_chop.operation = CSGCombiner3D.OPERATION_SUBTRACTION
-		bot_chop.size = Vector3(4.0, 4.0, 4.0)
+		bot_chop.size = Vector3(4.0, 4.0, 12.0)
 		bot_chop.position = Vector3(0, -2.1, 0) # Cuts off everything below Y = -0.1 (30cm up from the floor)
 		cab_comb.add_child(bot_chop)
 		
