@@ -13,38 +13,55 @@ func _ready() -> void:
 	
 	var col = CollisionShape3D.new()
 	var shape = SphereShape3D.new()
-	shape.radius = 1.5
+	shape.radius = 2.25 # 50% larger collision sphere
 	col.shape = shape
 	add_child(col)
 	
 	visual_group = Node3D.new()
 	add_child(visual_group)
 	
-	# 8-faced glass diamond (octahedron constructed from 4-sided cones)
+	# Procedural cellular noise for crystalline granular texture
+	var noise = FastNoiseLite.new()
+	noise.noise_type = FastNoiseLite.TYPE_CELLULAR
+	noise.frequency = 0.08
+	noise.cellular_distance_function = FastNoiseLite.DISTANCE_EUCLIDEAN
+	noise.cellular_return_type = FastNoiseLite.RETURN_CELL_VALUE
+	
+	var ntex = NoiseTexture2D.new()
+	ntex.noise = noise
+	ntex.width = 256
+	ntex.height = 256
+	ntex.seamless = true
+	
+	# 8-faced glass diamond (50% larger octahedron constructed from 4-sided cones)
 	var mat = StandardMaterial3D.new()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.6, 0.1, 0.9, 0.75) # Purple glass
-	mat.roughness = 0.1
+	mat.albedo_color = Color(0.08, 0.0, 0.25, 0.9) # Dark royal purple glass
+	mat.roughness = 0.2
+	mat.roughness_texture = ntex
+	mat.normal_enabled = true
+	mat.normal_scale = 0.6
+	mat.normal_texture = ntex
 	mat.emission_enabled = true
-	mat.emission = Color(0.8, 0.2, 1.0)
-	mat.emission_energy_multiplier = 2.0
+	mat.emission = Color(0.35, 0.02, 0.7) # Deep darker ultraviolet glow
+	mat.emission_energy_multiplier = 6.0 # 3x emission glow (was 2.0)
 	
 	var top_cone = CSGCylinder3D.new()
-	top_cone.radius = 0.8
-	top_cone.height = 1.0
+	top_cone.radius = 1.2 # 50% larger (was 0.8)
+	top_cone.height = 1.5 # 50% larger (was 1.0)
 	top_cone.sides = 4
 	top_cone.cone = true
-	top_cone.position.y = 0.5
+	top_cone.position.y = 0.75 # 50% larger offset (was 0.5)
 	top_cone.material = mat
 	visual_group.add_child(top_cone)
 	
 	var bottom_cone = CSGCylinder3D.new()
-	bottom_cone.radius = 0.8
-	bottom_cone.height = 1.0
+	bottom_cone.radius = 1.2 # 50% larger
+	bottom_cone.height = 1.5 # 50% larger
 	bottom_cone.sides = 4
 	bottom_cone.cone = true
 	bottom_cone.rotation_degrees.x = 180.0
-	bottom_cone.position.y = -0.5
+	bottom_cone.position.y = -0.75 # 50% larger offset
 	bottom_cone.material = mat
 	visual_group.add_child(bottom_cone)
 	
@@ -52,8 +69,8 @@ func _ready() -> void:
 	sparkle_mat = ParticleProcessMaterial.new()
 	sparkle_mat.direction = Vector3(0, 1, 0)
 	sparkle_mat.spread = 180.0
-	sparkle_mat.initial_velocity_min = 4.0
-	sparkle_mat.initial_velocity_max = 8.0
+	sparkle_mat.initial_velocity_min = 5.0
+	sparkle_mat.initial_velocity_max = 10.0
 	sparkle_mat.gravity = Vector3(0, -2.0, 0)
 	
 	var curve = Curve.new()
@@ -62,13 +79,13 @@ func _ready() -> void:
 	var ctex = CurveTexture.new()
 	ctex.curve = curve
 	sparkle_mat.scale_curve = ctex
-	sparkle_mat.scale_min = 0.2
-	sparkle_mat.scale_max = 0.4
+	sparkle_mat.scale_min = 0.3 # Larger sparkles
+	sparkle_mat.scale_max = 0.6
 	
 	var grad = Gradient.new()
-	grad.add_point(0.0, Color(1.0, 0.2, 1.0, 1.0))
-	grad.add_point(0.5, Color(0.6, 0.0, 1.0, 0.8))
-	grad.add_point(1.0, Color(0.0, 1.0, 1.0, 0.0))
+	grad.add_point(0.0, Color(0.45, 0.05, 0.85, 1.0))
+	grad.add_point(0.5, Color(0.2, 0.0, 0.5, 0.9))
+	grad.add_point(1.0, Color(0.05, 0.0, 0.2, 0.0))
 	var gtex = GradientTexture1D.new()
 	gtex.gradient = grad
 	sparkle_mat.color_ramp = gtex
@@ -81,7 +98,7 @@ func _process(delta: float) -> void:
 			collision_layer = 4
 	else:
 		visual_group.rotation.y += 1.5 * delta
-		position.y = base_y + sin(Time.get_ticks_msec() * 0.003) * 0.3
+		position.y = base_y + sin(Time.get_ticks_msec() * 0.003) * 0.4 # Slightly wider bobbing (±0.4m)
 
 func on_nitro_collected(car: Node) -> void:
 	if respawn_timer > 0.0 or not visible:
@@ -92,15 +109,14 @@ func on_nitro_collected(car: Node) -> void:
 		
 	# Sparkle burst
 	var burst = GPUParticles3D.new()
-	burst.amount = 40
+	burst.amount = 60 # Scaled up particle count
 	burst.lifetime = 0.6
 	burst.one_shot = true
 	burst.explosiveness = 0.9
-	burst.position = global_position
 	burst.process_material = sparkle_mat
 	
 	var mesh = QuadMesh.new()
-	mesh.size = Vector2(0.3, 0.3)
+	mesh.size = Vector2(0.4, 0.4) # Larger quad particles
 	var bmat = StandardMaterial3D.new()
 	bmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	bmat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
@@ -110,16 +126,22 @@ func on_nitro_collected(car: Node) -> void:
 	mesh.material = bmat
 	burst.draw_pass_1 = mesh
 	
-	get_tree().current_scene.add_child(burst)
+	var parent_node = get_parent() if get_parent() else get_tree().root
+	parent_node.add_child(burst)
+	burst.global_position = global_position
 	burst.emitting = true
+	
+	# Automatically clean up particles after lifetime
+	var timer = get_tree().create_timer(1.0)
+	timer.timeout.connect(burst.queue_free)
 
 	# Audio feedback
 	if ClassDB.class_exists("FmodServer"):
 		if FmodServer.has_method("create_event_instance"):
-			var ev = FmodServer.create_event_instance("event:/Interactables/Wooden Collision")
+			var ev = FmodServer.create_event_instance("event:/Interactables/ping")
 			if ev:
-				if ev.has_method("set_parameter_by_name"):
-					ev.set_parameter_by_name("speed", 50.0)
+				# if ev.has_method("set_parameter_by_name"):
+				# 	ev.set_parameter_by_name("speed", 50.0)
 				if ev.has_method("set_3d_attributes"):
 					ev.set_3d_attributes(global_transform)
 				if ev.has_method("start"):

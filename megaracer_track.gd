@@ -257,7 +257,7 @@ func _ready():
 				powerup.set_script(nitro_script)
 				
 				var px = w * 0.85
-				var py = yc + m * (px - xc) + 1.5
+				var py = yc + m * (px - xc) + 2.2
 				var pz = -float(data["d"]) * 0.5
 				
 				var local_pos = Vector3(px, py, pz)

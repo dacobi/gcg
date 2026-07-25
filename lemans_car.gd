@@ -624,7 +624,7 @@ func _physics_process(delta: float) -> void:
 	elif shift_timer > 0.0:
 		shift_timer -= delta
 		# Clutch is in: purely visual and audio gear shift effect (no momentum loss)
-		target_rpm = 6500.0
+		target_rpm = 5000.0
 		engine_rpm = lerp(engine_rpm, target_rpm, 6.0 * delta)
 	elif current_gear_sim >= 0 and motor_input <= 0.05:
 		# Coasting without throttle: clutch disengaged, RPM drops smoothly to idle (~1000 RPM).
@@ -636,9 +636,9 @@ func _physics_process(delta: float) -> void:
 		var gear_speed = 0.0
 		
 		if current_gear_sim == -1:
-			# Reverse gear logic (max 50 km/h = 13.88 m/s, max 4000 RPM)
+			# Reverse gear logic (max 50 km/h = 13.88 m/s, max 5000 RPM)
 			gear_speed = clamp(speed / 13.88, 0.0, 1.0)
-			target_rpm = lerp(1000.0, 4000.0, gear_speed)
+			target_rpm = lerp(1000.0, 5000.0, gear_speed)
 		elif current_gear_sim == -2:
 			# Neutral gear
 			target_rpm = 1000.0
@@ -650,10 +650,10 @@ func _physics_process(delta: float) -> void:
 			if current_gear_sim <= 0:
 				target_rpm = lerp(1000.0, 9000.0, gear_speed)
 			else:
-				target_rpm = lerp(6500.0, 9000.0, gear_speed)
+				target_rpm = lerp(5000.0, 9000.0, gear_speed)
 		
 		# Clamp to realistic limits
-		var max_rpm = 4000.0 if current_gear_sim == -1 else 10000.0
+		var max_rpm = 5000.0 if current_gear_sim == -1 else 10000.0
 		target_rpm = clamp(target_rpm, 1000.0, max_rpm)
 		
 		# Responsive approach to target (crisp re-engagement when throttle is pressed)
@@ -710,42 +710,39 @@ func _setup_nitro_flames() -> void:
 		Vector3(0.626, -0.12, 3.45)
 	]
 	for pos in positions:
-		var parts = GPUParticles3D.new()
-		parts.amount = 32
-		parts.lifetime = 0.25
-		parts.speed_scale = 1.5
-		parts.explosiveness = 0.1
+		var parts = CPUParticles3D.new()
+		parts.amount = 200
+		parts.lifetime = 0.08
+		parts.speed_scale = 1.0
+		parts.explosiveness = 0.05
 		parts.position = pos
+		parts.local_coords = true # Emit in local car space so flames are 100% solid, coherent, and gap-free at any speed!
 		
-		var pmat = ParticleProcessMaterial.new()
-		pmat.direction = Vector3(0, 0, 1) # Shoot backward along +Z
-		pmat.spread = 8.0
-		pmat.initial_velocity_min = 8.0
-		pmat.initial_velocity_max = 14.0
-		pmat.gravity = Vector3(0, 2.0, 0)
+		parts.direction = Vector3(0, 0, 1) # Shoot backward along +Z
+		parts.spread = 0.5 # Laser-focused blowtorch jet (was 5.0)
+		parts.gravity = Vector3(0, 1.0, 0) # Slight upward heat rise
+		parts.initial_velocity_min = 15.0
+		parts.initial_velocity_max = 25.0
 		
+		# Scale taper from 6cm down to 1.2cm needle point
 		var curve = Curve.new()
 		curve.add_point(Vector2(0.0, 1.0))
-		curve.add_point(Vector2(1.0, 0.1))
-		var curve_tex = CurveTexture.new()
-		curve_tex.curve = curve
-		pmat.scale_curve = curve_tex
-		pmat.scale_min = 0.12
-		pmat.scale_max = 0.18
+		curve.add_point(Vector2(1.0, 0.2))
+		parts.scale_amount_curve = curve
+		parts.scale_amount_min = 1.0
+		parts.scale_amount_max = 1.0
 		
+		# Color gradient: Short Blue Root (0-15%) -> Darker Burnt Orange (40%) -> Crimson Red (75%)
 		var grad = Gradient.new()
-		grad.add_point(0.0, Color(0.2, 0.5, 1.0, 1.0))   # Blue base
-		grad.add_point(0.3, Color(1.0, 0.6, 0.1, 1.0))   # Orange body
-		grad.add_point(0.7, Color(1.0, 0.2, 0.0, 0.8))   # Red tongue
-		grad.add_point(1.0, Color(0.3, 0.0, 0.0, 0.0))   # Fade out
-		var grad_tex = GradientTexture1D.new()
-		grad_tex.gradient = grad
-		pmat.color_ramp = grad_tex
-		
-		parts.process_material = pmat
+		grad.add_point(0.0, Color(0.0, 0.5, 1.0, 1.0))   # Hot electric blue root
+		grad.add_point(0.15, Color(0.0, 0.7, 1.0, 1.0))  # Short blue nozzle core (0-15%)
+		grad.add_point(0.4, Color(0.85, 0.3, 0.0, 0.95)) # Darker burnt orange
+		grad.add_point(0.75, Color(0.6, 0.05, 0.0, 0.8)) # Deep darker crimson red
+		grad.add_point(1.0, Color(0.2, 0.0, 0.0, 0.0))   # Fade out
+		parts.color_ramp = grad
 		
 		var mesh = QuadMesh.new()
-		mesh.size = Vector2(0.2, 0.2)
+		mesh.size = Vector2(0.06, 0.06) # 6cm diameter exactly matching tailpipe
 		var mat = StandardMaterial3D.new()
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
@@ -753,7 +750,7 @@ func _setup_nitro_flames() -> void:
 		mat.vertex_color_use_as_albedo = true
 		mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 		mesh.material = mat
-		parts.draw_pass_1 = mesh
+		parts.mesh = mesh
 		
 		parts.emitting = false
 		add_child(parts)
