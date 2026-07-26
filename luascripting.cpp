@@ -265,6 +265,7 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("godotDeleteNode", lua_godotDeleteNode);
     reg("godotAttachScript", lua_godotAttachScript);
     reg("godotSetProperty", lua_godotSetProperty);
+    reg("godotRegisterImpulseProperty", lua_godotRegisterImpulseProperty);
     reg("godotGetProperty", lua_godotGetProperty);
     reg("godotWatchProperty", lua_godotWatchProperty);
     reg("godotWatchSignal", lua_godotWatchSignal);
@@ -1583,13 +1584,27 @@ int LuaScripting::lua_godotAttachScript(lua_State* L) {
     return 0;
 }
 
+int LuaScripting::lua_godotRegisterImpulseProperty(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isstring(L, 1) && self) {
+        std::string name = lua_tostring(L, 1);
+        std::lock_guard<std::mutex> lock(self->threadsMutex);
+        self->impulse_properties.insert(name);
+    }
+    return 0;
+}
+
 int LuaScripting::lua_godotSetProperty(lua_State* L) {
     LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
     if (lua_isstring(L, 1) && self && self->godotCmdFunc) {
         std::string name = lua_tostring(L, 1);
         void* target = lua_islightuserdata(L, 3) ? lua_touserdata(L, 3) : nullptr;
         
-        bool is_impulse = (name == "reset_car" || name == "reset_game");
+        bool is_impulse = false;
+        {
+            std::lock_guard<std::mutex> lock(self->threadsMutex);
+            is_impulse = (self->impulse_properties.find(name) != self->impulse_properties.end());
+        }
         
         if (lua_isnumber(L, 2)) {
             float val = (float)lua_tonumber(L, 2);

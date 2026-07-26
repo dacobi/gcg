@@ -11,6 +11,7 @@
 #include <condition_variable>
 #include <memory>
 #include <map>
+#include <set>
 #include <utility>
 
 struct LuaSyncData {
@@ -236,6 +237,7 @@ private:
     static int lua_godotSaveHighScore(lua_State* L);
     static int lua_godotLoadCarSettings(lua_State* L);
     static int lua_godotSaveCarSettings(lua_State* L);
+    static int lua_godotRegisterImpulseProperty(lua_State* L);
 
     static void lua_hook(lua_State* L, lua_Debug* ar);
 
@@ -249,6 +251,7 @@ private:
     std::mutex threadsMutex;
     
     // C++ Property caching maps
+    std::set<std::string> impulse_properties;
     std::map<std::pair<void*, std::string>, float> last_float_sets;
     std::map<std::pair<void*, std::string>, std::string> last_string_sets;
     std::map<std::pair<void*, std::string>, bool> last_bool_sets;

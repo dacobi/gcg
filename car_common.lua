@@ -2,6 +2,16 @@
 -- Included via dofile("car_common.lua")
 
 function initCarPhysicsDefaults()
+	-- Register impulse properties so C++ never caches/skips their property sets
+	if godotRegisterImpulseProperty then
+		godotRegisterImpulseProperty("reset_car")
+		godotRegisterImpulseProperty("reset_game")
+		godotRegisterImpulseProperty("key_d_pressed")
+		godotRegisterImpulseProperty("key_n_pressed")
+		godotRegisterImpulseProperty("key_e_pressed")
+		godotRegisterImpulseProperty("key_c_pressed")
+	end
+
 	setGlobalFloat("engine_force_value", 90000.0)
 	setGlobalFloat("brake_force_value", 400.0)
 	setGlobalFloat("max_steer", 1.2)
