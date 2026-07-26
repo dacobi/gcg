@@ -406,8 +406,8 @@ func _ready():
 			var pos = Vector3(x, y, z)
 			curve.add_point(pos)
 			
-			# Set tilt (banking) relative to the curvature
-			var bank = 0.5 * sin(t * 2.0)
+			# Set tilt (banking) relative to the curvature (NASCAR cornering, level straightaways)
+			var bank = -0.18 * sin(t)
 			curve.set_point_tilt(i, bank)
 			
 		# Close the loop by adding the first point again
