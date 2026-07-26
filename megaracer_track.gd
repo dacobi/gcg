@@ -29,10 +29,20 @@ var halfway_cleared: bool = false
 
 var hud_layer: CanvasLayer
 var lap_label: Label
+var time_label: Label
 var countdown_label: Label
 var beep_player: AudioStreamPlayer
 var beep_low_stream: AudioStream
 var beep_high_stream: AudioStream
+var victory_jingle_player: AudioStreamPlayer
+
+var race_time: float = 0.0
+var current_lap_time: float = 0.0
+var lap_times: Array = []
+var race_finished: bool = false
+var victory_lap_timer: float = 0.0
+var victory_panel: Control = null
+var victory_popup_menu: Control = null
 
 var in_edit_mode = false
 var is_square = false
@@ -720,6 +730,18 @@ func _process(delta):
 			if countdown_timer <= 0.0:
 				countdown_label.visible = false
 
+	if countdown_value < 0 and not race_finished and current_lap > 0:
+		race_time += delta
+		current_lap_time += delta
+
+	if time_label:
+		time_label.text = "TIME: " + format_time(race_time) + "\nLAP: " + format_time(current_lap_time)
+
+	if race_finished:
+		victory_lap_timer += delta
+		if victory_lap_timer >= 10.0 and victory_popup_menu and not victory_popup_menu.visible:
+			victory_popup_menu.visible = true
+
 	# Handle Edit Mode trigger state changes from Lua properties
 	# Read and clear trigger states from Lua immediately every frame to prevent stuck triggers
 	var trigger_e = key_e_pressed
@@ -848,6 +870,13 @@ func _process(delta):
 		reset_car = false
 		current_lap = 0
 		halfway_cleared = false
+		race_time = 0.0
+		current_lap_time = 0.0
+		lap_times.clear()
+		race_finished = false
+		victory_lap_timer = 0.0
+		if victory_panel: victory_panel.visible = false
+		if victory_popup_menu: victory_popup_menu.visible = false
 		if not is_square:
 			countdown_value = 3
 			countdown_timer = 1.0
@@ -1130,12 +1159,64 @@ func _on_halfway_area_entered(area: Area3D):
 	if area.name == "CheckpointSphere" or (supercar and area.get_parent() == supercar):
 		halfway_cleared = true
 
+func format_time(t: float) -> String:
+	var mins = int(t) / 60
+	var secs = int(t) % 60
+	var millis = int((t - float(int(t))) * 100.0)
+	return "%02d:%02d.%02d" % [mins, secs, millis]
+
+func spawn_fireworks():
+	var colors = [Color(0.0, 1.0, 1.0), Color(1.0, 0.0, 1.0), Color(1.0, 0.9, 0.1), Color(0.2, 1.0, 0.2)]
+	for i in range(8):
+		var particles = CPUParticles3D.new()
+		particles.name = "CelebrationFireworks_" + str(i)
+		add_child(particles)
+		var gate_t = path_node.global_transform * path_node.curve.sample_baked_with_rotation(15.0, true, true)
+		var offset = Vector3(randf_range(-40.0, 40.0), randf_range(15.0, 40.0), randf_range(-30.0, 30.0))
+		particles.global_position = gate_t.origin + offset if gate_t else Vector3(offset.x, offset.y, offset.z)
+		particles.emitting = true
+		particles.amount = 120
+		particles.one_shot = false
+		particles.explosiveness = 0.8
+		particles.lifetime = 2.5
+		particles.spread = 180.0
+		particles.initial_velocity_min = 15.0
+		particles.initial_velocity_max = 30.0
+		particles.gravity = Vector3(0, -9.8, 0)
+		particles.scale_amount_min = 0.4
+		particles.scale_amount_max = 1.0
+		particles.color = colors[i % colors.size()]
+
 func _on_gate_area_entered(area: Area3D):
 	if area.name == "CheckpointSphere" or (supercar and area.get_parent() == supercar):
-		if halfway_cleared or current_lap == 0:
+		if (halfway_cleared or current_lap == 0) and not race_finished:
+			if current_lap > 0:
+				lap_times.append(current_lap_time)
+				current_lap_time = 0.0
 			current_lap += 1
 			halfway_cleared = false
 			print("LAP COMPLETED! Current Lap: %d / %d" % [current_lap, final_laps])
+			
+			if current_lap > final_laps:
+				race_finished = true
+				print("RACE FINISHED! Total Time: ", format_time(race_time))
+				if victory_jingle_player:
+					victory_jingle_player.play()
+				spawn_fireworks()
+				if victory_panel:
+					victory_panel.visible = true
+					var vic_label = victory_panel.get_node_or_null("VictoryText")
+					if vic_label:
+						var best_lap = lap_times[0] if lap_times.size() > 0 else 0.0
+						for lt in lap_times:
+							if lt < best_lap: best_lap = lt
+						var txt = "--- VICTORY! ---\n"
+						txt += "1st PLACE / FINISHED!\n\n"
+						txt += "TOTAL TIME:  " + format_time(race_time) + "\n"
+						txt += "BEST LAP:    " + format_time(best_lap) + "\n\n"
+						for l_idx in range(lap_times.size()):
+							txt += "Lap %d: %s\n" % [l_idx + 1, format_time(lap_times[l_idx])]
+						vic_label.text = txt
 
 func spawn_random_powerups():
 	var nitro_script = load("res://nitro_powerup.gd")
@@ -1213,3 +1294,89 @@ func setup_ui():
 	beep_player = AudioStreamPlayer.new()
 	beep_player.name = "CountdownBeepPlayer"
 	add_child(beep_player)
+
+	# Top-Right Time Indicator HUD
+	time_label = Label.new()
+	time_label.name = "TimeLabel"
+	time_label.anchor_left = 1.0
+	time_label.anchor_right = 1.0
+	time_label.position = Vector2(-380, 30)
+	var time_settings = LabelSettings.new()
+	time_settings.font_size = 36
+	time_settings.font_color = Color(0.0, 1.0, 1.0) # Neon cyan
+	time_settings.outline_size = 8
+	time_settings.outline_color = Color(0.0, 0.0, 0.0, 0.9)
+	time_label.label_settings = time_settings
+	time_label.text = "TIME: 00:00.00\nLAP: 00:00.00"
+	hud_layer.add_child(time_label)
+
+	# Center Screen Victory Panel
+	victory_panel = Control.new()
+	victory_panel.name = "VictoryPanel"
+	victory_panel.anchor_left = 0.5
+	victory_panel.anchor_right = 0.5
+	victory_panel.anchor_top = 0.35
+	victory_panel.anchor_bottom = 0.35
+	victory_panel.visible = false
+	hud_layer.add_child(victory_panel)
+
+	var bg_box = ColorRect.new()
+	bg_box.color = Color(0.05, 0.02, 0.12, 0.9)
+	bg_box.position = Vector2(-350, -180)
+	bg_box.size = Vector2(700, 360)
+	victory_panel.add_child(bg_box)
+
+	var border = ColorRect.new()
+	border.color = Color(1.0, 0.84, 0.0, 1.0) # Gold border
+	border.position = Vector2(-350, -180)
+	border.size = Vector2(700, 6)
+	victory_panel.add_child(border)
+
+	var vic_label = Label.new()
+	vic_label.name = "VictoryText"
+	vic_label.position = Vector2(-350, -160)
+	vic_label.size = Vector2(700, 340)
+	vic_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var vic_settings = LabelSettings.new()
+	vic_settings.font_size = 32
+	vic_settings.font_color = Color(1.0, 0.9, 0.2) # Gold
+	vic_settings.outline_size = 8
+	vic_settings.outline_color = Color(0.0, 0.0, 0.0, 0.9)
+	vic_label.label_settings = vic_settings
+	victory_panel.add_child(vic_label)
+
+	# 10s Popup Menu
+	victory_popup_menu = Control.new()
+	victory_popup_menu.name = "VictoryPopupMenu"
+	victory_popup_menu.anchor_left = 0.5
+	victory_popup_menu.anchor_right = 0.5
+	victory_popup_menu.anchor_top = 0.78
+	victory_popup_menu.anchor_bottom = 0.78
+	victory_popup_menu.visible = false
+	hud_layer.add_child(victory_popup_menu)
+
+	var pop_bg = ColorRect.new()
+	pop_bg.color = Color(0.8, 0.0, 0.5, 0.95) # Magenta
+	pop_bg.position = Vector2(-280, -40)
+	pop_bg.size = Vector2(560, 80)
+	victory_popup_menu.add_child(pop_bg)
+
+	var pop_label = Label.new()
+	pop_label.position = Vector2(-280, -30)
+	pop_label.size = Vector2(560, 60)
+	pop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var pop_settings = LabelSettings.new()
+	pop_settings.font_size = 28
+	pop_settings.font_color = Color(1.0, 1.0, 1.0)
+	pop_settings.outline_size = 6
+	pop_settings.outline_color = Color(0.0, 0.0, 0.0, 0.9)
+	pop_label.label_settings = pop_settings
+	pop_label.text = "Press [RESET / R] to Play Again!"
+	victory_popup_menu.add_child(pop_label)
+
+	victory_jingle_player = AudioStreamPlayer.new()
+	victory_jingle_player.name = "VictoryJinglePlayer"
+	var jingle_res = load("res://victory_jingle.wav")
+	if jingle_res:
+		victory_jingle_player.stream = jingle_res
+	add_child(victory_jingle_player)
