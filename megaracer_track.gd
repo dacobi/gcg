@@ -71,6 +71,11 @@ func _ready():
 			break
 
 	if is_square:
+		countdown_value = -1
+		if countdown_label:
+			countdown_label.visible = false
+		if supercar:
+			supercar.set("in_countdown", false)
 		# Hide default path-extruded track nodes
 		if road_bed:
 			road_bed.visible = false
@@ -843,11 +848,12 @@ func _process(delta):
 		reset_car = false
 		current_lap = 0
 		halfway_cleared = false
-		countdown_value = 3
-		countdown_timer = 1.0
-		if beep_player and beep_low_stream:
-			beep_player.stream = beep_low_stream
-			beep_player.play()
+		if not is_square:
+			countdown_value = 3
+			countdown_timer = 1.0
+			if beep_player and beep_low_stream:
+				beep_player.stream = beep_low_stream
+				beep_player.play()
 		if supercar:
 			supercar.set("nitro_seconds", 100.0)
 			if is_square:

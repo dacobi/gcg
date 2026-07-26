@@ -419,8 +419,9 @@ void LuaScripting::saveCarSettings() {
             "engine_force_value", "brake_force_value", "max_steer", "wheel_friction_slip",
             "suspension_travel", "suspension_stiffness", "suspension_max_force",
             "damping_compression", "damping_relaxation", "downforce_multiplier",
-            "car_mass", "center_of_mass_y", "max_speed", "over_extend", "z_traction",
-            "radius_front", "radius_rear", "use_shapecast", "drivetrain_mode", "tire_turn_speed"
+            "car_mass", "center_of_mass_y", "center_of_mass_z", "max_speed", "over_extend", "z_traction",
+            "radius_front", "radius_rear", "use_shapecast", "drivetrain_mode", "tire_turn_speed",
+            "esp_max_yaw_damping", "aero_drag_coeff", "steer_speed_limit_max_speed", "steer_speed_limit_min_mult"
         };
         for (const auto& key : keys) {
             f << key << "=" << getGlobalFloat(key) << "\n";
