@@ -19,6 +19,16 @@ var current_cam_pitch = 0.0
 
 var reset_car = false
 
+var current_lap: int = 0
+var final_laps: int = 3
+var countdown_value: int = 3 # 3, 2, 1, 0 (GO!), -1 (done)
+var countdown_timer: float = 1.0
+var halfway_cleared: bool = false
+
+var hud_layer: CanvasLayer
+var lap_label: Label
+var countdown_label: Label
+
 var in_edit_mode = false
 var is_square = false
 var edit_progress = 0.0
@@ -421,18 +431,18 @@ func _ready():
 		path_node.curve = curve
 		setup_polygons()
 		build_gate()
+		setup_checkpoint_system()
+		spawn_random_powerups()
+		setup_ui()
 
-		# Position the supercar on a scenic straightaway/bridge
+		# Position the supercar on the starting grid (10m before gate, Inner Right lane x = +13.0)
 		if supercar:
-			var dummy = PathFollow3D.new()
-			dummy.rotation_mode = PathFollow3D.ROTATION_ORIENTED
-			path_node.add_child(dummy)
-			dummy.progress = 10.0
-			supercar.global_transform = dummy.global_transform
-			supercar.global_position += dummy.global_transform.basis.y * 0.5
-			if "start_transform" in supercar:
-				supercar.start_transform = supercar.global_transform
-			dummy.queue_free()
+			var grid_transform = path_node.global_transform * path_node.curve.sample_baked_with_rotation(15.0, true, true)
+			if grid_transform:
+				supercar.global_transform = grid_transform
+				supercar.global_position += grid_transform.basis.x * 13.0 + grid_transform.basis.y * 0.5
+				if "start_transform" in supercar:
+					supercar.start_transform = supercar.global_transform
 			
 	# Raise the sun by 45 degrees
 	var sun = get_node_or_null("DirectionalLight3D")
@@ -657,6 +667,42 @@ func spawn_barriers():
 	dummy.queue_free()
 
 func _process(delta):
+	# Update HUD and Countdown
+	if lap_label:
+		var display_lap = max(1, min(current_lap, final_laps))
+		lap_label.text = "Lap: %d / %d" % [display_lap, final_laps]
+		
+	if countdown_value >= 0:
+		countdown_timer -= delta
+		if countdown_timer <= 0.0:
+			countdown_timer = 1.0
+			countdown_value -= 1
+			
+		if countdown_label:
+			countdown_label.visible = true
+			if countdown_value == 3:
+				countdown_label.text = "3"
+				countdown_label.modulate = Color(1.0, 0.2, 0.2) # Red
+			elif countdown_value == 2:
+				countdown_label.text = "2"
+				countdown_label.modulate = Color(1.0, 0.6, 0.1) # Orange
+			elif countdown_value == 1:
+				countdown_label.text = "1"
+				countdown_label.modulate = Color(1.0, 0.9, 0.1) # Yellow
+			elif countdown_value == 0:
+				countdown_label.text = "GO!"
+				countdown_label.modulate = Color(0.2, 1.0, 0.2) # Green
+			else:
+				countdown_label.visible = false
+				
+		if supercar:
+			supercar.set("in_countdown", countdown_value >= 0)
+	else:
+		if countdown_label and countdown_label.visible:
+			countdown_timer -= delta
+			if countdown_timer <= 0.0:
+				countdown_label.visible = false
+
 	# Handle Edit Mode trigger state changes from Lua properties
 	# Read and clear trigger states from Lua immediately every frame to prevent stuck triggers
 	var trigger_e = key_e_pressed
@@ -1003,3 +1049,117 @@ func build_gate():
 	beam_bottom.add_child(beam_bottom_glow)
 	
 	gate_node.add_child(beam_bottom)
+
+func setup_checkpoint_system():
+	var length = path_node.curve.get_baked_length()
+	
+	# Gate Area3D (at progress = 25.0)
+	var t_gate = path_node.global_transform * path_node.curve.sample_baked_with_rotation(25.0, true, true)
+	var gate_area = Area3D.new()
+	gate_area.name = "GateCheckpoint"
+	gate_area.global_transform = t_gate
+	gate_area.collision_layer = 16
+	gate_area.collision_mask = 16
+	var gate_col = CollisionShape3D.new()
+	var gate_box = BoxShape3D.new()
+	gate_box.size = Vector3(110.0, 20.0, 10.0)
+	gate_col.shape = gate_box
+	gate_area.add_child(gate_col)
+	add_child(gate_area)
+	gate_area.area_entered.connect(_on_gate_area_entered)
+	
+	# Halfway Checkpoint Area3D (at progress = fmod(25.0 + length * 0.5, length))
+	var halfway_prog = fmod(25.0 + length * 0.5, length)
+	var t_half = path_node.global_transform * path_node.curve.sample_baked_with_rotation(halfway_prog, true, true)
+	var half_area = Area3D.new()
+	half_area.name = "HalfwayCheckpoint"
+	half_area.global_transform = t_half
+	half_area.collision_layer = 16
+	half_area.collision_mask = 16
+	var half_col = CollisionShape3D.new()
+	var half_box = BoxShape3D.new()
+	half_box.size = Vector3(110.0, 20.0, 10.0)
+	half_col.shape = half_box
+	half_area.add_child(half_col)
+	add_child(half_area)
+	half_area.area_entered.connect(_on_halfway_area_entered)
+
+func _on_halfway_area_entered(area: Area3D):
+	if area.name == "CheckpointSphere" or (supercar and area.get_parent() == supercar):
+		halfway_cleared = true
+
+func _on_gate_area_entered(area: Area3D):
+	if area.name == "CheckpointSphere" or (supercar and area.get_parent() == supercar):
+		if halfway_cleared or current_lap == 0:
+			current_lap += 1
+			halfway_cleared = false
+			print("LAP COMPLETED! Current Lap: %d / %d" % [current_lap, final_laps])
+
+func spawn_random_powerups():
+	var nitro_script = load("res://nitro_powerup.gd")
+	if not nitro_script:
+		return
+		
+	var length = path_node.curve.get_baked_length()
+	var num_powerups = 25
+	
+	for i in range(num_powerups):
+		var progress = float(i + 1) * (length / float(num_powerups + 1))
+		progress = fmod(progress + randf_range(-10.0, 10.0) + length, length)
+		
+		# Don't spawn within 30 meters of starting grid / gate (progress 15.0 and 25.0)
+		if abs(progress - 15.0) < 30.0 or abs(progress - 25.0) < 20.0:
+			continue
+			
+		var t = path_node.global_transform * path_node.curve.sample_baked_with_rotation(progress, true, true)
+		if not t:
+			continue
+			
+		var lane_offset = randf_range(-42.0, 42.0)
+		var world_pos = t.origin + t.basis.x * lane_offset + t.basis.y * 20.0
+		
+		var powerup = StaticBody3D.new()
+		powerup.name = "RandomNitroPowerup_" + str(i)
+		powerup.set_script(nitro_script)
+		
+		# CRITICAL: add_child BEFORE setting spatial position to avoid !is_inside_tree() errors
+		add_child(powerup)
+		powerup.global_position = world_pos
+
+func setup_ui():
+	hud_layer = CanvasLayer.new()
+	hud_layer.name = "GameUI"
+	add_child(hud_layer)
+	
+	# Top-Left Lap Indicator HUD
+	lap_label = Label.new()
+	lap_label.name = "LapLabel"
+	lap_label.position = Vector2(40, 30)
+	var lap_settings = LabelSettings.new()
+	lap_settings.font_size = 42
+	lap_settings.font_color = Color(1.0, 0.9, 0.1) # Neon yellow/gold
+	lap_settings.outline_size = 8
+	lap_settings.outline_color = Color(0.0, 0.0, 0.0, 0.9)
+	lap_label.label_settings = lap_settings
+	lap_label.text = "Lap: 1 / 3"
+	hud_layer.add_child(lap_label)
+	
+	# Center Screen Countdown
+	countdown_label = Label.new()
+	countdown_label.name = "CountdownLabel"
+	countdown_label.anchor_left = 0.5
+	countdown_label.anchor_right = 0.5
+	countdown_label.anchor_top = 0.35
+	countdown_label.anchor_bottom = 0.35
+	countdown_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	countdown_label.grow_vertical = Control.GROW_DIRECTION_BOTH
+	countdown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	
+	var count_settings = LabelSettings.new()
+	count_settings.font_size = 150
+	count_settings.font_color = Color(1.0, 0.2, 0.2)
+	count_settings.outline_size = 16
+	count_settings.outline_color = Color(0.0, 0.0, 0.0, 0.9)
+	countdown_label.label_settings = count_settings
+	countdown_label.text = "3"
+	hud_layer.add_child(countdown_label)

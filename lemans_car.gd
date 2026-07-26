@@ -48,6 +48,7 @@ var nitro_seconds := 0.0
 var max_nitro_seconds := 100.0
 var nitro_active := false
 var nitro_flames: Array = []
+var in_countdown: bool = false
 var over_extend = 0.05
 var z_traction = 0.05
 var default_radius_front = 0.5
@@ -306,6 +307,18 @@ func _ready():
 		hud.set("car", self)
 		hud.set_anchors_preset(Control.PRESET_FULL_RECT)
 		canvas.add_child(hud)
+		
+	var cp_area = Area3D.new()
+	cp_area.name = "CheckpointSphere"
+	cp_area.collision_layer = 16
+	cp_area.collision_mask = 16
+	var cp_col = CollisionShape3D.new()
+	var cp_shape = SphereShape3D.new()
+	cp_shape.radius = 2.0 # Sphere in center of car
+	cp_col.shape = cp_shape
+	cp_area.add_child(cp_col)
+	add_child(cp_area)
+	
 	_setup_nitro_flames()
 func create_wheel(w_name: String, pos: Vector3, radius: float, is_front: bool, is_drive: bool, use_shapecast: bool) -> RayCast3D:
 	var w = RayCast3D.new()
@@ -411,15 +424,18 @@ func _physics_process(delta: float) -> void:
 				f.emitting = false
 
 	# Scale engine acceleration force
-	acceleration = engine_force_value * 0.15
-	if nitro_active:
-		acceleration *= 2.0
-		max_speed = 300.0 / 3.6
-	else:
+	if in_countdown:
+		acceleration = 0.0
 		max_speed = slider_max_speed_kmh / 3.6
-	
-	# Set inputs
-	hand_break = handbrake_input > 0.5
+		hand_break = true
+	else:
+		acceleration = engine_force_value * 0.15
+		if nitro_active:
+			acceleration *= 2.0
+			max_speed = 300.0 / 3.6
+		else:
+			max_speed = slider_max_speed_kmh / 3.6
+		hand_break = handbrake_input > 0.5
 	
 	# Handle the SDL initial unpressed trigger quirk (both report 0.5)
 	var final_accel = accel_input
@@ -617,7 +633,11 @@ func _physics_process(delta: float) -> void:
 						current_gear_sim = target_gear
 		
 	var target_rpm = 1000.0
-	if brake_timer > 0.5:
+	if in_countdown:
+		# Auto-clutch disengaged during countdown: rev freely up to 9000 RPM!
+		target_rpm = 1000.0 + accel_input * 8000.0
+		engine_rpm = lerp(engine_rpm, target_rpm, 15.0 * delta)
+	elif brake_timer > 0.5:
 		# Clutch out and drop to idle immediately while braking
 		target_rpm = 1000.0
 		engine_rpm = lerp(engine_rpm, target_rpm, 10.0 * delta)

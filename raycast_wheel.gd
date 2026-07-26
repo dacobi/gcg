@@ -77,7 +77,8 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 
 	## Acceleration
 	if is_motor and car.get("motor_input"):
-		var speed_ratio = vel / float(car.get("max_speed"))
+		var max_spd = maxf(0.001, float(car.get("max_speed")))
+		var speed_ratio = vel / max_spd
 		var ac := 1.0
 		
 		# Speed limiters
