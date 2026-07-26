@@ -212,10 +212,10 @@ while true do
 					if rx > -0.1 and rx < 0.1 then rx = 0.0 end
 					if ry > -0.1 and ry < 0.1 then ry = 0.0 end
 					
-					-- Check for right face button (PS5 'O' button is index 1 in SDL) to reset car
+					-- Check for right face button (PS5 'O' button is index 1 in SDL) to reset game
 					if ioJoystickGetButtonHit(joy_handle, 1) then
 						if track then
-							godotSetProperty("reset_car", true, track)
+							godotSetProperty("reset_game", true, track)
 						end
 					end
 				else
@@ -230,6 +230,11 @@ while true do
 						steer = -1.0
 					elseif ioKBDown("Right") then
 						steer = 1.0
+					end
+					if ioKBHit("r") or ioKBHit("R") then
+						if track then
+							godotSetProperty("reset_game", true, track)
+						end
 					end
 				end
 

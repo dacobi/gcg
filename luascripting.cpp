@@ -1588,7 +1588,7 @@ int LuaScripting::lua_godotSetProperty(lua_State* L) {
         std::string name = lua_tostring(L, 1);
         void* target = lua_islightuserdata(L, 3) ? lua_touserdata(L, 3) : nullptr;
         
-        bool is_impulse = (name == "reset_car");
+        bool is_impulse = (name == "reset_car" || name == "reset_game");
         
         if (lua_isnumber(L, 2)) {
             float val = (float)lua_tonumber(L, 2);
