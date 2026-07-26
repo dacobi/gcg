@@ -74,6 +74,7 @@ var brake_timer: float = 0.0
 var manual_transmission: bool = false
 var manual_gear_input: int = 1
 var gear_max_speeds: Array = [11.1, 22.2, 36.1, 50.0, 63.8, 100.0]
+var gear_torque_ratios: Array = [2.2, 1.6, 1.25, 1.0, 0.85, 0.7]
 
 var skid_marks: Array[GPUParticles3D] = []
 
@@ -471,7 +472,12 @@ func _physics_process(delta: float) -> void:
 				if forward_speed > gear_max:
 					motor_input = 0.0 # Rev limit cut
 				else:
-					motor_input = final_accel
+					var torque_mult = gear_torque_ratios[gear_idx]
+					if gear_idx >= 1:
+						var sim_rpm = 1000.0 + 8000.0 * clampf(maxf(forward_speed, 0.0) / gear_max, 0.0, 1.0)
+						var bog_factor = clampf((sim_rpm - 1000.0) / 3000.0, 0.08, 1.0)
+						torque_mult *= bog_factor
+					motor_input = final_accel * torque_mult
 				for w in wheels:
 					w.is_braking = false
 			elif final_brake > 0.05:
@@ -715,10 +721,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			if manual_transmission:
 				gear_speed = clampf(speed / gear_max_speeds[current_gear_sim], 0.0, 1.0)
-				if current_gear_sim == 0:
-					target_rpm = lerp(1000.0, 9000.0, gear_speed)
-				else:
-					target_rpm = lerp(5000.0, 9000.0, gear_speed)
+				target_rpm = lerp(1000.0, 9000.0, gear_speed)
 			else:
 				var prev_max = 0.0 if current_gear_sim <= 0 else gear_max_speeds[current_gear_sim - 1]
 				var current_max = gear_max_speeds[current_gear_sim] if current_gear_sim >= 0 else gear_max_speeds[0]
