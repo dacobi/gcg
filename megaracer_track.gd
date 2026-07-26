@@ -23,13 +23,16 @@ var powerup_nodes: Array = []
 
 var current_lap: int = 0
 var final_laps: int = 3
-var countdown_value: int = 3 # 3, 2, 1, 0 (GO!), -1 (done)
+var countdown_value: int = 4 # 4 (1s silent warmup on boot), 3, 2, 1, 0 (GO!), -1 (done)
 var countdown_timer: float = 1.0
 var halfway_cleared: bool = false
 
 var hud_layer: CanvasLayer
 var lap_label: Label
 var countdown_label: Label
+var beep_player: AudioStreamPlayer
+var beep_low_stream: AudioStream
+var beep_high_stream: AudioStream
 
 var in_edit_mode = false
 var is_square = false
@@ -679,6 +682,13 @@ func _process(delta):
 		if countdown_timer <= 0.0:
 			countdown_timer = 1.0
 			countdown_value -= 1
+			if beep_player and is_instance_valid(beep_player):
+				if countdown_value in [1, 2, 3] and beep_low_stream:
+					beep_player.stream = beep_low_stream
+					beep_player.play()
+				elif countdown_value == 0 and beep_high_stream:
+					beep_player.stream = beep_high_stream
+					beep_player.play()
 			
 		if countdown_label:
 			countdown_label.visible = true
@@ -835,6 +845,9 @@ func _process(delta):
 		halfway_cleared = false
 		countdown_value = 3
 		countdown_timer = 1.0
+		if beep_player and beep_low_stream:
+			beep_player.stream = beep_low_stream
+			beep_player.play()
 		if supercar:
 			supercar.set("nitro_seconds", 100.0)
 			if is_square:
@@ -1185,5 +1198,12 @@ func setup_ui():
 	count_settings.outline_size = 16
 	count_settings.outline_color = Color(0.0, 0.0, 0.0, 0.9)
 	countdown_label.label_settings = count_settings
-	countdown_label.text = "3"
+	countdown_label.text = ""
+	countdown_label.visible = false
 	hud_layer.add_child(countdown_label)
+	
+	beep_low_stream = load("res://beep_low.wav")
+	beep_high_stream = load("res://beep_high.wav")
+	beep_player = AudioStreamPlayer.new()
+	beep_player.name = "CountdownBeepPlayer"
+	add_child(beep_player)
