@@ -71,6 +71,9 @@ var show_collision_debug = 0.0
 var shift_timer: float = 0.0
 var current_gear_sim: int = -2
 var brake_timer: float = 0.0
+var manual_transmission: bool = false
+var manual_gear_input: int = 1
+var gear_max_speeds: Array = [11.1, 22.2, 36.1, 50.0, 63.8, 100.0]
 
 var skid_marks: Array[GPUParticles3D] = []
 
@@ -444,23 +447,59 @@ func _physics_process(delta: float) -> void:
 		final_accel = 0.0
 		final_brake = 0.0
 
-	if final_accel > final_brake:
-		motor_input = final_accel
-		for w in wheels:
-			w.is_braking = false
-	elif final_brake > final_accel:
-		if forward_speed > 1.0:
-			motor_input = 0.0
-			for w in wheels:
-				w.is_braking = true
+	if manual_transmission:
+		if manual_gear_input == 0:
+			# Neutral: Throttle revs engine freely without drive torque. Brake slows car until stopped, then reverse.
+			if final_brake > 0.05:
+				if forward_speed > 1.0 and final_brake > final_accel:
+					motor_input = 0.0
+					for w in wheels:
+						w.is_braking = true
+				else:
+					motor_input = -final_brake
+					for w in wheels:
+						w.is_braking = false
+			else:
+				motor_input = 0.0
+				for w in wheels:
+					w.is_braking = false
 		else:
-			motor_input = -final_brake
+			# Forward Gears 1..6: Throttle drives forward. Brake ONLY brakes (NEVER goes into reverse).
+			if final_accel > 0.05 and final_accel > final_brake:
+				var gear_idx = clamp(manual_gear_input - 1, 0, gear_max_speeds.size() - 1)
+				var gear_max = gear_max_speeds[gear_idx]
+				if forward_speed > gear_max:
+					motor_input = 0.0 # Rev limit cut
+				else:
+					motor_input = final_accel
+				for w in wheels:
+					w.is_braking = false
+			elif final_brake > 0.05:
+				motor_input = 0.0
+				for w in wheels:
+					w.is_braking = true
+			else:
+				motor_input = 0.0
+				for w in wheels:
+					w.is_braking = false
+	else:
+		if final_accel > final_brake:
+			motor_input = final_accel
 			for w in wheels:
 				w.is_braking = false
-	else:
-		motor_input = 0.0
-		for w in wheels:
-			w.is_braking = false
+		elif final_brake > final_accel:
+			if forward_speed > 1.0:
+				motor_input = 0.0
+				for w in wheels:
+					w.is_braking = true
+			else:
+				motor_input = -final_brake
+				for w in wheels:
+					w.is_braking = false
+		else:
+			motor_input = 0.0
+			for w in wheels:
+				w.is_braking = false
 			
 	if hand_break:
 		wheels[2].is_braking = true
@@ -602,17 +641,26 @@ func _physics_process(delta: float) -> void:
 		brake_timer = 0.0
 		
 	var target_gear = 0
-	if speed < 0.5 and abs(motor_input) < 0.05:
-		target_gear = -2
-	elif motor_input < -0.05 or (forward_speed < -0.5 and motor_input < 0.05):
-		target_gear = -1
+	if manual_transmission:
+		if manual_gear_input == 0:
+			if motor_input < -0.05:
+				target_gear = -1 # Reverse
+			else:
+				target_gear = -2 # Neutral
+		else:
+			target_gear = clamp(manual_gear_input - 1, 0, gears - 1)
 	else:
-		for i in range(gears):
-			if speed < gear_max_speeds[i]:
-				target_gear = i
-				break
-			if i == gears - 1:
-				target_gear = i
+		if speed < 0.5 and abs(motor_input) < 0.05:
+			target_gear = -2
+		elif motor_input < -0.05 or (forward_speed < -0.5 and motor_input < 0.05):
+			target_gear = -1
+		else:
+			for i in range(gears):
+				if speed < gear_max_speeds[i]:
+					target_gear = i
+					break
+				if i == gears - 1:
+					target_gear = i
 			
 	if shift_timer <= 0.0:
 		if target_gear > current_gear_sim:
@@ -620,12 +668,11 @@ func _physics_process(delta: float) -> void:
 			shift_timer = 0.25
 			current_gear_sim = target_gear
 		elif target_gear < current_gear_sim:
-			if brake_timer > 0.5:
-				# Drop down gears silently when braking hard
+			if brake_timer > 0.5 and not manual_transmission:
+				# Drop down gears silently when braking hard in auto mode
 				current_gear_sim = target_gear
 			else:
-				# Hysteresis: only downshift if we drop at least 2 m/s below the previous gear threshold
-				if current_gear_sim <= 0:
+				if current_gear_sim <= 0 or manual_transmission:
 					current_gear_sim = target_gear
 				else:
 					var prev_max = gear_max_speeds[current_gear_sim - 1]
@@ -637,8 +684,12 @@ func _physics_process(delta: float) -> void:
 		# Auto-clutch disengaged during countdown: rev freely up to 9000 RPM!
 		target_rpm = 1000.0 + accel_input * 8000.0
 		engine_rpm = lerp(engine_rpm, target_rpm, 15.0 * delta)
-	elif brake_timer > 0.5:
-		# Clutch out and drop to idle immediately while braking
+	elif manual_transmission and current_gear_sim == -2 and accel_input > 0.05:
+		# Rev freely in Neutral!
+		target_rpm = 1000.0 + accel_input * 8000.0
+		engine_rpm = lerp(engine_rpm, target_rpm, 15.0 * delta)
+	elif brake_timer > 0.5 and not manual_transmission:
+		# Clutch out and drop to idle immediately while braking in auto mode
 		target_rpm = 1000.0
 		engine_rpm = lerp(engine_rpm, target_rpm, 10.0 * delta)
 	elif shift_timer > 0.0:
@@ -646,9 +697,8 @@ func _physics_process(delta: float) -> void:
 		# Clutch is in: purely visual and audio gear shift effect (no momentum loss)
 		target_rpm = 5000.0
 		engine_rpm = lerp(engine_rpm, target_rpm, 6.0 * delta)
-	elif current_gear_sim >= 0 and motor_input <= 0.05:
+	elif current_gear_sim >= 0 and motor_input <= 0.05 and not manual_transmission:
 		# Coasting without throttle: clutch disengaged, RPM drops smoothly to idle (~1000 RPM).
-		# Downshifts happen quietly in the background without revving up the engine!
 		target_rpm = 1000.0
 		engine_rpm = lerp(engine_rpm, target_rpm, 5.0 * delta)
 	else:
@@ -663,14 +713,21 @@ func _physics_process(delta: float) -> void:
 			# Neutral gear
 			target_rpm = 1000.0
 		else:
-			var prev_max = 0.0 if current_gear_sim <= 0 else gear_max_speeds[current_gear_sim - 1]
-			var current_max = gear_max_speeds[current_gear_sim] if current_gear_sim >= 0 else gear_max_speeds[0]
-			gear_speed = clamp((speed - prev_max) / (current_max - prev_max), 0.0, 1.0)
-			
-			if current_gear_sim <= 0:
-				target_rpm = lerp(1000.0, 9000.0, gear_speed)
+			if manual_transmission:
+				gear_speed = clampf(speed / gear_max_speeds[current_gear_sim], 0.0, 1.0)
+				if current_gear_sim == 0:
+					target_rpm = lerp(1000.0, 9000.0, gear_speed)
+				else:
+					target_rpm = lerp(5000.0, 9000.0, gear_speed)
 			else:
-				target_rpm = lerp(5000.0, 9000.0, gear_speed)
+				var prev_max = 0.0 if current_gear_sim <= 0 else gear_max_speeds[current_gear_sim - 1]
+				var current_max = gear_max_speeds[current_gear_sim] if current_gear_sim >= 0 else gear_max_speeds[0]
+				gear_speed = clamp((speed - prev_max) / (current_max - prev_max), 0.0, 1.0)
+				
+				if current_gear_sim <= 0:
+					target_rpm = lerp(1000.0, 9000.0, gear_speed)
+				else:
+					target_rpm = lerp(5000.0, 9000.0, gear_speed)
 		
 		# Clamp to realistic limits
 		var max_rpm = 5000.0 if current_gear_sim == -1 else 10000.0

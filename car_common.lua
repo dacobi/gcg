@@ -1,6 +1,12 @@
 -- Shared Car Physics and Control definitions for MegaRacer
 -- Included via dofile("car_common.lua")
 
+local is_manual_trans = false
+local manual_gear_val = 1 -- 0 = Neutral, 1..6 = Gears 1..6
+local last_triangle_down = false
+local last_dpad_up = false
+local last_dpad_down = false
+
 function initCarPhysicsDefaults()
 	-- Register impulse properties so C++ never caches/skips their property sets
 	if godotRegisterImpulseProperty then
@@ -91,6 +97,9 @@ function renderCarPhysicsUI()
 		imguiProgressBar("RPM", "telemetry_engine_rpm_normalized")
 		
 		imguiSeparator()
+		imguiText("Transmission: " .. (is_manual_trans and "MANUAL" or "AUTO"))
+		imguiText("Gear: " .. (manual_gear_val == 0 and "N" or tostring(manual_gear_val)))
+		imguiSeparator()
 		
 		imguiButton("Save Settings", "save_settings_clicked")
 		imguiButton("Load Settings", "load_settings_clicked")
@@ -156,10 +165,48 @@ function updateCarControlsAndPhysics(supercar, joy_handle, track, reset_prop_nam
 		end
 	end
 
+	-- Manual Transmission Mode Toggle & Shifting Logic
+	if joy_handle >= 0 then
+		local triangle_down = ioJoystickGetButtonDown(joy_handle, 3)
+		if triangle_down and not last_triangle_down then
+			is_manual_trans = not is_manual_trans
+		end
+		last_triangle_down = triangle_down
+
+		local hat = ioJoystickGetHat(joy_handle, 0)
+		local dpad_up = ((hat % 2) == 1) or ioJoystickGetButtonDown(joy_handle, 11)
+		local dpad_down = ((math.floor(hat / 4) % 2) == 1) or ioJoystickGetButtonDown(joy_handle, 12)
+
+		if is_manual_trans then
+			if dpad_up and not last_dpad_up then
+				if manual_gear_val == 0 then
+					manual_gear_val = 1
+				elseif manual_gear_val < 6 then
+					manual_gear_val = manual_gear_val + 1
+				end
+			end
+			if dpad_down and not last_dpad_down then
+				if manual_gear_val > 1 then
+					manual_gear_val = manual_gear_val - 1
+				elseif manual_gear_val == 1 then
+					-- "gear down must not go to neutral, while throttle or break is active."
+					if accel == 0 and brake == 0 then
+						manual_gear_val = 0
+					end
+				end
+				-- "and not go the reverse, this will only happen with the break button" -> gear never drops below 0!
+			end
+		end
+		last_dpad_up = dpad_up
+		last_dpad_down = dpad_down
+	end
+
 	-- Pass controls to the Godot CharacterBody3D node properties
 	godotSetProperty("accel_input", accel, supercar)
 	godotSetProperty("brake_input", brake, supercar)
 	godotSetProperty("steer_input", steer, supercar)
+	godotSetProperty("manual_transmission", is_manual_trans, supercar)
+	godotSetProperty("manual_gear_input", manual_gear_val, supercar)
 	
 	local handbrake = 0.0
 	if joy_handle >= 0 and ioJoystickGetButtonDown(joy_handle, 0) then

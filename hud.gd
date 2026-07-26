@@ -26,6 +26,7 @@ func _draw() -> void:
 		gear_str = "R"
 	elif gear_sim == -2:
 		gear_str = "N"
+	var mode_str = "[MANUAL]" if car.get("manual_transmission") else "[AUTO]"
 	
 	var cyan = Color(0.0, 1.0, 1.0, 1.0)
 	var magenta = Color(1.0, 0.0, 1.0, 1.0)
@@ -67,7 +68,8 @@ func _draw() -> void:
 	
 	# RPM Text
 	draw_string(font, center_rpm + Vector2(-30, 40), "RPM x1000", HORIZONTAL_ALIGNMENT_CENTER, -1, 14, magenta)
-	draw_string(font, center_rpm + Vector2(-35, 70), "GEAR: " + gear_str, HORIZONTAL_ALIGNMENT_CENTER, -1, 24, cyan)
+	draw_string(font, center_rpm + Vector2(-35, 65), "GEAR: " + gear_str, HORIZONTAL_ALIGNMENT_CENTER, -1, 22, cyan)
+	draw_string(font, center_rpm + Vector2(-35, 88), mode_str, HORIZONTAL_ALIGNMENT_CENTER, -1, 16, magenta)
 	
 	# --- SPEED GAUGE ---
 	draw_circle(center_speed, 90, dark_bg)
