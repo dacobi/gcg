@@ -708,7 +708,7 @@ func _process(delta):
 				countdown_label.visible = false
 				
 		if supercar:
-			supercar.set("in_countdown", countdown_value >= 0)
+			supercar.set("in_countdown", countdown_value > 0)
 	else:
 		if countdown_label and countdown_label.visible:
 			countdown_timer -= delta
