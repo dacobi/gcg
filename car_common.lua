@@ -4,8 +4,8 @@
 local is_manual_trans = false
 local manual_gear_val = 1 -- 0 = Neutral, 1..6 = Gears 1..6
 local last_triangle_down = false
-local last_dpad_up = false
-local last_dpad_down = false
+local last_shift_up = false
+local last_shift_down = false
 
 function initCarPhysicsDefaults()
 	-- Register impulse properties so C++ never caches/skips their property sets
@@ -174,18 +174,18 @@ function updateCarControlsAndPhysics(supercar, joy_handle, track, reset_prop_nam
 		last_triangle_down = triangle_down
 
 		local hat = ioJoystickGetHat(joy_handle, 0)
-		local dpad_up = ((hat % 2) == 1) or ioJoystickGetButtonDown(joy_handle, 11)
-		local dpad_down = ((math.floor(hat / 4) % 2) == 1) or ioJoystickGetButtonDown(joy_handle, 12)
+		local shift_up = ((hat % 2) == 1) or ioJoystickGetButtonDown(joy_handle, 11) or ioJoystickGetButtonDown(joy_handle, 9)
+		local shift_down = ((math.floor(hat / 4) % 2) == 1) or ioJoystickGetButtonDown(joy_handle, 12) or ioJoystickGetButtonDown(joy_handle, 10)
 
 		if is_manual_trans then
-			if dpad_up and not last_dpad_up then
+			if shift_up and not last_shift_up then
 				if manual_gear_val == 0 then
 					manual_gear_val = 1
 				elseif manual_gear_val < 6 then
 					manual_gear_val = manual_gear_val + 1
 				end
 			end
-			if dpad_down and not last_dpad_down then
+			if shift_down and not last_shift_down then
 				if manual_gear_val > 1 then
 					manual_gear_val = manual_gear_val - 1
 				elseif manual_gear_val == 1 then
@@ -197,8 +197,8 @@ function updateCarControlsAndPhysics(supercar, joy_handle, track, reset_prop_nam
 				-- "and not go the reverse, this will only happen with the break button" -> gear never drops below 0!
 			end
 		end
-		last_dpad_up = dpad_up
-		last_dpad_down = dpad_down
+		last_shift_up = shift_up
+		last_shift_down = shift_down
 	end
 
 	-- Pass controls to the Godot CharacterBody3D node properties
