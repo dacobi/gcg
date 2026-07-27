@@ -38,6 +38,7 @@ var steer_speed_limit_min_mult = 0.7
 # Properties accessed by RaycastWheel
 var motor_input := 0.0
 var hand_break := false
+var in_standing_burnout := false
 var is_slipping := false
 var total_wheels := 4
 var acceleration := 600.0
@@ -77,6 +78,7 @@ var gear_max_speeds: Array = [11.1, 22.2, 36.1, 50.0, 63.8, 100.0]
 var gear_torque_ratios: Array = [2.2, 1.6, 1.25, 1.0, 0.85, 0.7]
 
 var skid_marks: Array[GPUParticles3D] = []
+var smoke_particles: Array[GPUParticles3D] = []
 
 # Resources
 var accel_curve: Curve
@@ -292,6 +294,53 @@ func _ready():
 		p.local_coords = false # Particles stay on road when car moves
 		add_child(p)
 		skid_marks.append(p)
+		
+	# Create dynamic burnout/drift smoke particle systems with gray procedural texture
+	var noise_grad = Gradient.new()
+	noise_grad.set_color(0, Color(0.45, 0.45, 0.50, 0.0))    # Transparent dark gray valleys
+	noise_grad.set_color(1, Color(0.70, 0.70, 0.73, 0.10)) # 90% transparent light gray peaks
+	
+	var noise = FastNoiseLite.new()
+	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise.frequency = 0.06
+	noise.fractal_octaves = 2
+	
+	var noise_tex = NoiseTexture2D.new()
+	noise_tex.noise = noise
+	noise_tex.color_ramp = noise_grad
+	noise_tex.width = 64
+	noise_tex.height = 64
+	
+	var smoke_mat = StandardMaterial3D.new()
+	smoke_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smoke_mat.vertex_color_use_as_albedo = true
+	smoke_mat.albedo_color = Color(1.0, 1.0, 1.0, 1.0) # Base color modulated by noise texture
+	smoke_mat.albedo_texture = noise_tex
+	smoke_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smoke_mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	var smoke_mesh = QuadMesh.new()
+	smoke_mesh.material = smoke_mat
+	smoke_mesh.size = Vector2(0.25, 0.25) # Much smaller particles!
+	var smoke_proc = ParticleProcessMaterial.new()
+	smoke_proc.gravity = Vector3(0.0, 2.0, 0.0) # Smoke rises gently upward
+	smoke_proc.direction = Vector3(0.0, 1.0, 0.0)
+	smoke_proc.spread = 40.0
+	smoke_proc.initial_velocity_min = 0.4
+	smoke_proc.initial_velocity_max = 1.2
+	smoke_proc.scale_min = 0.4
+	smoke_proc.scale_max = 1.0
+	
+	for i in range(4):
+		var sp = GPUParticles3D.new()
+		sp.emitting = false
+		sp.amount = 500
+		sp.lifetime = 1.2
+		sp.fixed_fps = 0
+		sp.process_material = smoke_proc
+		sp.draw_pass_1 = smoke_mesh
+		sp.local_coords = false # Smoke clouds trail behind in world space!
+		add_child(sp)
+		smoke_particles.append(sp)
 	
 	# --- FMOD INIT ---
 	# --- FMOD INIT ---
@@ -448,7 +497,31 @@ func _physics_process(delta: float) -> void:
 		final_accel = 0.0
 		final_brake = 0.0
 
-	if manual_transmission:
+	in_standing_burnout = false
+	var is_forward_gear = (manual_gear_input >= 1) if manual_transmission else true
+	if is_forward_gear and final_accel > 0.05 and final_brake > 0.05 and forward_speed < (25.0 / 3.6):
+		in_standing_burnout = true
+		var base_motor = final_accel
+		if manual_transmission:
+			var gear_idx = clamp(manual_gear_input - 1, 0, gear_max_speeds.size() - 1)
+			var gear_max = gear_max_speeds[gear_idx]
+			if forward_speed > gear_max:
+				base_motor = 0.0
+			else:
+				var torque_mult = gear_torque_ratios[gear_idx]
+				if gear_idx >= 1:
+					var sim_rpm = 1000.0 + 8000.0 * clampf(maxf(forward_speed, 0.0) / gear_max, 0.0, 1.0)
+					var bog_factor = clampf((sim_rpm - 1000.0) / 3000.0, 0.08, 1.0)
+					torque_mult *= bog_factor
+				base_motor = final_accel * torque_mult
+		var steer_creep = clampf((absf(steer_input) - 0.1) / 0.8, 0.0, 1.0)
+		var thrust_mult = lerpf(0.0, 0.45, steer_creep)
+		motor_input = base_motor * thrust_mult
+		wheels[0].is_braking = true
+		wheels[1].is_braking = true
+		wheels[2].is_braking = false
+		wheels[3].is_braking = false
+	elif manual_transmission:
 		if manual_gear_input == 0:
 			# Neutral: Throttle revs engine freely without drive torque. Brake slows car until stopped, then reverse.
 			if final_brake > 0.05:
@@ -466,7 +539,11 @@ func _physics_process(delta: float) -> void:
 					w.is_braking = false
 		else:
 			# Forward Gears 1..6: Throttle drives forward. Brake ONLY brakes (NEVER goes into reverse).
-			if final_accel > 0.05 and final_accel > final_brake:
+			if final_brake > 0.05 and (final_brake >= final_accel or forward_speed >= (25.0 / 3.6)):
+				motor_input = 0.0
+				for w in wheels:
+					w.is_braking = true
+			elif final_accel > 0.05:
 				var gear_idx = clamp(manual_gear_input - 1, 0, gear_max_speeds.size() - 1)
 				var gear_max = gear_max_speeds[gear_idx]
 				if forward_speed > gear_max:
@@ -480,20 +557,12 @@ func _physics_process(delta: float) -> void:
 					motor_input = final_accel * torque_mult
 				for w in wheels:
 					w.is_braking = false
-			elif final_brake > 0.05:
-				motor_input = 0.0
-				for w in wheels:
-					w.is_braking = true
 			else:
 				motor_input = 0.0
 				for w in wheels:
 					w.is_braking = false
 	else:
-		if final_accel > final_brake:
-			motor_input = final_accel
-			for w in wheels:
-				w.is_braking = false
-		elif final_brake > final_accel:
+		if final_brake > 0.05 and (final_brake >= final_accel or (final_accel > 0.05 and forward_speed >= (25.0 / 3.6))):
 			if forward_speed > 1.0:
 				motor_input = 0.0
 				for w in wheels:
@@ -502,6 +571,10 @@ func _physics_process(delta: float) -> void:
 				motor_input = -final_brake
 				for w in wheels:
 					w.is_braking = false
+		elif final_accel > 0.05:
+			motor_input = final_accel
+			for w in wheels:
+				w.is_braking = false
 		else:
 			motor_input = 0.0
 			for w in wheels:
@@ -568,10 +641,17 @@ func _physics_process(delta: float) -> void:
 					is_skidding = true
 				if w.is_braking and forward_speed > 10.0:
 					is_skidding = true
+				if in_standing_burnout and i >= 2:
+					is_skidding = true
 				skid_marks[i].emitting = is_skidding
+				if smoke_particles.size() > i and smoke_particles[i] != null:
+					smoke_particles[i].global_position = w.get_collision_point() + Vector3.UP * 0.2
+					smoke_particles[i].emitting = is_skidding
 		else:
 			if skid_marks.size() > i and skid_marks[i] != null:
 				skid_marks[i].emitting = false
+			if smoke_particles.size() > i and smoke_particles[i] != null:
+				smoke_particles[i].emitting = false
 			
 	# Update slip telemetry variables
 	slip_FL = wheels[0].grip_factor
@@ -688,6 +768,10 @@ func _physics_process(delta: float) -> void:
 	var target_rpm = 1000.0
 	if in_countdown:
 		# Auto-clutch disengaged during countdown: rev freely up to 9000 RPM!
+		target_rpm = 1000.0 + accel_input * 8000.0
+		engine_rpm = lerp(engine_rpm, target_rpm, 15.0 * delta)
+	elif in_standing_burnout:
+		# Standing burnout: rev freely up to 9000 RPM while tires smoke!
 		target_rpm = 1000.0 + accel_input * 8000.0
 		engine_rpm = lerp(engine_rpm, target_rpm, 15.0 * delta)
 	elif manual_transmission and current_gear_sim == -2 and accel_input > 0.05:

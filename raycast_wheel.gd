@@ -48,6 +48,8 @@ func apply_wheel_physics(car: RigidBody3D) -> void:
 	## Rotates wheel visuals
 	var forward_dir   := -global_basis.z
 	var vel           := forward_dir.dot(car.linear_velocity)
+	if is_motor and car.get("in_standing_burnout"):
+		vel = maxf(vel, 25.0) # Rear wheels spin furiously at ~90 km/h during burnout!
 	if visual_wheel and is_instance_valid(visual_wheel):
 		visual_wheel.rotate_object_local(Vector3(0, 1, 0), vel * get_physics_process_delta_time() / wheel_radius)
 
