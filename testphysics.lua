@@ -1,5 +1,4 @@
-setBG("[tscn:lemans_scene.tscn]")
-selectGodot(-1)
+godotSingleContext("lemans_scene.tscn")
 delay(200) -- give it a moment to load
 
 print("\n=== MegaRacer Synthwave Driving Demo Loaded ===")
@@ -12,6 +11,7 @@ setAudioVolume(50)
 -- Get the supercar node pointer
 godotSelectRoot()
 local supercar = godotGetNodePointer("SuperCar")
+print("SUPERCAR POINTER IS: ", supercar)
 
 -- Include shared car physics and controls
 dofile("car_common.lua")
@@ -19,13 +19,17 @@ initCarPhysicsDefaults()
 
 local joy_handle = ioJoystickOpen(0)
 if joy_handle >= 0 then
-	print("Joystick 0 connected for driving!")
+	print("Joystick 1 connected for driving!")
 end
 
 local is_paused = false
+local esc_held_state = false
 local orbit_yaw = 0.0
 local orbit_pitch = 0.5
 local orbit_dist = 12.0
+local last_mouse_dx = 0.0
+local last_mouse_dy = 0.0
+local last_mouse_wheel = 0.0
 
 local frame_count = 0
 
@@ -55,35 +59,46 @@ while true do
 			ioMouseCapture()
 		end
 
-		-- Allow entering Globe Camera via ESC
-		if ioKBClicked("SDLK_ESCAPE") then
-			is_paused = not is_paused
-			
-			godotSetProperty("is_paused", is_paused, track)
-			
-			if is_paused then
-				godotSetProperty("process_mode", 4, supercar) -- Disable car physics
-				ioMouseCapture() -- Hide and lock mouse for infinite panning
-			else
-				godotSetProperty("process_mode", 0, supercar) -- Re-enable physics
-				ioMouseRelease() -- Restore mouse
-			end
+		if track then
+		    local p = godotGetProperty("is_paused", track)
+		    if p == "True" or p == "true" or p == 1.0 or p == true then
+		        is_paused = true
+		    else
+		        is_paused = false
+		    end
+		end
+		
+		if supercar then
+		    if is_paused then
+		        godotSetProperty("process_mode", 4, supercar) -- Disable car physics
+		    else
+		        godotSetProperty("process_mode", 0, supercar) -- Re-enable physics
+		    end
 		end
 
 		if supercar then
 			if is_paused then
 				-- Globe camera controls
-				local dx, dy = ioMouseGetMotion()
-				orbit_yaw = orbit_yaw - dx * 0.005
-				orbit_pitch = orbit_pitch + dy * 0.005
+				local dx = godotGetProperty("mouse_dx", track) or 0.0
+				local dy = godotGetProperty("mouse_dy", track) or 0.0
+				
+				local delta_dx = dx - (last_mouse_dx or 0.0)
+				local delta_dy = dy - (last_mouse_dy or 0.0)
+				last_mouse_dx = dx
+				last_mouse_dy = dy
+				
+				orbit_yaw = orbit_yaw - delta_dx * 0.005
+				orbit_pitch = orbit_pitch + delta_dy * 0.005
 				
 				if orbit_pitch > 1.5 then orbit_pitch = 1.5 end
 				if orbit_pitch < -1.5 then orbit_pitch = -1.5 end
 				
 				-- Process new Mouse Wheel input for zooming
-				local wheel = ioMouseWheelMotion()
-				if wheel then
-					orbit_dist = orbit_dist - wheel * 2.0
+				local wheel = godotGetProperty("mouse_wheel", track) or 0.0
+				local delta_wheel = wheel - (last_mouse_wheel or 0.0)
+				last_mouse_wheel = wheel
+				if delta_wheel ~= 0.0 then
+					orbit_dist = orbit_dist - delta_wheel * 2.0
 				end
 				
 				-- Keep keyboard W/S fallbacks
@@ -139,7 +154,7 @@ while true do
 		godotSetProperty("arrow_left_right", arrow_left_right, track)
 	end
 
-	delay(10) -- 100 FPS input update loop
+	delay(1) -- High-frequency input update loop
 end
 
 appQuit()

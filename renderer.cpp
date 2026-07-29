@@ -283,6 +283,7 @@ void Renderer::beginSwapchainRenderPass() {
             return;
         }
     }
+    if (!swapchain_texture) return;
     
     SDL_GPUColorTargetInfo color_target_info = {};
     color_target_info.texture = swapchain_texture;
@@ -299,6 +300,7 @@ void Renderer::blitToSwapchain() {
             return;
         }
     }
+    if (!swapchain_texture) return;
     
     SDL_GPUBlitInfo blit_info = {};
     

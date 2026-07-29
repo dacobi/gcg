@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <fstream>
 #include <filesystem>
+#include "godot_manager.h"
 
 static std::mutex global_lua_mutex;
 
@@ -176,6 +177,9 @@ void LuaScripting::registerFunctions(lua_State* L_reg) {
     reg("addBouncer", lua_addBouncer);
     reg("delBouncer", lua_delBouncer);
     reg("setBG", lua_setBG);
+    reg("godotSingleContext", lua_godotSingleContext);
+    reg("godotInputGetAxis", lua_godotInputGetAxis);
+    reg("godotInputIsActionPressed", lua_godotInputIsActionPressed);
     reg("selectPlasma", lua_selectPlasma);
     reg("selectFractal", lua_selectFractal);
 #ifdef USE_USD
@@ -604,6 +608,24 @@ int LuaScripting::lua_selectGodot(lua_State* L) {
         if (self && self->selectGodotFunc) {
             auto sd = std::make_shared<LuaSyncData>();
             self->selectGodotFunc(index, sd, L, self);
+            std::unique_lock<std::mutex> lock(sd->mtx);
+            while (!sd->done && self && self->systemRunning) {
+                sd->cv.wait_for(lock, std::chrono::milliseconds(10));
+            }
+        }
+    }
+    return 0;
+}
+
+int LuaScripting::lua_godotSingleContext(lua_State* L) {
+    LuaScripting* self = (LuaScripting*)lua_touserdata(L, lua_upvalueindex(1));
+    if (lua_isstring(L, 1)) {
+        std::string filename = lua_tostring(L, 1);
+        if (self && self->setBGFunc && self->selectGodotFunc) {
+            std::string bg_cmd = "[tscn:" + filename + "]";
+            self->setBGFunc(bg_cmd);
+            auto sd = std::make_shared<LuaSyncData>();
+            self->selectGodotFunc(-1, sd, L, self);
             std::unique_lock<std::mutex> lock(sd->mtx);
             while (!sd->done && self && self->systemRunning) {
                 sd->cv.wait_for(lock, std::chrono::milliseconds(10));
@@ -1166,6 +1188,29 @@ int LuaScripting::lua_godotGetNodePointer(lua_State* L) {
         return 1;
     }
     return 0;
+}
+
+int LuaScripting::lua_godotInputGetAxis(lua_State* L) {
+    if (lua_gettop(L) >= 2) {
+        std::string neg = lua_tostring(L, 1);
+        std::string pos = lua_tostring(L, 2);
+        float val = GodotManager::get_input_axis(neg, pos);
+        lua_pushnumber(L, val);
+        return 1;
+    }
+    lua_pushnumber(L, 0.0f);
+    return 1;
+}
+
+int LuaScripting::lua_godotInputIsActionPressed(lua_State* L) {
+    if (lua_gettop(L) >= 1) {
+        std::string action = lua_tostring(L, 1);
+        bool val = GodotManager::is_action_pressed(action);
+        lua_pushboolean(L, val);
+        return 1;
+    }
+    lua_pushboolean(L, false);
+    return 1;
 }
 
 int LuaScripting::lua_godotSelectRoot(lua_State* L) {

@@ -126,8 +126,12 @@ function updateCarControlsAndPhysics(supercar, joy_handle, track, reset_prop_nam
 
 	if joy_handle >= 0 then
 		-- Read analog values (Triggers: -1.0 to 1.0 -> 0.0 to 1.0)
+		-- Common Xbox mapping: Left Trigger = 2, Right Trigger = 5
+		-- Common PS mapping: Left Trigger = 4, Right Trigger = 5
+		-- User confirmed mapping: Left Trigger = 4, Right Trigger = 5
 		local r2 = ioJoystickGetAxis(joy_handle, 5)
 		local l2 = ioJoystickGetAxis(joy_handle, 4)
+		
 		accel = (r2 + 1.0) * 0.5
 		brake = (l2 + 1.0) * 0.5
 		steer = ioJoystickGetAxis(joy_handle, 0)
@@ -141,11 +145,30 @@ function updateCarControlsAndPhysics(supercar, joy_handle, track, reset_prop_nam
 		if rx > -0.1 and rx < 0.1 then rx = 0.0 end
 		if ry > -0.1 and ry < 0.1 then ry = 0.0 end
 		
-		-- Check for right face button (PS5 'O' button is index 1 in SDL) to reset car/game
 		if ioJoystickGetButtonHit(joy_handle, 1) then
 			if track and reset_prop_name then
 				godotSetProperty(reset_prop_name, true, track)
 			end
+		end
+	end
+	
+	if godotInputGetAxis and godotInputIsActionPressed then
+		local g_steer = godotInputGetAxis("ui_left", "ui_right")
+		local g_forward = godotInputGetAxis("ui_up", "ui_down")
+		
+		if g_steer ~= 0.0 or g_forward ~= 0.0 then
+			steer = g_steer
+			if g_forward < 0.0 then
+				accel = -g_forward
+				brake = 0.0
+			else
+				accel = 0.0
+				brake = g_forward
+			end
+		end
+		
+		if godotInputIsActionPressed("ui_accept") and track and reset_prop_name then
+			godotSetProperty(reset_prop_name, true, track)
 		end
 	else
 		-- Read arrow keys for driving fallback

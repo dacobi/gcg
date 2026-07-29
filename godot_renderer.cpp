@@ -21,15 +21,26 @@
 #include "imgui.h"
 #include <cstring>
 
+Node* GodotRenderer::getCurrentNode(void* owner) const {
+    if (owner && current_nodes.find(owner) != current_nodes.end()) {
+        Node* ptr = current_nodes.at(owner);
+        if (ptr) {
+            return ptr;
+        }
+    }
+    if (viewport) {
+        return viewport;
+    }
+    SceneTree* tree = Object::cast_to<SceneTree>(OS::get_singleton()->get_main_loop());
+    if (tree) {
+        return tree->get_root();
+    }
+    return nullptr;
+}
+
 Node* GodotRenderer::resolveTargetNode(void* owner, void* target_node) const {
     if (target_node) {
-        uint64_t id_val = (uint64_t)(uintptr_t)target_node;
-        ObjectID id(id_val);
-        Object* obj = ObjectDB::get_instance(id);
-        if (obj) {
-            return Object::cast_to<Node>(obj);
-        }
-        return nullptr;
+        return (Node*)target_node;
     }
     return getCurrentNode(owner);
 }
@@ -106,7 +117,16 @@ bool GodotRenderer::init(const std::string& tscn_path) {
 }
 
 void GodotRenderer::selectRoot(void* owner) {
-    current_nodes[owner] = scene_instance;
+    if (scene_instance) {
+        current_nodes[owner] = scene_instance;
+    } else {
+        SceneTree* tree = Object::cast_to<SceneTree>(OS::get_singleton()->get_main_loop());
+        if (tree && tree->get_root()) {
+            current_nodes[owner] = tree->get_root();
+        } else {
+            current_nodes.erase(owner);
+        }
+    }
 }
 
 bool GodotRenderer::selectNode(const std::string& name, void* owner) {
@@ -372,7 +392,7 @@ bool GodotRenderer::watchSignal(const std::string& signal_name, const std::strin
     }
     
     current_node->add_child(bridge);
-    signal_bridges.push_back(bridge_obj->get_instance_id());
+    signal_bridges.push_back(bridge);
     
     Array binds;
     binds.push_back(String(callback_file.c_str()));
@@ -464,13 +484,12 @@ void GodotRenderer::renderTree() {
 }
 
 void GodotRenderer::clearSignalWatchers() {
-    for (ObjectID id : signal_bridges) {
-        Object* obj = ObjectDB::get_instance(id);
-        if (obj) {
-            Node* node = Object::cast_to<Node>(obj);
-            if (node) {
-                node->queue_free();
+    for (Node* n : signal_bridges) {
+        if (n) {
+            if (n->get_parent()) {
+                n->get_parent()->remove_child(n);
             }
+            memdelete(n);
         }
     }
     signal_bridges.clear();
@@ -481,7 +500,7 @@ void* GodotRenderer::getNodePointer(const std::string& name, void* owner) {
     if (!current_node) return nullptr;
     Node* found = _searchNodeRecursive(current_node, name);
     if (found) {
-        return (void*)(uintptr_t)(found->get_instance_id());
+        return (void*)found;
     }
     return nullptr;
 }

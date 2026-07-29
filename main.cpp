@@ -1712,6 +1712,8 @@ struct AppState {
     std::string cli_bg_path;
     std::string cli_lua_path;
     std::string cli_audio_path;
+    std::string cli_lua_godot_single_path;
+    bool cli_lua_godot_single = false;
     int cli_bg_plasma_idx = -1;
     int cli_bg_fractal_idx = -1;
 #ifdef USE_USD
@@ -2630,15 +2632,28 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--lua") == 0 && i + 1 < argc) {
             pre_lua_path = argv[i + 1];
-            break;
+        } else if (std::strcmp(argv[i], "--lua-godot-single") == 0 && i + 1 < argc) {
+            state->cli_lua_godot_single_path = argv[i + 1];
+            state->cli_lua_godot_single = true;
         }
     }
 
     state->godot_manager = new GodotManager();
-    std::vector<const char*> g_args = { "gcg", "--display-driver", "offscreen", "--rendering-driver", "vulkan", "--audio/driver/mix_rate", "48000" };
+    std::vector<const char*> g_args = { "gcg", "--rendering-driver", "vulkan", "--audio/driver/mix_rate", "48000" };
+    if (!state->cli_lua_godot_single) {
+        g_args.push_back("--display-driver");
+        g_args.push_back("offscreen");
+    } else {
+        g_args.push_back("--display-driver");
+        g_args.push_back("wayland");
+    }
     if (!pre_lua_path.empty()) {
         g_args.push_back("--lua-script");
         g_args.push_back(pre_lua_path.c_str());
+    }
+    if (state->cli_lua_godot_single && !state->cli_lua_godot_single_path.empty()) {
+        g_args.push_back("--lua-script");
+        g_args.push_back(state->cli_lua_godot_single_path.c_str());
     }
     state->godot_manager->init((int)g_args.size(), (char**)g_args.data());
 
@@ -2649,6 +2664,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         } else if (std::strcmp(argv[i], "--record") == 0 && i + 1 < argc) {
             state->cli_record_path = argv[++i];
         } else if (std::strcmp(argv[i], "--lua") == 0 && i + 1 < argc) {
+            state->cli_lua_path = argv[++i];
+        } else if (std::strcmp(argv[i], "--lua-godot-single") == 0 && i + 1 < argc) {
+            state->cli_lua_godot_single_path = argv[i + 1];
+            state->cli_lua_godot_single = true;
+            state->record_gui = true;
             state->cli_lua_path = argv[++i];
         } else if (std::strcmp(argv[i], "--audio") == 0 && i + 1 < argc) {
             state->cli_audio_path = argv[++i];
@@ -2754,6 +2774,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     // --- SDL init ---
     
     SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "1");
+    SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK)) {
         std::printf("SDL_Init error: %s\n", SDL_GetError());
@@ -2771,7 +2792,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     cur_rel = (float)cur_w / (float)cur_h;
 
     SDL_WindowFlags win_flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-    if (state->cli_maximize)
+    if (state->cli_lua_godot_single)
+        win_flags |= SDL_WINDOW_HIDDEN;
+    else if (state->cli_maximize)
         win_flags |= SDL_WINDOW_MAXIMIZED;
 
     window = SDL_CreateWindow(
@@ -3117,6 +3140,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *ev)
 {
     AppState* state = (AppState*)appstate;
     
+    // Process input manager even if Godot is handling display, so joystick state is updated
+    InputManager::getInstance().processEvent(ev);
+
     // High Score Entry Input - Handle BEFORE ImGui to ensure precedence
     for (auto& bd : state->mBdisplay) {
         for (auto& b : bd->bouncers) {
@@ -3322,6 +3348,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     AppState* state = (AppState*)appstate;
     if (state->godot_manager) {
         state->godot_manager->iteration();
+        if (state->cli_lua_godot_single && !state->godot_manager->isRunning()) {
+            SDL_Event quit_event;
+            quit_event.type = SDL_EVENT_QUIT;
+            SDL_PushEvent(&quit_event);
+        }
     }
     for (auto& bd : state->mBdisplay) {
         for (auto& b : bd->bouncers) {
@@ -3450,13 +3481,18 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 }
 #endif
                 if (bUseGodot) {
-                    state->bg_godot = new GodotRenderer(cur_w, cur_h);
-                    if (state->bg_godot->init(state->cli_bg_tscn_path)) {
-                        state->imgui_selected_godot = state->bg_godot;
+                    if (state->cli_lua_godot_single) {
+                        GodotManager::load_main_scene(state->cli_bg_tscn_path);
+                        state->bg_godot = new GodotRenderer(cur_w, cur_h);
                     } else {
-                        delete state->bg_godot; state->bg_godot = nullptr; bUseGodot = false;
+                        state->bg_godot = new GodotRenderer(cur_w, cur_h);
+                        if (state->bg_godot->init(state->cli_bg_tscn_path)) {
+                            state->imgui_selected_godot = state->bg_godot;
+                        } else {
+                            delete state->bg_godot; state->bg_godot = nullptr; bUseGodot = false;
+                        }
+                        state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
                     }
-                    state->bg_tex = g_renderer->createTexture(cur_w, cur_h, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
                 }
                 if (!state->cli_bg_path.empty()) {
                     std::string ext = state->cli_bg_path;

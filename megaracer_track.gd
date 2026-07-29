@@ -8,6 +8,7 @@ extends Node3D
 @onready var supercar = $SuperCar
 
 var is_paused = false
+var previous_paused = false
 var orbit_yaw = 0.0
 var orbit_pitch = 0.5
 var orbit_dist = 18.0
@@ -16,6 +17,8 @@ var cam_rx = 0.0
 var cam_ry = 0.0
 var current_cam_yaw = 0.0
 var current_cam_pitch = 0.0
+
+var mouse_wheel = 0.0
 
 var reset_car = false
 var reset_game = false
@@ -686,7 +689,27 @@ func spawn_barriers():
 		
 	dummy.queue_free()
 
+func _input(event):
+	if event.is_action_pressed("ui_cancel"):
+		is_paused = not is_paused
+	
+	if event is InputEventMouseMotion:
+		mouse_dx += event.relative.x
+		mouse_dy += event.relative.y
+	elif event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+			mouse_wheel += 1.0
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+			mouse_wheel -= 1.0
+
 func _process(delta):
+	if is_paused != previous_paused:
+		previous_paused = is_paused
+		if is_paused:
+			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		else:
+			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
 	# Update HUD and Countdown
 	if lap_label:
 		var display_lap = max(1, min(current_lap, final_laps))

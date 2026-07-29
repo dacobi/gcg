@@ -66,6 +66,7 @@ var engine_rpm: float = 1000.0
 
 var fmod_event = null
 var fmod_banks = []
+var fmod_banks_loaded = false
 var engine_audio: AudioStreamPlayer = null
 var show_collision_debug = 0.0
 
@@ -826,10 +827,11 @@ func _physics_process(delta: float) -> void:
 	# --- FMOD ENGINE UPDATE ---
 	if ClassDB.class_exists("FmodServer"):
 		FmodServer.update()
-		if fmod_event == null:
+		if fmod_event == null and not fmod_banks_loaded:
 			# FMOD bank loading takes a few frames to populate the event descriptions
 			var events = FmodServer.get_all_event_descriptions()
 			if events.size() > 0:
+				fmod_banks_loaded = true
 				for e in events:
 					if str(e.get_guid()) == "{0c8363b4-23af-4f9c-af4b-0951bfd37d84}":
 						fmod_event = FmodServer.create_event_instance_from_description(e)

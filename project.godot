@@ -31,3 +31,7 @@ DSP_Buffer/buffer_length=512
 DSP_Buffer/num_buffers=4
 Channels/channel_count=1024
 Initialization/live_update=true
+
+[display]
+
+window/vsync/vsync_mode=0

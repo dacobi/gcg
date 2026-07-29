@@ -44,10 +44,7 @@ public:
     bool loadNode(const std::string& path, void* owner, float x = 0, float y = 0, float z = 0, bool use_pos = false, void* target_node = nullptr);
     void deleteNode(void* owner, void* target_node = nullptr);
 
-    Node* getCurrentNode(void* owner) const { 
-        auto it = current_nodes.find(owner);
-        return it != current_nodes.end() ? it->second : nullptr; 
-    }
+    Node* getCurrentNode(void* owner) const;
 
     Node* resolveTargetNode(void* owner, void* target_node) const;
 
@@ -72,7 +69,7 @@ private:
     SubViewport* viewport = nullptr;
     Node* scene_instance = nullptr;
     std::unordered_map<void*, Node*> current_nodes;
-    std::vector<ObjectID> signal_bridges;
+    std::vector<Node*> signal_bridges;
 
     static int active_instance_count;
 

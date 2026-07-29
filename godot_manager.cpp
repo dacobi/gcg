@@ -5,6 +5,8 @@
 #include "scene/main/scene_tree.h"
 #include "scene/main/window.h"
 #include "core/os/os.h"
+#include "core/io/resource_loader.h"
+#include "scene/resources/packed_scene.h"
 #include "core/object/class_db.h"
 #include "core/object/object.h"
 #include "resource_format_loader_gltf.h"
@@ -22,6 +24,7 @@
 #include <alsa/asoundlib.h>
 #include <thread>
 #include <atomic>
+#include "core/input/input.h"
 
 extern "C" void gcg_audio_mix(float* interleaved_buffer, int frames);
 extern "C" void gcg_video_record_audio(const int16_t* pcm_data, int frames);
@@ -211,6 +214,52 @@ bool GodotManager::init(int argc, char* argv[]) {
 
 
     is_running = true;    return true;
+}
+
+void GodotManager::load_main_scene(const std::string& path) {
+    SceneTree* tree = SceneTree::get_singleton();
+    if (tree) {
+        String godot_path = String(path.c_str());
+        if (!godot_path.begins_with("res://")) {
+            godot_path = "res://" + godot_path;
+        }
+        
+        Ref<PackedScene> scene = ResourceLoader::load(godot_path);
+        if (scene.is_valid()) {
+            Node* current_scene = tree->get_current_scene();
+            if (current_scene) {
+                tree->get_root()->remove_child(current_scene);
+                current_scene->queue_free();
+            }
+            Node* new_scene = scene->instantiate();
+            if (new_scene) {
+                tree->get_root()->add_child(new_scene);
+                tree->set_current_scene(new_scene);
+            }
+        }
+        
+        if (tree->get_root()) {
+            std::printf("Godot DisplayServer is: %s\n", DisplayServer::get_singleton()->get_name().utf8().get_data());
+            tree->get_root()->set_mode(Window::MODE_WINDOWED);
+            tree->get_root()->set_visible(true);
+        }
+    }
+}
+
+float GodotManager::get_input_axis(const std::string& neg_action, const std::string& pos_action) {
+    Input* input = Input::get_singleton();
+    if (input) {
+        return input->get_axis(String(neg_action.c_str()), String(pos_action.c_str()));
+    }
+    return 0.0f;
+}
+
+bool GodotManager::is_action_pressed(const std::string& action) {
+    Input* input = Input::get_singleton();
+    if (input) {
+        return input->is_action_pressed(String(action.c_str()));
+    }
+    return false;
 }
 
 void GodotManager::iteration() {

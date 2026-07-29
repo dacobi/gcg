@@ -129,6 +129,7 @@ private:
     static int lua_addBouncer(lua_State* L);
     static int lua_delBouncer(lua_State* L);
     static int lua_setBG(lua_State* L);
+    static int lua_godotSingleContext(lua_State* L);
     static int lua_selectPlasma(lua_State* L);
     static int lua_selectFractal(lua_State* L);
 #ifdef USE_USD
@@ -205,6 +206,8 @@ private:
     static int lua_godotGetNodePointer(lua_State* L);
     static int lua_godotSelectRoot(lua_State* L);
     static int lua_godotSelectNode(lua_State* L);
+    static int lua_godotInputGetAxis(lua_State* L);
+    static int lua_godotInputIsActionPressed(lua_State* L);
     static int lua_godotSearchNode(lua_State* L);
     static int lua_godotGetNodeType(lua_State* L);
     static int lua_godotGetName(lua_State* L);
