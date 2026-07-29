@@ -2629,12 +2629,15 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
     // Pre-parse --lua to forward to Godot command line arguments
     std::string pre_lua_path = "";
+    bool has_maximize = false;
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--lua") == 0 && i + 1 < argc) {
             pre_lua_path = argv[i + 1];
         } else if (std::strcmp(argv[i], "--lua-godot-single") == 0 && i + 1 < argc) {
             state->cli_lua_godot_single_path = argv[i + 1];
             state->cli_lua_godot_single = true;
+        } else if (std::strcmp(argv[i], "--maximize") == 0) {
+            has_maximize = true;
         }
     }
 
@@ -2646,6 +2649,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     } else {
         g_args.push_back("--display-driver");
         g_args.push_back("wayland");
+        if (has_maximize) {
+            g_args.push_back("--maximized");
+        }
     }
     if (!pre_lua_path.empty()) {
         g_args.push_back("--lua-script");
