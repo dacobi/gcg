@@ -1220,7 +1220,7 @@ static void recorder_feed_frame(Recorder& rec, Renderer* renderer) {
     if (myNvec == NULL) return;
 
     // Read back the rendered frame
-    SDL_Surface* surf = renderer->readPixels();
+    SDL_Surface* surf = renderer->readPixels(0, 0, renderer->getTargetWidth(), renderer->getTargetHeight());
     if (!surf) {
         std::printf("readPixels failed\n");
         return;
@@ -4490,8 +4490,58 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     g_renderer->endRenderPass();
 
     if (state->cli_lua_godot_single) {
-        SDL_Surface* surf = g_renderer->readPixels();
-        if (surf && state->godot_manager) {
+        ImDrawData* draw_data = ImGui::GetDrawData();
+        float min_x = 10000.0f, min_y = 10000.0f, max_x = -10000.0f, max_y = -10000.0f;
+        if (draw_data && state->show_imgui) {
+            for (int n = 0; n < draw_data->CmdListsCount; n++) {
+                const ImDrawList* cmd_list = draw_data->CmdLists[n];
+                for (int v = 0; v < cmd_list->VtxBuffer.Size; v++) {
+                    ImVec2 pos = cmd_list->VtxBuffer.Data[v].pos;
+                    if (pos.x < min_x) min_x = pos.x;
+                    if (pos.y < min_y) min_y = pos.y;
+                    if (pos.x > max_x) max_x = pos.x;
+                    if (pos.y > max_y) max_y = pos.y;
+                }
+            }
+            if (min_x <= max_x) {
+                min_x *= draw_data->FramebufferScale.x;
+                min_y *= draw_data->FramebufferScale.y;
+                max_x *= draw_data->FramebufferScale.x;
+                max_y *= draw_data->FramebufferScale.y;
+            } else {
+                min_x = min_y = max_x = max_y = 0.0f;
+            }
+        } else {
+            min_x = min_y = max_x = max_y = 0.0f;
+        }
+        
+        int tx = (int)std::floor(min_x);
+        int ty = (int)std::floor(min_y);
+        int tw = (int)std::ceil(max_x) - tx;
+        int th = (int)std::ceil(max_y) - ty;
+        if (tw < 0) tw = 0;
+        if (th < 0) th = 0;
+        
+        static int prev_tx = 0, prev_ty = 0, prev_tw = 0, prev_th = 0;
+        int download_tx = 0, download_ty = 0, download_tw = 0, download_th = 0;
+        
+        if (tw > 0 || prev_tw > 0) {
+            if (tw > 0 && prev_tw > 0) {
+                download_tx = std::min(tx, prev_tx);
+                download_ty = std::min(ty, prev_ty);
+                download_tw = std::max(tx + tw, prev_tx + prev_tw) - download_tx;
+                download_th = std::max(ty + th, prev_ty + prev_th) - download_ty;
+            } else if (tw > 0) {
+                download_tx = tx; download_ty = ty; download_tw = tw; download_th = th;
+            } else {
+                download_tx = prev_tx; download_ty = prev_ty; download_tw = prev_tw; download_th = prev_th;
+            }
+        }
+        
+        prev_tx = tx; prev_ty = ty; prev_tw = tw; prev_th = th;
+        
+        SDL_Surface* surf = g_renderer->readPixels(download_tx, download_ty, download_tw, download_th);
+        if (surf && state->godot_manager && download_tw > 0 && download_th > 0) {
             state->godot_manager->update_overlay_texture(surf->w, surf->h, surf->pixels);
         }
     } else {
@@ -4513,11 +4563,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     g_renderer->endFrame();
 
     if (state->cli_lua_godot_single) {
-        Uint64 end_time = SDL_GetPerformanceCounter();
-        double frame_time = (double)(end_time - current_time) / state->frequency;
-        if (frame_time < 0.0166666) {
-            SDL_Delay((Uint32)((0.0166666 - frame_time) * 1000.0));
-        }
+        // Removed hardcoded 60 FPS limit. Godot's internal VSync will now naturally cap the frame rate to the monitor's refresh rate.
     }
 
     return SDL_APP_CONTINUE;

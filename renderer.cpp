@@ -481,12 +481,23 @@ void Renderer::updateTexture(SDL_GPUTexture* tex, int width, int height, SDL_GPU
     SDL_ReleaseGPUTransferBuffer(device, tb);
 }
 
-SDL_Surface* Renderer::readPixels() {
+SDL_Surface* Renderer::readPixels(int dx, int dy, int dw, int dh) {
     if (!device || !color_target || !current_cmd_buf) return nullptr;
+    
+    if (dw <= 0 || dh <= 0) {
+        // Nothing to download, skip fence and return null
+        return nullptr;
+    }
     
     int w = target_width;
     int h = target_height;
     
+    // Clamp to screen bounds
+    if (dx < 0) { dw += dx; dx = 0; }
+    if (dy < 0) { dh += dy; dy = 0; }
+    if (dx + dw > w) dw = w - dx;
+    if (dy + dh > h) dh = h - dy;
+    if (dw <= 0 || dh <= 0) return nullptr;
     static SDL_GPUTransferBuffer* tb = nullptr;
     static int tb_w = 0;
     static int tb_h = 0;
@@ -506,6 +517,9 @@ SDL_Surface* Renderer::readPixels() {
         tb_w = w;
         tb_h = h;
         copy_surf = SDL_CreateSurface(w, h, SDL_PIXELFORMAT_RGBA32);
+        
+        // Clear the new surface immediately
+        SDL_FillSurfaceRect(copy_surf, nullptr, 0);
     }
     
     if (!tb) return nullptr;
@@ -514,13 +528,16 @@ SDL_Surface* Renderer::readPixels() {
     
     SDL_GPUTextureRegion src = {};
     src.texture = color_target;
-    src.w = w;
-    src.h = h;
+    src.x = dx;
+    src.y = dy;
+    src.w = dw;
+    src.h = dh;
     src.d = 1;
     
     SDL_GPUTextureTransferInfo dst = {};
     dst.transfer_buffer = tb;
-    dst.offset = 0;
+    dst.offset = (dy * w + dx) * 4;
+    dst.pixels_per_row = w;
     
     SDL_DownloadFromGPUTexture(copy_pass, &src, &dst);
     SDL_EndGPUCopyPass(copy_pass);
@@ -533,16 +550,18 @@ SDL_Surface* Renderer::readPixels() {
     
     void* map = SDL_MapGPUTransferBuffer(device, tb, false);
     if (map) {
-        SDL_PixelFormat pix_fmt = SDL_PIXELFORMAT_RGBA32;
-        if (swapchain_format == SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM) {
-            pix_fmt = SDL_PIXELFORMAT_BGRA32;
-        }
+        uint8_t* src_ptr = (uint8_t*)map + (dy * w + dx) * 4;
+        uint8_t* dst_ptr = (uint8_t*)copy_surf->pixels + (dy * w + dx) * 4;
+        int row_pitch = w * 4;
         
-        SDL_Surface* surf = SDL_CreateSurfaceFrom(w, h, pix_fmt, map, w * 4);
-        if (surf) {
-            SDL_SetSurfaceBlendMode(surf, SDL_BLENDMODE_NONE);
-            SDL_BlitSurface(surf, nullptr, copy_surf, nullptr);
-            SDL_DestroySurface(surf);
+        if (swapchain_format == SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM) {
+            SDL_ConvertPixels(dw, dh, SDL_PIXELFORMAT_BGRA32, src_ptr, row_pitch, SDL_PIXELFORMAT_RGBA32, dst_ptr, row_pitch);
+        } else {
+            for (int r = 0; r < dh; r++) {
+                memcpy(dst_ptr, src_ptr, dw * 4);
+                src_ptr += row_pitch;
+                dst_ptr += row_pitch;
+            }
         }
         SDL_UnmapGPUTransferBuffer(device, tb);
     }

@@ -43,7 +43,9 @@ public:
     SDL_GPUCommandBuffer* getCommandBuffer() const { return current_cmd_buf; }
     SDL_GPURenderPass* getRenderPass() const { return current_render_pass; }
 
-    SDL_Surface* readPixels();
+    SDL_Surface* readPixels(int dx, int dy, int dw, int dh);
+    int getTargetWidth() const { return target_width; }
+    int getTargetHeight() const { return target_height; }
 
 private:
     SDL_GPUDevice* device = nullptr;
