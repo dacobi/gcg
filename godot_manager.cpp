@@ -319,10 +319,11 @@ void GodotManager::update_overlay_texture(int width, int height, void* pixels) {
     }
     
     if (rect) {
-        PackedByteArray pba;
-        pba.resize(width * height * 4);
-        memcpy(pba.ptrw(), pixels, width * height * 4);
-        Ref<Image> img = Image::create_from_data(width, height, false, Image::FORMAT_RGBA8, pba);
+        static Ref<Image> img;
+        if (img.is_null() || img->get_width() != width || img->get_height() != height) {
+            img = Image::create_empty(width, height, false, Image::FORMAT_RGBA8);
+        }
+        memcpy(img->ptrw(), pixels, width * height * 4);
         Ref<ImageTexture> tex = rect->get_texture();
         if (tex.is_valid() && tex->get_width() == width && tex->get_height() == height) {
             tex->update(img);

@@ -3932,6 +3932,20 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     }
 
     if (state->show_imgui) {
+        if (state->cli_lua_godot_single && state->godot_manager) {
+            int gw, gh;
+            state->godot_manager->get_window_size(gw, gh);
+            if (gw > 0 && gh > 0) {
+                static int last_requested_w = 0;
+                static int last_requested_h = 0;
+                if (gw != last_requested_w || gh != last_requested_h) {
+                    SDL_SetWindowSize(window, gw, gh);
+                    last_requested_w = gw;
+                    last_requested_h = gh;
+                }
+            }
+        }
+
         ImGui_ImplSDLGPU3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
 
@@ -4471,16 +4485,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     if (state->cli_lua_godot_single) {
         SDL_Surface* surf = g_renderer->readPixels();
-        if (surf) {
-            SDL_Surface* rgba_surf = surf;
-            if (surf->format != SDL_PIXELFORMAT_RGBA32) {
-                rgba_surf = SDL_ConvertSurface(surf, SDL_PIXELFORMAT_RGBA32);
-            }
-            if (rgba_surf && state->godot_manager) {
-                state->godot_manager->update_overlay_texture(rgba_surf->w, rgba_surf->h, rgba_surf->pixels);
-            }
-            if (rgba_surf && rgba_surf != surf) SDL_DestroySurface(rgba_surf);
-            SDL_DestroySurface(surf);
+        if (surf && state->godot_manager) {
+            state->godot_manager->update_overlay_texture(surf->w, surf->h, surf->pixels);
         }
     } else {
         g_renderer->blitToSwapchain();

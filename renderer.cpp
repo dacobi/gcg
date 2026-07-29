@@ -487,11 +487,27 @@ SDL_Surface* Renderer::readPixels() {
     int w = target_width;
     int h = target_height;
     
-    SDL_GPUTransferBufferCreateInfo tb_info = {};
-    tb_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
-    tb_info.size = w * h * 4; // Assuming 4 bytes per pixel
+    static SDL_GPUTransferBuffer* tb = nullptr;
+    static int tb_w = 0;
+    static int tb_h = 0;
+    static SDL_Surface* copy_surf = nullptr;
+
+    if (w != tb_w || h != tb_h || !tb) {
+        if (tb) {
+            SDL_ReleaseGPUTransferBuffer(device, tb);
+        }
+        if (copy_surf) {
+            SDL_DestroySurface(copy_surf);
+        }
+        SDL_GPUTransferBufferCreateInfo tb_info = {};
+        tb_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
+        tb_info.size = w * h * 4;
+        tb = SDL_CreateGPUTransferBuffer(device, &tb_info);
+        tb_w = w;
+        tb_h = h;
+        copy_surf = SDL_CreateSurface(w, h, SDL_PIXELFORMAT_RGBA32);
+    }
     
-    SDL_GPUTransferBuffer* tb = SDL_CreateGPUTransferBuffer(device, &tb_info);
     if (!tb) return nullptr;
     
     SDL_GPUCopyPass* copy_pass = SDL_BeginGPUCopyPass(current_cmd_buf);
@@ -515,7 +531,6 @@ SDL_Surface* Renderer::readPixels() {
     SDL_WaitForGPUFences(device, true, &fence, 1);
     SDL_ReleaseGPUFence(device, fence);
     
-    SDL_Surface* surf = nullptr;
     void* map = SDL_MapGPUTransferBuffer(device, tb, false);
     if (map) {
         SDL_PixelFormat pix_fmt = SDL_PIXELFORMAT_RGBA32;
@@ -523,18 +538,16 @@ SDL_Surface* Renderer::readPixels() {
             pix_fmt = SDL_PIXELFORMAT_BGRA32;
         }
         
-        surf = SDL_CreateSurfaceFrom(w, h, pix_fmt, map, w * 4);
+        SDL_Surface* surf = SDL_CreateSurfaceFrom(w, h, pix_fmt, map, w * 4);
         if (surf) {
-            SDL_Surface* copy = SDL_CreateSurface(w, h, SDL_PIXELFORMAT_RGBA32);
-            SDL_BlitSurface(surf, nullptr, copy, nullptr);
+            SDL_SetSurfaceBlendMode(surf, SDL_BLENDMODE_NONE);
+            SDL_BlitSurface(surf, nullptr, copy_surf, nullptr);
             SDL_DestroySurface(surf);
-            surf = copy;
         }
         SDL_UnmapGPUTransferBuffer(device, tb);
     }
     
-    SDL_ReleaseGPUTransferBuffer(device, tb);
-    return surf;
+    return copy_surf;
 }
 struct Transform {
     float projection[16];
