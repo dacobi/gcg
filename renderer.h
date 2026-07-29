@@ -12,7 +12,7 @@ public:
     void shutdown();
 
     void beginFrame();
-    void beginRenderPass();
+    void beginRenderPass(bool transparent = false);
     void beginSwapchainRenderPass();
     void endRenderPass();
     void blitToSwapchain();

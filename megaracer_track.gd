@@ -692,6 +692,10 @@ func spawn_barriers():
 func _input(event):
 	if event.is_action_pressed("ui_cancel"):
 		is_paused = not is_paused
+		if is_paused:
+			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		else:
+			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	
 	if event is InputEventMouseMotion:
 		mouse_dx += event.relative.x
@@ -703,12 +707,6 @@ func _input(event):
 			mouse_wheel -= 1.0
 
 func _process(delta):
-	if is_paused != previous_paused:
-		previous_paused = is_paused
-		if is_paused:
-			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-		else:
-			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 	# Update HUD and Countdown
 	if lap_label:

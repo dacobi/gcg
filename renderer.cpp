@@ -237,11 +237,11 @@ void Renderer::beginFrame() {
     swapchain_texture = nullptr;
 }
 
-void Renderer::beginRenderPass() {
+void Renderer::beginRenderPass(bool transparent) {
     if (!current_cmd_buf) return;
     
     int w, h;
-    SDL_GetWindowSize(window, &w, &h);
+    SDL_GetWindowSizeInPixels(window, &w, &h);
     if (w != target_width || h != target_height || !color_target) {
         if (color_target) {
             SDL_ReleaseGPUTexture(device, color_target);
@@ -262,7 +262,11 @@ void Renderer::beginRenderPass() {
     
     SDL_GPUColorTargetInfo color_target_info = {};
     color_target_info.texture = color_target;
-    color_target_info.clear_color = {0.10f, 0.08f, 0.15f, 1.0f};
+    if (transparent) {
+        color_target_info.clear_color = {0.0f, 0.0f, 0.0f, 0.0f};
+    } else {
+        color_target_info.clear_color = {0.10f, 0.08f, 0.15f, 1.0f};
+    }
     color_target_info.load_op = SDL_GPU_LOADOP_CLEAR;
     color_target_info.store_op = SDL_GPU_STOREOP_STORE;
     

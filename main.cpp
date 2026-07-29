@@ -3133,6 +3133,39 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         }
     }
 
+    if (state->cli_lua_godot_single && state->godot_manager) {
+        GodotManager::key_callback = [](uint32_t unicode, uint32_t keycode, bool pressed) {
+            ImGuiIO& io = ImGui::GetIO();
+            if (unicode > 0 && pressed) {
+                io.AddInputCharacter(unicode);
+            }
+            ImGuiKey imgui_key = ImGuiKey_None;
+            if (keycode == 4194308) imgui_key = ImGuiKey_Backspace;
+            else if (keycode == 4194309) imgui_key = ImGuiKey_Enter;
+            else if (keycode == 4194319) imgui_key = ImGuiKey_LeftArrow;
+            else if (keycode == 4194321) imgui_key = ImGuiKey_RightArrow;
+            else if (keycode == 4194320) imgui_key = ImGuiKey_UpArrow;
+            else if (keycode == 4194322) imgui_key = ImGuiKey_DownArrow;
+            else if (keycode == 4194312) imgui_key = ImGuiKey_Delete;
+            if (imgui_key != ImGuiKey_None) {
+                io.AddKeyEvent(imgui_key, pressed);
+            }
+        };
+
+        GodotManager::mouse_pos_callback = [](float norm_x, float norm_y) {
+            int sdl_w, sdl_h;
+            SDL_GetWindowSize(window, &sdl_w, &sdl_h);
+            ImGui::GetIO().AddMousePosEvent(norm_x * sdl_w, norm_y * sdl_h);
+        };
+
+        GodotManager::mouse_btn_callback = [](int button, bool pressed) {
+            int imgui_btn = (button == 1) ? 0 : (button == 2) ? 1 : (button == 3) ? 2 : -1;
+            if (imgui_btn >= 0) {
+                ImGui::GetIO().AddMouseButtonEvent(imgui_btn, pressed);
+            }
+        };
+    }
+
     return SDL_APP_CONTINUE;
 }
 
@@ -3901,6 +3934,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     if (state->show_imgui) {
         ImGui_ImplSDLGPU3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
+
         ImGui::NewFrame();
 
         if (state->diag_joystick_handle >= 0) {
@@ -4413,7 +4447,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         ImGui_ImplSDLGPU3_PrepareDrawData(ImGui::GetDrawData(), g_renderer->getCommandBuffer());
     }
 
-    g_renderer->beginRenderPass();
+    g_renderer->beginRenderPass(state->cli_lua_godot_single);
     
     if (state->bg_tex) {
         g_renderer->drawBackground(state->bg_tex);
@@ -4429,19 +4463,34 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
     }
 
-    if (state->show_imgui && state->record_gui) {
+    if (state->show_imgui && (state->record_gui || state->cli_lua_godot_single)) {
         ImGui_ImplSDLGPU3_RenderDrawData(ImGui::GetDrawData(), g_renderer->getCommandBuffer(), g_renderer->getRenderPass());
     }
 
     g_renderer->endRenderPass();
 
-    g_renderer->blitToSwapchain();
+    if (state->cli_lua_godot_single) {
+        SDL_Surface* surf = g_renderer->readPixels();
+        if (surf) {
+            SDL_Surface* rgba_surf = surf;
+            if (surf->format != SDL_PIXELFORMAT_RGBA32) {
+                rgba_surf = SDL_ConvertSurface(surf, SDL_PIXELFORMAT_RGBA32);
+            }
+            if (rgba_surf && state->godot_manager) {
+                state->godot_manager->update_overlay_texture(rgba_surf->w, rgba_surf->h, rgba_surf->pixels);
+            }
+            if (rgba_surf && rgba_surf != surf) SDL_DestroySurface(rgba_surf);
+            SDL_DestroySurface(surf);
+        }
+    } else {
+        g_renderer->blitToSwapchain();
 
-    if (state->show_imgui && !state->record_gui) {
-        g_renderer->beginSwapchainRenderPass();
-        if (g_renderer->getRenderPass()) {
-            ImGui_ImplSDLGPU3_RenderDrawData(ImGui::GetDrawData(), g_renderer->getCommandBuffer(), g_renderer->getRenderPass());
-            g_renderer->endRenderPass();
+        if (state->show_imgui && !state->record_gui) {
+            g_renderer->beginSwapchainRenderPass();
+            if (g_renderer->getRenderPass()) {
+                ImGui_ImplSDLGPU3_RenderDrawData(ImGui::GetDrawData(), g_renderer->getCommandBuffer(), g_renderer->getRenderPass());
+                g_renderer->endRenderPass();
+            }
         }
     }
 
@@ -4450,6 +4499,14 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     }
 
     g_renderer->endFrame();
+
+    if (state->cli_lua_godot_single) {
+        Uint64 end_time = SDL_GetPerformanceCounter();
+        double frame_time = (double)(end_time - current_time) / state->frequency;
+        if (frame_time < 0.0166666) {
+            SDL_Delay((Uint32)((0.0166666 - frame_time) * 1000.0));
+        }
+    }
 
     return SDL_APP_CONTINUE;
 }

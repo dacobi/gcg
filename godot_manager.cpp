@@ -4,9 +4,14 @@
 #include "servers/display/display_server.h"
 #include "scene/main/scene_tree.h"
 #include "scene/main/window.h"
+#include "scene/main/canvas_layer.h"
+#include "scene/gui/texture_rect.h"
+#include "scene/resources/image_texture.h"
 #include "core/os/os.h"
 #include "core/io/resource_loader.h"
 #include "scene/resources/packed_scene.h"
+#include "scene/gui/control.h"
+#include "core/input/input_event.h"
 #include "core/object/class_db.h"
 #include "core/object/object.h"
 #include "resource_format_loader_gltf.h"
@@ -145,6 +150,37 @@ public:
     }
 };
 
+#include "core/os/keyboard.h"
+
+std::function<void(uint32_t, uint32_t, bool)> GodotManager::key_callback = nullptr;
+std::function<void(float, float)> GodotManager::mouse_pos_callback = nullptr;
+std::function<void(int, bool)> GodotManager::mouse_btn_callback = nullptr;
+
+class ImGuiInputForwarder : public Control {
+    GDCLASS(ImGuiInputForwarder, Control);
+protected:
+    static void _bind_methods() {}
+public:
+    virtual void gui_input(const Ref<InputEvent> &p_event) override {
+        Ref<InputEventKey> k = p_event;
+        if (k.is_valid() && GodotManager::key_callback) {
+            GodotManager::key_callback(k->get_unicode(), (uint32_t)k->get_keycode_with_modifiers(), k->is_pressed());
+        }
+        Ref<InputEventMouseMotion> m = p_event;
+        if (m.is_valid() && GodotManager::mouse_pos_callback) {
+            Vector2 pos = m->get_position();
+            Size2 size = get_size();
+            if (size.width > 0 && size.height > 0) {
+                GodotManager::mouse_pos_callback(pos.x / size.width, pos.y / size.height);
+            }
+        }
+        Ref<InputEventMouseButton> b = p_event;
+        if (b.is_valid() && GodotManager::mouse_btn_callback) {
+            GodotManager::mouse_btn_callback((int)b->get_button_index(), b->is_pressed());
+        }
+    }
+};
+
 GodotManager::GodotManager() {
 }
 
@@ -192,6 +228,7 @@ bool GodotManager::init(int argc, char* argv[]) {
 
 
     ClassDB::register_class<LuaEventBridge>();
+    ClassDB::register_class<ImGuiInputForwarder>();
     ClassDB::register_class<AudioStreamGCG>();
     ClassDB::register_class<AudioStreamPlaybackGCG>();
 
@@ -244,6 +281,86 @@ void GodotManager::load_main_scene(const std::string& path) {
             tree->get_root()->set_visible(true);
         }
     }
+}
+
+void GodotManager::update_overlay_texture(int width, int height, void* pixels) {
+    SceneTree* tree = SceneTree::get_singleton();
+    if (!tree) return;
+    
+    Window* root = tree->get_root();
+    if (!root) return;
+    
+    // Find or create CanvasLayer
+    CanvasLayer* overlay_layer = Object::cast_to<CanvasLayer>(root->get_node_or_null(NodePath("SDLOverlayLayer")));
+    TextureRect* rect = nullptr;
+    if (!overlay_layer) {
+        overlay_layer = memnew(CanvasLayer);
+        overlay_layer->set_name("SDLOverlayLayer");
+        overlay_layer->set_layer(128); // high layer
+        root->add_child(overlay_layer);
+        
+        rect = memnew(TextureRect);
+        rect->set_name("SDLOverlayRect");
+        rect->set_anchors_preset(Control::PRESET_FULL_RECT);
+        rect->set_expand_mode(TextureRect::EXPAND_IGNORE_SIZE);
+        rect->set_stretch_mode(TextureRect::STRETCH_SCALE);
+        overlay_layer->add_child(rect);
+
+        ImGuiInputForwarder* forwarder = memnew(ImGuiInputForwarder);
+        forwarder->set_name("ImGuiInputForwarder");
+        forwarder->set_anchors_preset(Control::PRESET_FULL_RECT);
+        forwarder->set_focus_mode(Control::FOCUS_ALL);
+        overlay_layer->add_child(forwarder);
+        forwarder->grab_focus();
+    } else {
+        rect = Object::cast_to<TextureRect>(overlay_layer->get_node_or_null(NodePath("SDLOverlayRect")));
+        ImGuiInputForwarder* forwarder = Object::cast_to<ImGuiInputForwarder>(overlay_layer->get_node_or_null(NodePath("ImGuiInputForwarder")));
+        if (forwarder && !forwarder->has_focus()) forwarder->grab_focus();
+    }
+    
+    if (rect) {
+        PackedByteArray pba;
+        pba.resize(width * height * 4);
+        memcpy(pba.ptrw(), pixels, width * height * 4);
+        Ref<Image> img = Image::create_from_data(width, height, false, Image::FORMAT_RGBA8, pba);
+        Ref<ImageTexture> tex = rect->get_texture();
+        if (tex.is_valid() && tex->get_width() == width && tex->get_height() == height) {
+            tex->update(img);
+        } else {
+            tex = ImageTexture::create_from_image(img);
+            rect->set_texture(tex);
+        }
+    }
+}
+
+void GodotManager::get_mouse_position(float& x, float& y) {
+    Input* input = Input::get_singleton();
+    if (input) {
+        Vector2 pos = input->get_mouse_position();
+        x = pos.x;
+        y = pos.y;
+    } else {
+        x = 0; y = 0;
+    }
+}
+
+void GodotManager::get_window_size(int& w, int& h) {
+    SceneTree* tree = SceneTree::get_singleton();
+    if (tree && tree->get_root()) {
+        Size2i size = tree->get_root()->get_size();
+        w = size.width;
+        h = size.height;
+    } else {
+        w = 1; h = 1;
+    }
+}
+
+bool GodotManager::is_mouse_button_pressed(int button) {
+    Input* input = Input::get_singleton();
+    if (input) {
+        return input->is_mouse_button_pressed((MouseButton)button);
+    }
+    return false;
 }
 
 float GodotManager::get_input_axis(const std::string& neg_action, const std::string& pos_action) {
